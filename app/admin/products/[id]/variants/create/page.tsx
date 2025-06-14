@@ -42,7 +42,7 @@ import {
   adminVariantsApi,
   CreateVariantData,
 } from "@/lib/api/admin";
-import { adminAttributesApi } from "@/lib/api/admin";
+import { adminApi } from "@/lib/api/admin";
 
 const createVariantSchema = z.object({
   sku: z.string().min(1, "Mã SKU là bắt buộc"),
@@ -89,13 +89,13 @@ export default function CreateVariantPage() {
       setIsLoading(true);
       const [productRes, colorsRes, sizesRes] = await Promise.all([
         adminProductsApi.getProduct(productId),
-        adminAttributesApi.getColors(),
-        adminAttributesApi.getSizes(),
+        adminApi.attributes.getColors(),
+        adminApi.attributes.getSizes(),
       ]);
 
       setProduct(productRes);
-      setColors(colorsRes.data || []);
-      setSizes(sizesRes.data || []);
+      setColors(colorsRes || []);
+      setSizes(sizesRes || []);
 
       // Generate SKU suggestion
       if (productRes.baseSku) {

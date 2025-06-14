@@ -44,7 +44,7 @@ import {
   adminProductsApi,
   adminCategoriesApi,
   adminCollectionsApi,
-  adminAttributesApi,
+  adminApi,
   UpdateProductData,
 } from "@/lib/api/admin";
 
@@ -117,9 +117,9 @@ export default function EditProductPage() {
         adminProductsApi.getProduct(productId),
         adminCategoriesApi.getCategories(),
         adminCollectionsApi.getCollections(),
-        adminAttributesApi.getMaterials(),
-        adminAttributesApi.getStyles(),
-        adminAttributesApi.getTags(),
+        adminApi.attributes.getMaterials(),
+        adminApi.attributes.getStyles(),
+        adminApi.attributes.getTags(),
       ]);
 
       const productData = productRes;

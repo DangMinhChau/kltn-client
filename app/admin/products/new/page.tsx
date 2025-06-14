@@ -44,7 +44,7 @@ import {
   adminProductsApi,
   adminCategoriesApi,
   adminCollectionsApi,
-  adminAttributesApi,
+  adminApi,
   CreateProductData,
 } from "@/lib/api/admin";
 
@@ -109,9 +109,9 @@ export default function NewProductPage() {
       ] = await Promise.all([
         adminCategoriesApi.getCategories(),
         adminCollectionsApi.getCollections(),
-        adminAttributesApi.getMaterials(),
-        adminAttributesApi.getStyles(),
-        adminAttributesApi.getTags(),
+        adminApi.attributes.getMaterials(),
+        adminApi.attributes.getStyles(),
+        adminApi.attributes.getTags(),
       ]);
 
       setCategories(categoriesData);
@@ -144,7 +144,8 @@ export default function NewProductPage() {
 
   const onSubmit = async (data: ProductFormData) => {
     try {
-      setLoading(true);      if (!imageFile) {
+      setLoading(true);
+      if (!imageFile) {
         toast.error("Vui lòng chọn hình ảnh sản phẩm");
         return;
       }
@@ -154,11 +155,13 @@ export default function NewProductPage() {
         image: imageFile,
       };
 
-      const product = await adminProductsApi.createProduct(productData);      toast.success("Đã tạo sản phẩm thành công");
+      const product = await adminProductsApi.createProduct(productData);
+      toast.success("Đã tạo sản phẩm thành công");
 
       router.push(`/admin/products/${product.id}/edit`);
     } catch (error) {
-      console.error("Error creating product:", error);      toast.error("Không thể tạo sản phẩm");
+      console.error("Error creating product:", error);
+      toast.error("Không thể tạo sản phẩm");
     } finally {
       setLoading(false);
     }

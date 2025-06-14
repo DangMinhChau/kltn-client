@@ -40,7 +40,7 @@ import {
   adminVariantsApi,
   UpdateVariantData,
 } from "@/lib/api/admin";
-import { adminAttributesApi } from "@/lib/api/admin";
+import { adminApi } from "@/lib/api/admin";
 import { MultipleImageUpload } from "@/components/admin/image-upload";
 
 const updateVariantSchema = z.object({
@@ -91,8 +91,8 @@ export default function EditVariantPage() {
       const [variantRes, productRes, colorsRes, sizesRes] = await Promise.all([
         adminVariantsApi.getVariant(variantId),
         adminProductsApi.getProduct(productId),
-        adminAttributesApi.getColors(),
-        adminAttributesApi.getSizes(),
+        adminApi.attributes.getColors(),
+        adminApi.attributes.getSizes(),
       ]);
 
       const variantData = variantRes;

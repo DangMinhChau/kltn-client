@@ -53,7 +53,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ProductVariant, Product, Color, Size } from "@/types";
 import { adminProductsApi, adminVariantsApi } from "@/lib/api/admin";
-import { adminAttributesApi } from "@/lib/api/admin";
+import { adminApi } from "@/lib/api/admin";
 import { formatCurrency, debounce } from "@/lib/utils";
 
 interface PaginationParams {
