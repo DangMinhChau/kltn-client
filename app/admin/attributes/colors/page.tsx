@@ -78,7 +78,7 @@ export default function ColorsPage() {
     try {
       const newColor = await adminApi.colors.create({
         name: formData.name,
-        code: formData.name.toLowerCase().replace(/\s+/g, '-'),
+        code: formData.name.toLowerCase().replace(/\s+/g, "-"),
         hexCode: formData.hexCode,
       });
       setColors([...colors, newColor]);
@@ -94,13 +94,10 @@ export default function ColorsPage() {
     if (!selectedColor) return;
 
     try {
-      const updatedColor = await adminApi.colors.update(
-        selectedColor.id,
-        {
-          name: formData.name,
-          hexCode: formData.hexCode,
-        }
-      );
+      const updatedColor = await adminApi.colors.update(selectedColor.id, {
+        name: formData.name,
+        hexCode: formData.hexCode,
+      });
       setColors(
         colors.map((color) =>
           color.id === selectedColor.id ? updatedColor : color
@@ -209,10 +206,9 @@ export default function ColorsPage() {
                     <TableCell className="font-medium">{color.name}</TableCell>
                     <TableCell className="font-mono text-sm">
                       {color.hexCode}
-                    </TableCell>                    <TableCell>
-                      <Badge variant="secondary">
-                        0
-                      </Badge>
+                    </TableCell>{" "}
+                    <TableCell>
+                      <Badge variant="secondary">0</Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant={color.isActive ? "default" : "secondary"}>

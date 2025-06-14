@@ -40,7 +40,13 @@ import { ArrowLeft, Upload, X, Save, Loader2, Eye } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { Product, Category, Collection, Material, Style, Tag } from "@/types";
-import { adminProductsApi, adminCategoriesApi, adminCollectionsApi, adminAttributesApi, UpdateProductData } from "@/lib/api/admin";
+import {
+  adminProductsApi,
+  adminCategoriesApi,
+  adminCollectionsApi,
+  adminAttributesApi,
+  UpdateProductData,
+} from "@/lib/api/admin";
 
 const updateProductSchema = z.object({
   name: z.string().min(1, "Tên sản phẩm là bắt buộc"),

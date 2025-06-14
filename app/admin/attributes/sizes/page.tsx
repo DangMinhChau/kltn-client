@@ -106,10 +106,14 @@ export default function SizesPage() {
   };
 
   const handleUpdate = async () => {
-    if (!selectedSize) return;    try {
-      const updatedSize = await adminApi.attributes.updateSize(selectedSize.id, {
-        name: formData.name,
-      });
+    if (!selectedSize) return;
+    try {
+      const updatedSize = await adminApi.attributes.updateSize(
+        selectedSize.id,
+        {
+          name: formData.name,
+        }
+      );
       setSizes(
         sizes.map((size) => (size.id === selectedSize.id ? updatedSize : size))
       );
@@ -124,7 +128,8 @@ export default function SizesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this size?")) return;    try {
+    if (!confirm("Are you sure you want to delete this size?")) return;
+    try {
       await adminApi.attributes.deleteSize(id);
       setSizes(sizes.filter((size) => size.id !== id));
       toast.success("Size deleted successfully");
@@ -226,16 +231,15 @@ export default function SizesPage() {
                         <Ruler className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">{size.name}</span>
                       </div>
-                    </TableCell>                    <TableCell className="max-w-[200px] truncate">
+                    </TableCell>{" "}
+                    <TableCell className="max-w-[200px] truncate">
                       {size.description || "-"}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{size.type || "General"}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        0
-                      </Badge>
+                      <Badge variant="secondary">0</Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant={size.isActive ? "default" : "secondary"}>

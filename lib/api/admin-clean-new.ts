@@ -43,11 +43,13 @@ export interface CreateProductData {
   styleIds?: string[];
   tagIds?: string[];
   collectionIds?: string[];
+  image?: File;
 }
 
 export interface UpdateProductData extends Partial<CreateProductData> {}
 
 export interface BackendResponse<T> {
+  statusCode?: number;
   message: string;
   data: T;
   meta: {
@@ -81,10 +83,12 @@ export const adminProductsApi = {
 
     return {
       data: response.data.data || [],
-      total: response.data.meta.total || 0,
-      page: response.data.meta.page || 1,
-      limit: response.data.meta.limit || 10,
-      totalPages: response.data.meta.totalPages || 1,
+      meta: {
+        total: response.data.meta.total || 0,
+        page: response.data.meta.page || 1,
+        limit: response.data.meta.limit || 10,
+        totalPages: response.data.meta.totalPages || 1,
+      },
     };
   },
 
@@ -97,17 +101,16 @@ export const adminProductsApi = {
   },
 
   // Create new product
-  createProduct: async (
-    data: CreateProductData,
-    image?: File
-  ): Promise<Product> => {
+  createProduct: async (data: CreateProductData): Promise<Product> => {
     const formData = new FormData();
 
-    // Add product data
+    // Add basic fields
     Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
+      if (value !== undefined && value !== null && key !== "image") {
         if (Array.isArray(value)) {
-          value.forEach((item) => formData.append(`${key}[]`, item));
+          value.forEach((item, index) => {
+            formData.append(`${key}[${index}]`, item.toString());
+          });
         } else {
           formData.append(key, value.toString());
         }
@@ -115,8 +118,8 @@ export const adminProductsApi = {
     });
 
     // Add image if provided
-    if (image) {
-      formData.append("image", image);
+    if (data.image) {
+      formData.append("image", data.image);
     }
 
     const response = await api.post<BackendResponse<Product>>(
@@ -134,23 +137,26 @@ export const adminProductsApi = {
   // Update product
   updateProduct: async (
     id: string,
-    data: UpdateProductData,
-    image?: File
+    data: UpdateProductData
   ): Promise<Product> => {
     const formData = new FormData();
 
+    // Add basic fields
     Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
+      if (value !== undefined && value !== null && key !== "image") {
         if (Array.isArray(value)) {
-          value.forEach((item) => formData.append(`${key}[]`, item));
+          value.forEach((item, index) => {
+            formData.append(`${key}[${index}]`, item.toString());
+          });
         } else {
           formData.append(key, value.toString());
         }
       }
     });
 
-    if (image) {
-      formData.append("image", image);
+    // Add image if provided
+    if (data.image) {
+      formData.append("image", data.image);
     }
 
     const response = await api.patch<BackendResponse<Product>>(
@@ -186,6 +192,13 @@ export const adminProductsApi = {
     );
     return response.data.data;
   },
+
+  // Bulk delete products
+  bulkDeleteProducts: async (productIds: string[]): Promise<void> => {
+    await Promise.all(
+      productIds.map((id) => api.delete(`/admin/products/${id}`))
+    );
+  },
 };
 
 // ================================
@@ -193,11 +206,32 @@ export const adminProductsApi = {
 // ================================
 
 export const adminCategoriesApi = {
-  getCategories: async (): Promise<Category[]> => {
+  getCategories: async (
+    filters: {
+      page?: number;
+      limit?: number;
+      search?: string;
+    } = {}
+  ): Promise<PaginationResult<Category>> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
     const response = await api.get<BackendResponse<Category[]>>(
-      "/admin/categories"
+      `/admin/categories?${params.toString()}`
     );
-    return response.data.data || [];
+    return {
+      data: response.data.data || [],
+      meta: {
+        total: response.data.meta.total || 0,
+        page: response.data.meta.page || 1,
+        limit: response.data.meta.limit || 10,
+        totalPages: response.data.meta.totalPages || 1,
+      },
+    };
   },
 
   createCategory: async (data: {
@@ -237,11 +271,32 @@ export const adminCategoriesApi = {
 // ================================
 
 export const adminCollectionsApi = {
-  getCollections: async (): Promise<Collection[]> => {
+  getCollections: async (
+    filters: {
+      page?: number;
+      limit?: number;
+      search?: string;
+    } = {}
+  ): Promise<PaginationResult<Collection>> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
     const response = await api.get<BackendResponse<Collection[]>>(
-      "/admin/collections"
+      `/admin/collections?${params.toString()}`
     );
-    return response.data.data || [];
+    return {
+      data: response.data.data || [],
+      meta: {
+        total: response.data.meta.total || 0,
+        page: response.data.meta.page || 1,
+        limit: response.data.meta.limit || 10,
+        totalPages: response.data.meta.totalPages || 1,
+      },
+    };
   },
 
   createCollection: async (data: {
@@ -282,13 +337,38 @@ export const adminCollectionsApi = {
 
 export const adminAttributesApi = {
   // Colors
-  getColors: async (): Promise<Color[]> => {
-    const response = await api.get<BackendResponse<Color[]>>("/admin/colors");
-    return response.data.data || [];
+  getColors: async (
+    filters: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      isActive?: boolean;
+    } = {}
+  ): Promise<PaginationResult<Color>> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get<BackendResponse<Color[]>>(
+      `/admin/colors?${params.toString()}`
+    );
+    return {
+      data: response.data.data || [],
+      meta: {
+        total: response.data.meta.total || 0,
+        page: response.data.meta.page || 1,
+        limit: response.data.meta.limit || 10,
+        totalPages: response.data.meta.totalPages || 1,
+      },
+    };
   },
 
   createColor: async (data: {
     name: string;
+    code: string;
     hexCode: string;
   }): Promise<Color> => {
     const response = await api.post<BackendResponse<Color>>(
@@ -300,7 +380,7 @@ export const adminAttributesApi = {
 
   updateColor: async (
     id: string,
-    data: { name?: string; hexCode?: string }
+    data: { name?: string; code?: string; hexCode?: string }
   ): Promise<Color> => {
     const response = await api.put<BackendResponse<Color>>(
       `/admin/colors/${id}`,
@@ -313,44 +393,34 @@ export const adminAttributesApi = {
     await api.delete(`/admin/colors/${id}`);
   },
 
-  // Sizes
-  getSizes: async (): Promise<Size[]> => {
-    const response = await api.get<BackendResponse<Size[]>>("/admin/sizes");
-    return response.data.data || [];
-  },
-
-  createSize: async (data: {
-    name: string;
-    sortOrder?: number;
-  }): Promise<Size> => {
-    const response = await api.post<BackendResponse<Size>>(
-      "/admin/sizes",
-      data
-    );
-    return response.data.data;
-  },
-
-  updateSize: async (
-    id: string,
-    data: { name?: string; sortOrder?: number }
-  ): Promise<Size> => {
-    const response = await api.put<BackendResponse<Size>>(
-      `/admin/sizes/${id}`,
-      data
-    );
-    return response.data.data;
-  },
-
-  deleteSize: async (id: string): Promise<void> => {
-    await api.delete(`/admin/sizes/${id}`);
-  },
-
   // Materials
-  getMaterials: async (): Promise<Material[]> => {
+  getMaterials: async (
+    filters: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      isActive?: boolean;
+    } = {}
+  ): Promise<PaginationResult<Material>> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
     const response = await api.get<BackendResponse<Material[]>>(
-      "/admin/materials"
+      `/admin/materials?${params.toString()}`
     );
-    return response.data.data || [];
+    return {
+      data: response.data.data || [],
+      meta: {
+        total: response.data.meta.total || 0,
+        page: response.data.meta.page || 1,
+        limit: response.data.meta.limit || 10,
+        totalPages: response.data.meta.totalPages || 1,
+      },
+    };
   },
 
   createMaterial: async (data: {
@@ -380,9 +450,33 @@ export const adminAttributesApi = {
   },
 
   // Styles
-  getStyles: async (): Promise<Style[]> => {
-    const response = await api.get<BackendResponse<Style[]>>("/admin/styles");
-    return response.data.data || [];
+  getStyles: async (
+    filters: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      isActive?: boolean;
+    } = {}
+  ): Promise<PaginationResult<Style>> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get<BackendResponse<Style[]>>(
+      `/admin/styles?${params.toString()}`
+    );
+    return {
+      data: response.data.data || [],
+      meta: {
+        total: response.data.meta.total || 0,
+        page: response.data.meta.page || 1,
+        limit: response.data.meta.limit || 10,
+        totalPages: response.data.meta.totalPages || 1,
+      },
+    };
   },
 
   createStyle: async (data: {
@@ -412,9 +506,33 @@ export const adminAttributesApi = {
   },
 
   // Tags
-  getTags: async (): Promise<Tag[]> => {
-    const response = await api.get<BackendResponse<Tag[]>>("/admin/tags");
-    return response.data.data || [];
+  getTags: async (
+    filters: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      isActive?: boolean;
+    } = {}
+  ): Promise<PaginationResult<Tag>> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get<BackendResponse<Tag[]>>(
+      `/admin/tags?${params.toString()}`
+    );
+    return {
+      data: response.data.data || [],
+      meta: {
+        total: response.data.meta.total || 0,
+        page: response.data.meta.page || 1,
+        limit: response.data.meta.limit || 10,
+        totalPages: response.data.meta.totalPages || 1,
+      },
+    };
   },
 
   createTag: async (data: {
@@ -438,6 +556,63 @@ export const adminAttributesApi = {
 
   deleteTag: async (id: string): Promise<void> => {
     await api.delete(`/admin/tags/${id}`);
+  },
+
+  // Sizes
+  getSizes: async (
+    filters: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      categoryId?: string;
+    } = {}
+  ): Promise<PaginationResult<Size>> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get<BackendResponse<Size[]>>(
+      `/admin/sizes?${params.toString()}`
+    );
+    return {
+      data: response.data.data || [],
+      meta: {
+        total: response.data.meta.total || 0,
+        page: response.data.meta.page || 1,
+        limit: response.data.meta.limit || 10,
+        totalPages: response.data.meta.totalPages || 1,
+      },
+    };
+  },
+
+  createSize: async (data: {
+    name: string;
+    categoryId: string;
+    sortOrder?: number;
+  }): Promise<Size> => {
+    const response = await api.post<BackendResponse<Size>>(
+      "/admin/sizes",
+      data
+    );
+    return response.data.data;
+  },
+
+  updateSize: async (
+    id: string,
+    data: { name?: string; sortOrder?: number }
+  ): Promise<Size> => {
+    const response = await api.put<BackendResponse<Size>>(
+      `/admin/sizes/${id}`,
+      data
+    );
+    return response.data.data;
+  },
+
+  deleteSize: async (id: string): Promise<void> => {
+    await api.delete(`/admin/sizes/${id}`);
   },
 };
 
@@ -517,10 +692,12 @@ export const adminUsersApi = {
 
     return {
       data: response.data.data || [],
-      total: response.data.meta.total || 0,
-      page: response.data.meta.page || 1,
-      limit: response.data.meta.limit || 10,
-      totalPages: response.data.meta.totalPages || 1,
+      meta: {
+        total: response.data.meta.total || 0,
+        page: response.data.meta.page || 1,
+        limit: response.data.meta.limit || 10,
+        totalPages: response.data.meta.totalPages || 1,
+      },
     };
   },
 
@@ -562,17 +739,8 @@ export const adminUsersApi = {
   },
 };
 
-// Add bulk delete function
-(adminProductsApi as any).bulkDeleteProducts = async (
-  productIds: string[]
-): Promise<void> => {
-  await Promise.all(
-    productIds.map((id) => api.delete(`/admin/products/${id}`))
-  );
-};
-
 // ================================
-// UNIFIED ADMIN API
+// UNIFIED ADMIN API FOR CONVENIENCE
 // ================================
 
 export const adminApi = {
@@ -590,69 +758,16 @@ export const adminApi = {
 
   // Colors
   colors: {
-    getAll: async (
-      filters: {
-        page?: number;
-        limit?: number;
-        search?: string;
-        isActive?: boolean;
-      } = {}
-    ): Promise<PaginationResult<Color>> => {
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== "") {
-          params.append(key, value.toString());
-        }
-      });
-
-      const response = await api.get<BackendResponse<Color[]>>(
-        `/admin/colors?${params.toString()}`
-      );
-      return {
-        data: response.data.data || [],
-        meta: response.data.meta,
-      };
-    },
-
+    getAll: adminAttributesApi.getColors,
     getById: async (id: string): Promise<Color> => {
       const response = await api.get<BackendResponse<Color>>(
         `/admin/colors/${id}`
       );
       return response.data.data;
     },
-
-    create: async (data: {
-      name: string;
-      code: string;
-      hexCode: string;
-    }): Promise<Color> => {
-      const response = await api.post<BackendResponse<Color>>(
-        "/admin/colors",
-        data
-      );
-      return response.data.data;
-    },
-
-    update: async (
-      id: string,
-      data: {
-        name?: string;
-        code?: string;
-        hexCode?: string;
-        isActive?: boolean;
-      }
-    ): Promise<Color> => {
-      const response = await api.put<BackendResponse<Color>>(
-        `/admin/colors/${id}`,
-        data
-      );
-      return response.data.data;
-    },
-
-    delete: async (id: string): Promise<void> => {
-      await api.delete(`/admin/colors/${id}`);
-    },
-
+    create: adminAttributesApi.createColor,
+    update: adminAttributesApi.updateColor,
+    delete: adminAttributesApi.deleteColor,
     toggleActive: async (id: string): Promise<Color> => {
       const response = await api.patch<BackendResponse<Color>>(
         `/admin/colors/${id}/toggle`
@@ -663,67 +778,16 @@ export const adminApi = {
 
   // Materials
   materials: {
-    getAll: async (
-      filters: {
-        page?: number;
-        limit?: number;
-        search?: string;
-        isActive?: boolean;
-      } = {}
-    ): Promise<PaginationResult<Material>> => {
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== "") {
-          params.append(key, value.toString());
-        }
-      });
-
-      const response = await api.get<BackendResponse<Material[]>>(
-        `/admin/materials?${params.toString()}`
-      );
-      return {
-        data: response.data.data || [],
-        meta: response.data.meta,
-      };
-    },
-
+    getAll: adminAttributesApi.getMaterials,
     getById: async (id: string): Promise<Material> => {
       const response = await api.get<BackendResponse<Material>>(
         `/admin/materials/${id}`
       );
       return response.data.data;
     },
-
-    create: async (data: {
-      name: string;
-      description?: string;
-    }): Promise<Material> => {
-      const response = await api.post<BackendResponse<Material>>(
-        "/admin/materials",
-        data
-      );
-      return response.data.data;
-    },
-
-    update: async (
-      id: string,
-      data: {
-        name?: string;
-        description?: string;
-        isActive?: boolean;
-      }
-    ): Promise<Material> => {
-      const response = await api.put<BackendResponse<Material>>(
-        `/admin/materials/${id}`,
-        data
-      );
-      return response.data.data;
-    },
-
-    delete: async (id: string): Promise<void> => {
-      await api.delete(`/admin/materials/${id}`);
-    },
-
+    create: adminAttributesApi.createMaterial,
+    update: adminAttributesApi.updateMaterial,
+    delete: adminAttributesApi.deleteMaterial,
     toggleActive: async (id: string): Promise<Material> => {
       const response = await api.patch<BackendResponse<Material>>(
         `/admin/materials/${id}/toggle`
@@ -734,67 +798,16 @@ export const adminApi = {
 
   // Styles
   styles: {
-    getAll: async (
-      filters: {
-        page?: number;
-        limit?: number;
-        search?: string;
-        isActive?: boolean;
-      } = {}
-    ): Promise<PaginationResult<Style>> => {
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== "") {
-          params.append(key, value.toString());
-        }
-      });
-
-      const response = await api.get<BackendResponse<Style[]>>(
-        `/admin/styles?${params.toString()}`
-      );
-      return {
-        data: response.data.data || [],
-        meta: response.data.meta,
-      };
-    },
-
+    getAll: adminAttributesApi.getStyles,
     getById: async (id: string): Promise<Style> => {
       const response = await api.get<BackendResponse<Style>>(
         `/admin/styles/${id}`
       );
       return response.data.data;
     },
-
-    create: async (data: {
-      name: string;
-      description?: string;
-    }): Promise<Style> => {
-      const response = await api.post<BackendResponse<Style>>(
-        "/admin/styles",
-        data
-      );
-      return response.data.data;
-    },
-
-    update: async (
-      id: string,
-      data: {
-        name?: string;
-        description?: string;
-        isActive?: boolean;
-      }
-    ): Promise<Style> => {
-      const response = await api.put<BackendResponse<Style>>(
-        `/admin/styles/${id}`,
-        data
-      );
-      return response.data.data;
-    },
-
-    delete: async (id: string): Promise<void> => {
-      await api.delete(`/admin/styles/${id}`);
-    },
-
+    create: adminAttributesApi.createStyle,
+    update: adminAttributesApi.updateStyle,
+    delete: adminAttributesApi.deleteStyle,
     toggleActive: async (id: string): Promise<Style> => {
       const response = await api.patch<BackendResponse<Style>>(
         `/admin/styles/${id}/toggle`
@@ -805,65 +818,14 @@ export const adminApi = {
 
   // Tags
   tags: {
-    getAll: async (
-      filters: {
-        page?: number;
-        limit?: number;
-        search?: string;
-        isActive?: boolean;
-      } = {}
-    ): Promise<PaginationResult<Tag>> => {
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== "") {
-          params.append(key, value.toString());
-        }
-      });
-
-      const response = await api.get<BackendResponse<Tag[]>>(
-        `/admin/tags?${params.toString()}`
-      );
-      return {
-        data: response.data.data || [],
-        meta: response.data.meta,
-      };
-    },
-
+    getAll: adminAttributesApi.getTags,
     getById: async (id: string): Promise<Tag> => {
       const response = await api.get<BackendResponse<Tag>>(`/admin/tags/${id}`);
       return response.data.data;
     },
-
-    create: async (data: {
-      name: string;
-      description?: string;
-    }): Promise<Tag> => {
-      const response = await api.post<BackendResponse<Tag>>(
-        "/admin/tags",
-        data
-      );
-      return response.data.data;
-    },
-
-    update: async (
-      id: string,
-      data: {
-        name?: string;
-        description?: string;
-        isActive?: boolean;
-      }
-    ): Promise<Tag> => {
-      const response = await api.put<BackendResponse<Tag>>(
-        `/admin/tags/${id}`,
-        data
-      );
-      return response.data.data;
-    },
-
-    delete: async (id: string): Promise<void> => {
-      await api.delete(`/admin/tags/${id}`);
-    },
-
+    create: adminAttributesApi.createTag,
+    update: adminAttributesApi.updateTag,
+    delete: adminAttributesApi.deleteTag,
     toggleActive: async (id: string): Promise<Tag> => {
       const response = await api.patch<BackendResponse<Tag>>(
         `/admin/tags/${id}/toggle`
@@ -877,134 +839,4 @@ export const adminApi = {
 
   // Variants
   variants: adminVariantsApi,
-};
-
-// Add missing API functions for backward compatibility
-adminAttributesApi.updateColor = async (
-  id: string,
-  data: { name?: string; hexCode?: string }
-): Promise<Color> => {
-  const response = await api.put<BackendResponse<Color>>(
-    `/admin/colors/${id}`,
-    data
-  );
-  return response.data.data;
-};
-
-adminAttributesApi.deleteColor = async (id: string): Promise<void> => {
-  await api.delete(`/admin/colors/${id}`);
-};
-
-adminAttributesApi.updateSize = async (
-  id: string,
-  data: { name?: string; sortOrder?: number }
-): Promise<Size> => {
-  const response = await api.put<BackendResponse<Size>>(
-    `/admin/sizes/${id}`,
-    data
-  );
-  return response.data.data;
-};
-
-adminAttributesApi.deleteSize = async (id: string): Promise<void> => {
-  await api.delete(`/admin/sizes/${id}`);
-};
-
-adminAttributesApi.updateMaterial = async (
-  id: string,
-  data: { name?: string; description?: string }
-): Promise<Material> => {
-  const response = await api.put<BackendResponse<Material>>(
-    `/admin/materials/${id}`,
-    data
-  );
-  return response.data.data;
-};
-
-adminAttributesApi.deleteMaterial = async (id: string): Promise<void> => {
-  await api.delete(`/admin/materials/${id}`);
-};
-
-adminAttributesApi.updateStyle = async (
-  id: string,
-  data: { name?: string; description?: string }
-): Promise<Style> => {
-  const response = await api.put<BackendResponse<Style>>(
-    `/admin/styles/${id}`,
-    data
-  );
-  return response.data.data;
-};
-
-adminAttributesApi.deleteStyle = async (id: string): Promise<void> => {
-  await api.delete(`/admin/styles/${id}`);
-};
-
-adminAttributesApi.updateTag = async (
-  id: string,
-  data: { name?: string; description?: string }
-): Promise<Tag> => {
-  const response = await api.put<BackendResponse<Tag>>(
-    `/admin/tags/${id}`,
-    data
-  );
-  return response.data.data;
-};
-
-adminAttributesApi.deleteTag = async (id: string): Promise<void> => {
-  await api.delete(`/admin/tags/${id}`);
-};
-
-// Add missing bulk operations for products
-adminProductsApi.bulkDeleteProducts = async (
-  productIds: string[]
-): Promise<void> => {
-  await Promise.all(productIds.map((id) => adminProductsApi.deleteProduct(id)));
-};
-
-// Fix collections API to match backend structure
-adminCategoriesApi.getCategories = async (
-  filters: {
-    page?: number;
-    limit?: number;
-    search?: string;
-  } = {}
-): Promise<{ data: Category[]; meta: any }> => {
-  const params = new URLSearchParams();
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      params.append(key, value.toString());
-    }
-  });
-
-  const response = await api.get<BackendResponse<Category[]>>(
-    `/admin/categories?${params.toString()}`
-  );
-  return {
-    data: response.data.data || [],
-    meta: response.data.meta,
-  };
-};
-
-adminCollectionsApi.getCollections = async (
-  filters: {
-    page?: number;
-    limit?: number;
-    search?: string;
-  } = {}
-): Promise<{ data: Collection[]; meta: any }> => {
-  const params = new URLSearchParams();
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      params.append(key, value.toString());
-    }
-  });
-
-  const response = await api.get<BackendResponse<Collection[]>>(
-    `/admin/collections?${params.toString()}`
-  );
-  return {
-    data: response.data.data || [],
-    meta: response.data.meta,
-  };
 };

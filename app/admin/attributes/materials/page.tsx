@@ -56,7 +56,8 @@ export default function MaterialsPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(
     null
-  );  const [formData, setFormData] = useState({
+  );
+  const [formData, setFormData] = useState({
     name: "",
     description: "",
     careInstructions: "",
@@ -82,7 +83,8 @@ export default function MaterialsPage() {
       const newMaterial = await adminApi.materials.create({
         name: formData.name,
         description: formData.description,
-      });      setMaterials([...materials, newMaterial]);
+      });
+      setMaterials([...materials, newMaterial]);
       setShowCreateDialog(false);
       setFormData({ name: "", description: "", careInstructions: "" });
       toast.success("Material created successfully");
@@ -106,7 +108,8 @@ export default function MaterialsPage() {
         materials.map((material) =>
           material.id === selectedMaterial.id ? updatedMaterial : material
         )
-      );      setShowEditDialog(false);
+      );
+      setShowEditDialog(false);
       setSelectedMaterial(null);
       setFormData({ name: "", description: "", careInstructions: "" });
       toast.success("Material updated successfully");
@@ -207,13 +210,12 @@ export default function MaterialsPage() {
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {material.description || "-"}
-                    </TableCell>                    <TableCell className="max-w-[200px] truncate">
+                    </TableCell>{" "}
+                    <TableCell className="max-w-[200px] truncate">
                       {material.careInstructions || "-"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        0
-                      </Badge>
+                      <Badge variant="secondary">0</Badge>
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -286,7 +288,9 @@ export default function MaterialsPage() {
                 placeholder="Material description"
               />
             </div>
-            <div className="grid gap-2">              <Label htmlFor="careInstructions">Care Instructions</Label>
+            <div className="grid gap-2">
+              {" "}
+              <Label htmlFor="careInstructions">Care Instructions</Label>
               <Textarea
                 id="careInstructions"
                 value={formData.careInstructions}
@@ -343,7 +347,9 @@ export default function MaterialsPage() {
                 placeholder="Material description"
               />
             </div>
-            <div className="grid gap-2">              <Label htmlFor="edit-careInstructions">Care Instructions</Label>
+            <div className="grid gap-2">
+              {" "}
+              <Label htmlFor="edit-careInstructions">Care Instructions</Label>
               <Textarea
                 id="edit-careInstructions"
                 value={formData.careInstructions}
