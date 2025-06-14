@@ -31,16 +31,15 @@ export function CartItem({
   if (compact) {
     return (
       <div className="flex gap-3 rounded-lg border p-3">
-        {/* Product Image */}
+        {/* Product Image */}{" "}
         <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
           <Image
-            src={item.image}
+            src={item.image || item.imageUrl}
             alt={item.name}
             fill
             className="object-cover"
           />
         </div>
-
         {/* Product Details */}
         <div className="flex flex-1 flex-col gap-2">
           <div className="flex justify-between">
@@ -59,8 +58,10 @@ export function CartItem({
 
           <div className="flex items-center justify-between">
             <div className="text-xs text-muted-foreground">
+              {" "}
               <span>
-                {item.color} • {item.size}
+                {item.color || item.variant?.color?.name || ""} •{" "}
+                {item.size || item.variant?.size?.name || ""}
               </span>
             </div>
 
@@ -113,16 +114,15 @@ export function CartItem({
 
   return (
     <div className="flex items-start space-x-4 py-6">
-      {/* Product Image */}
+      {/* Product Image */}{" "}
       <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg border sm:h-32 sm:w-32">
         <Image
-          src={item.image}
+          src={item.image || item.imageUrl}
           alt={item.name}
           fill
           className="object-cover object-center"
         />
       </div>
-
       {/* Product Details */}
       <div className="flex flex-1 flex-col justify-between">
         <div className="pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
@@ -131,10 +131,16 @@ export function CartItem({
               <h3 className="text-sm font-medium text-gray-900 sm:text-base">
                 {item.name}
               </h3>
-            </div>
-            <p className="mt-1 text-sm text-gray-500">Màu: {item.color}</p>
-            <p className="mt-1 text-sm text-gray-500">Size: {item.size}</p>
-            <p className="mt-1 text-sm text-gray-500">SKU: {item.sku}</p>
+            </div>{" "}
+            <p className="mt-1 text-sm text-gray-500">
+              Màu: {item.color || item.variant?.color?.name || ""}
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              Size: {item.size || item.variant?.size?.name || ""}
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              SKU: {item.sku || item.variant?.sku || ""}
+            </p>
           </div>
 
           <div className="mt-4 sm:mt-0 sm:pr-9">

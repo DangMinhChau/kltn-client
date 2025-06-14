@@ -1,35 +1,36 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
 import {
-  Eye,
-  Download,
+  Search,
   Filter,
+  Eye,
   Package,
   Clock,
   CheckCircle,
   XCircle,
-  Truck,
   MoreHorizontal,
+  ShoppingCart,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -37,280 +38,312 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useOrders } from "@/lib/hooks/useAdminData";
-import {
-  useUpdateOrderStatus,
-  useBulkOrderStatusUpdate,
-  useExportOrders,
-} from "@/lib/hooks/useAdminMutations";
-import {
-  DataTable,
-  Column,
-  ActionItem,
-  BulkAction,
-} from "@/components/admin/DataTable";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
+import Link from "next/link";
 
-interface Order {
-  id: string;
-  orderNumber: string;
-  customer: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  status:
-    | "pending"
-    | "confirmed"
-    | "processing"
-    | "shipped"
-    | "delivered"
-    | "cancelled";
+// Import enhanced types
+import { Order, OrderStatus, PaymentStatus, OrderListItem } from "@/types";
+import {
+  OrderQueryDto,
+  OrderListApiResponse,
+  UpdateOrderStatusDto,
+} from "@/types/api-order";
+import { useOrders, useUpdateOrderStatus } from "@/hooks/useEnhancedOrder";
+import OrderErrorBoundary, {
+  withOrderErrorBoundary,
+} from "@/components/common/OrderErrorBoundary";
+
+interface PaginationMeta {
   total: number;
-  itemCount: number;
-  shippingAddress: {
-    city: string;
-    district: string;
-  };
-  createdAt: string;
-  updatedAt: string;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
-const orderStatusConfig = {
-  pending: { label: "Pending", variant: "secondary" as const, icon: Clock },
-  confirmed: {
-    label: "Confirmed",
-    variant: "default" as const,
-    icon: CheckCircle,
-  },
-  processing: {
-    label: "Processing",
-    variant: "default" as const,
-    icon: Package,
-  },
-  shipped: { label: "Shipped", variant: "default" as const, icon: Truck },
-  delivered: {
-    label: "Delivered",
-    variant: "default" as const,
-    icon: CheckCircle,
-  },
-  cancelled: {
-    label: "Cancelled",
-    variant: "destructive" as const,
-    icon: XCircle,
-  },
-};
+function AdminOrdersContent() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({
+    search: "",
+    status: "",
+    paymentStatus: "",
+    sortBy: "createdAt",
+    sortOrder: "DESC" as "ASC" | "DESC",
+    page: 1,
+    limit: 20,
+  });
 
-export default function OrdersPage() {
-  const router = useRouter();
-  const [statusUpdateOrderId, setStatusUpdateOrderId] = useState<string | null>(
-    null
-  );
-  const [newStatus, setNewStatus] = useState<string>("");
-
-  // Data fetching
-  const {
-    data: orders = [],
-    total,
-    page,
-    pageSize,
-    loading,
-    search,
-    filters,
-    sortBy,
-    sortOrder,
-    setPage,
-    setPageSize,
-    setSearch,
-    setFilters,
-    setSorting,
-    refresh,
-  } = useOrders();
-
-  // Mutations
-  const updateOrderStatus = useUpdateOrderStatus();
-  const bulkStatusUpdate = useBulkOrderStatusUpdate();
-  const exportOrders = useExportOrders();
-
-  // Table columns configuration
-  const columns: Column<Order>[] = [
-    {
-      id: "orderNumber",
-      header: "Order",
-      accessorKey: "orderNumber",
-      sortable: true,
-      filterable: true,
-      cell: (order) => (
-        <div>
-          <div className="font-medium">{order.orderNumber}</div>
-          <div className="text-sm text-muted-foreground">
-            {order.itemCount} item{order.itemCount !== 1 ? "s" : ""}
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "customer",
-      header: "Customer",
-      sortable: true,
-      filterable: true,
-      cell: (order) => (
-        <div>
-          <div className="font-medium">{order.customer.name}</div>
-          <div className="text-sm text-muted-foreground">
-            {order.customer.email}
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "status",
-      header: "Status",
-      accessorKey: "status",
-      sortable: true,
-      filterable: true,
-      filterType: "select",
-      filterOptions: Object.entries(orderStatusConfig).map(
-        ([value, config]) => ({
-          label: config.label,
-          value,
-        })
-      ),
-      cell: (order) => {
-        const config = orderStatusConfig[order.status];
-        const Icon = config.icon;
-        return (
-          <Badge variant={config.variant}>
-            <Icon className="h-3 w-3 mr-1" />
-            {config.label}
-          </Badge>
-        );
-      },
-    },
-    {
-      id: "total",
-      header: "Total",
-      accessorKey: "total",
-      sortable: true,
-      align: "right",
-      cell: (order) => (
-        <div className="text-right font-medium">${order.total.toFixed(2)}</div>
-      ),
-    },
-    {
-      id: "shippingAddress",
-      header: "Shipping To",
-      cell: (order) => (
-        <div className="text-sm">
-          {order.shippingAddress.district}, {order.shippingAddress.city}
-        </div>
-      ),
-    },
-    {
-      id: "createdAt",
-      header: "Order Date",
-      accessorKey: "createdAt",
-      sortable: true,
-      cell: (order) => (
-        <div className="text-sm text-muted-foreground">
-          {new Date(order.createdAt).toLocaleDateString()}
-        </div>
-      ),
-    },
-  ];
-
-  // Action items for each row
-  const actions: ActionItem<Order>[] = [
-    {
-      label: "View Details",
-      onClick: (order) => router.push(`/admin/orders/${order.id}`),
-      icon: <Eye className="h-4 w-4" />,
-    },
-    {
-      label: "Update Status",
-      onClick: (order) => {
-        setStatusUpdateOrderId(order.id);
-        setNewStatus(order.status);
-      },
-      icon: <Package className="h-4 w-4" />,
-      disabled: (order) =>
-        order.status === "delivered" || order.status === "cancelled",
-    },
-  ];
-
-  // Bulk actions
-  const bulkActions: BulkAction<Order>[] = [
-    {
-      label: "Mark as Confirmed",
-      onClick: async (orders) => {
-        await bulkStatusUpdate.mutate({
-          orderIds: orders.map((o) => o.id),
-          status: "confirmed",
-        });
-        refresh();
-      },
-      icon: <CheckCircle className="h-4 w-4" />,
-      disabled: (orders) => orders.some((o) => o.status !== "pending"),
-    },
-    {
-      label: "Mark as Processing",
-      onClick: async (orders) => {
-        await bulkStatusUpdate.mutate({
-          orderIds: orders.map((o) => o.id),
-          status: "processing",
-        });
-        refresh();
-      },
-      icon: <Package className="h-4 w-4" />,
-      disabled: (orders) =>
-        orders.some((o) => !["confirmed", "pending"].includes(o.status)),
-    },
-    {
-      label: "Mark as Shipped",
-      onClick: async (orders) => {
-        await bulkStatusUpdate.mutate({
-          orderIds: orders.map((o) => o.id),
-          status: "shipped",
-        });
-        refresh();
-      },
-      icon: <Truck className="h-4 w-4" />,
-      disabled: (orders) => orders.some((o) => o.status !== "processing"),
-    },
-  ];
-
-  const handleStatusUpdate = async () => {
-    if (!statusUpdateOrderId || !newStatus) return;
-
+  // Mock data for demo - replace with actual API calls
+  useEffect(() => {
+    fetchOrders();
+  }, [filters]);
+  const fetchOrders = async () => {
     try {
-      await updateOrderStatus.mutate({
-        id: statusUpdateOrderId,
-        status: newStatus,
+      setLoading(true);
+      // Simulated API call - replace with actual admin API
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Mock data using proper Order type
+      const mockOrders: Order[] = [
+        {
+          id: "1",
+          orderNumber: "ORD-2024-001",
+          customerName: "Nguyễn Văn A",
+          customerEmail: "nguyenvana@email.com",
+          customerPhone: "0123456789",
+          shippingAddress: "123 Nguyễn Trãi, Phường 1, Quận 1, TP.HCM",
+          status: OrderStatus.PROCESSING,
+          subTotal: 1470000,
+          shippingFee: 30000,
+          discount: 0,
+          totalPrice: 1500000,
+          items: [
+            {
+              id: "item1",
+              quantity: 2,
+              unitPrice: 735000,
+              productName: "Áo Polo Nam",
+              variantSku: "POLO-L-NAVY",
+              colorName: "Xanh Navy",
+              sizeName: "L",
+              orderId: "1",
+              variantId: "var1",
+              totalPrice: 1470000,
+            },
+          ],
+          payment: {
+            id: "pay1",
+            method: "BANK_TRANSFER",
+            status: "COMPLETED",
+            amount: 1500000,
+          },
+          shipping: {
+            id: "ship1",
+            trackingNumber: "GHN123456",
+            status: "PROCESSING",
+            shippingFee: 30000,
+            expectedDeliveryDate: new Date("2024-06-18T00:00:00Z"),
+          },
+          orderedAt: new Date("2024-06-14T10:30:00Z"),
+          createdAt: new Date("2024-06-14T10:30:00Z"),
+          updatedAt: new Date("2024-06-14T11:00:00Z"),
+        },
+        {
+          id: "2",
+          orderNumber: "ORD-2024-002",
+          customerName: "Trần Thị B",
+          customerEmail: "tranthib@email.com",
+          customerPhone: "0987654321",
+          shippingAddress: "456 Lê Lợi, Phường 2, Quận 3, TP.HCM",
+          status: OrderStatus.PENDING,
+          subTotal: 800000,
+          shippingFee: 50000,
+          discount: 0,
+          totalPrice: 850000,
+          items: [
+            {
+              id: "item2",
+              quantity: 1,
+              unitPrice: 800000,
+              productName: "Quần Jean Nam",
+              variantSku: "JEAN-32-BLACK",
+              colorName: "Xanh Đen",
+              sizeName: "32",
+              orderId: "2",
+              variantId: "var2",
+              totalPrice: 800000,
+            },
+          ],
+          payment: {
+            id: "pay2",
+            method: "COD",
+            status: "PENDING",
+            amount: 850000,
+          },
+          shipping: {
+            id: "ship2",
+            trackingNumber: "",
+            status: "PENDING",
+            shippingFee: 50000,
+            expectedDeliveryDate: new Date("2024-06-16T00:00:00Z"),
+          },
+          orderedAt: new Date("2024-06-14T09:15:00Z"),
+          createdAt: new Date("2024-06-14T09:15:00Z"),
+          updatedAt: new Date("2024-06-14T09:15:00Z"),
+        },
+        {
+          id: "3",
+          orderNumber: "ORD-2024-003",
+          customerName: "Lê Văn C",
+          customerEmail: "levanc@email.com",
+          customerPhone: "0369852147",
+          shippingAddress: "789 Trần Hưng Đạo, Phường 5, Quận 5, TP.HCM",
+          status: OrderStatus.DELIVERED,
+          subTotal: 2170000,
+          shippingFee: 30000,
+          discount: 0,
+          totalPrice: 2200000,
+          items: [
+            {
+              id: "item3",
+              quantity: 3,
+              unitPrice: 723333,
+              productName: "Áo Sơ Mi Nam",
+              variantSku: "SHIRT-XL-WHITE",
+              colorName: "Trắng",
+              sizeName: "XL",
+              orderId: "3",
+              variantId: "var3",
+              totalPrice: 2170000,
+            },
+          ],
+          payment: {
+            id: "pay3",
+            method: "VNPAY",
+            status: "COMPLETED",
+            amount: 2200000,
+          },
+          shipping: {
+            id: "ship3",
+            trackingNumber: "GHN789012",
+            status: "DELIVERED",
+            shippingFee: 30000,
+            expectedDeliveryDate: new Date("2024-06-17T00:00:00Z"),
+          },
+          orderedAt: new Date("2024-06-13T14:20:00Z"),
+          createdAt: new Date("2024-06-13T14:20:00Z"),
+          updatedAt: new Date("2024-06-14T08:45:00Z"),
+        },
+      ];
+
+      setOrders(mockOrders);
+      setPagination({
+        page: 1,
+        limit: 20,
+        total: mockOrders.length,
+        totalPages: 1,
       });
-      setStatusUpdateOrderId(null);
-      setNewStatus("");
-      refresh();
     } catch (error) {
-      console.error("Failed to update order status:", error);
+      console.error("Error fetching orders:", error);
+      toast.error("Failed to fetch orders");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleExport = async () => {
-    try {
-      await exportOrders.mutate({ ...filters, search });
-      toast.success("Orders exported successfully");
-    } catch (error) {
-      console.error("Failed to export orders:", error);
-    }
+  const handleFilterChange = (key: string, value: string | number) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+      page: key !== "page" ? 1 : Number(value),
+    }));
   };
 
-  // Calculate stats
-  const stats = {
-    total,
-    pending: orders.filter((o) => o.status === "pending").length,
-    processing: orders.filter((o) => o.status === "processing").length,
-    shipped: orders.filter((o) => o.status === "shipped").length,
-    delivered: orders.filter((o) => o.status === "delivered").length,
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(price);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("vi-VN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+  const StatusBadge = ({ status }: { status: OrderStatus }) => {
+    const statusConfig: Record<
+      OrderStatus,
+      {
+        label: string;
+        variant: "secondary" | "default" | "outline" | "destructive";
+        icon: any;
+      }
+    > = {
+      [OrderStatus.PENDING]: {
+        label: "Pending",
+        variant: "secondary",
+        icon: Clock,
+      },
+      [OrderStatus.CONFIRMED]: {
+        label: "Confirmed",
+        variant: "default",
+        icon: CheckCircle,
+      },
+      [OrderStatus.PROCESSING]: {
+        label: "Processing",
+        variant: "default",
+        icon: Package,
+      },
+      [OrderStatus.SHIPPED]: {
+        label: "Shipped",
+        variant: "outline",
+        icon: Package,
+      },
+      [OrderStatus.DELIVERED]: {
+        label: "Delivered",
+        variant: "default",
+        icon: CheckCircle,
+      },
+      [OrderStatus.COMPLETED]: {
+        label: "Completed",
+        variant: "default",
+        icon: CheckCircle,
+      },
+      [OrderStatus.CANCELLED]: {
+        label: "Cancelled",
+        variant: "destructive",
+        icon: XCircle,
+      },
+      [OrderStatus.RETURNED]: {
+        label: "Returned",
+        variant: "outline",
+        icon: XCircle,
+      },
+    };
+
+    const config = statusConfig[status];
+    const Icon = config.icon;
+
+    return (
+      <Badge variant={config.variant}>
+        <Icon className="h-3 w-3 mr-1" />
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const PaymentStatusBadge = ({ status }: { status: string }) => {
+    const statusConfig: Record<
+      string,
+      {
+        label: string;
+        variant: "secondary" | "default" | "outline" | "destructive";
+      }
+    > = {
+      PENDING: { label: "Pending", variant: "secondary" },
+      COMPLETED: { label: "Paid", variant: "default" },
+      FAILED: { label: "Failed", variant: "destructive" },
+      REFUNDED: { label: "Refunded", variant: "outline" },
+    };
+
+    const config = statusConfig[status] || {
+      label: status,
+      variant: "secondary" as const,
+    };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
   return (
@@ -320,41 +353,42 @@ export default function OrdersPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
           <p className="text-muted-foreground">
-            Track and manage customer orders and fulfillment.
+            Manage customer orders and fulfillment
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            disabled={exportOrders.loading}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            {exportOrders.loading ? "Exporting..." : "Export"}
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm">
+            Export Orders
           </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">All time</p>
+            <div className="text-2xl font-bold">{pagination.total}</div>
+            <p className="text-xs text-muted-foreground">
+              +20.1% from last month
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Pending Orders
+            </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pending}</div>
-            <p className="text-xs text-muted-foreground">Needs attention</p>
+            <div className="text-2xl font-bold">
+              {orders.filter((o) => o.status === "pending").length}
+            </div>
+            <p className="text-xs text-muted-foreground">Requires attention</p>
           </CardContent>
         </Card>
         <Card>
@@ -363,18 +397,10 @@ export default function OrdersPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.processing}</div>
+            <div className="text-2xl font-bold">
+              {orders.filter((o) => o.status === "processing").length}
+            </div>
             <p className="text-xs text-muted-foreground">Being prepared</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Shipped</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.shipped}</div>
-            <p className="text-xs text-muted-foreground">In transit</p>
           </CardContent>
         </Card>
         <Card>
@@ -383,95 +409,207 @@ export default function OrdersPage() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.delivered}</div>
-            <p className="text-xs text-muted-foreground">Completed</p>
+            <div className="text-2xl font-bold">
+              {orders.filter((o) => o.status === "delivered").length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Successfully completed
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Data Table */}
+      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Order List</CardTitle>
-          <CardDescription>
-            Manage all customer orders and their fulfillment status.
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable
-            data={orders}
-            columns={columns}
-            total={total}
-            page={page}
-            pageSize={pageSize}
-            loading={loading}
-            search={search}
-            filters={filters}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-            onSearchChange={setSearch}
-            onFiltersChange={setFilters}
-            onSortChange={setSorting}
-            onRefresh={refresh}
-            onExport={handleExport}
-            actions={actions}
-            bulkActions={bulkActions}
-            selectable={true}
-            getRowId={(order) => order.id}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search orders..."
+                value={filters.search}
+                onChange={(e) => handleFilterChange("search", e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            <Select
+              value={filters.status}
+              onValueChange={(value) => handleFilterChange("status", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="shipped">Shipped</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filters.paymentStatus}
+              onValueChange={(value) =>
+                handleFilterChange("paymentStatus", value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All payment status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All payment status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="refunded">Refunded</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={`${filters.sortBy}-${filters.sortOrder}`}
+              onValueChange={(value) => {
+                const [sortBy, sortOrder] = value.split("-");
+                setFilters((prev) => ({
+                  ...prev,
+                  sortBy,
+                  sortOrder: sortOrder as "ASC" | "DESC",
+                }));
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="createdAt-DESC">Newest first</SelectItem>
+                <SelectItem value="createdAt-ASC">Oldest first</SelectItem>
+                <SelectItem value="total-DESC">Amount: High to Low</SelectItem>
+                <SelectItem value="total-ASC">Amount: Low to High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Update Status Dialog */}
-      <Dialog
-        open={!!statusUpdateOrderId}
-        onOpenChange={() => setStatusUpdateOrderId(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update Order Status</DialogTitle>
-            <DialogDescription>
-              Change the status of this order to reflect its current state.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">New Status</label>
-              <Select value={newStatus} onValueChange={setNewStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(orderStatusConfig).map(([value, config]) => (
-                    <SelectItem key={value} value={value}>
-                      <div className="flex items-center">
-                        <config.icon className="h-4 w-4 mr-2" />
-                        {config.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* Orders Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Orders ({pagination.total})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setStatusUpdateOrderId(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleStatusUpdate}
-              disabled={updateOrderStatus.loading || !newStatus}
-            >
-              {updateOrderStatus.loading ? "Updating..." : "Update Status"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order Number</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">
+                      <div>
+                        <div className="font-semibold">{order.orderNumber}</div>
+                        <div className="text-sm text-muted-foreground">
+                          ID: {order.id}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{order.customerName}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {order.customerEmail}
+                        </div>
+                      </div>
+                    </TableCell>{" "}
+                    <TableCell>
+                      <StatusBadge status={order.status} />
+                    </TableCell>
+                    <TableCell>
+                      <PaymentStatusBadge
+                        status={order.payment?.status || "PENDING"}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {order.items.length} items
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {formatPrice(order.totalPrice)}
+                    </TableCell>
+                    <TableCell>
+                      {formatDate(order.createdAt.toISOString())}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/admin/orders/${order.id}`}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>Update Status</DropdownMenuItem>
+                          <DropdownMenuItem>Print Invoice</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
+  );
+}
+
+// Main component wrapped with error boundary
+export default function OrdersPage() {
+  return (
+    <OrderErrorBoundary
+      showRetry={true}
+      showGoBack={true}
+      onError={(error, errorInfo) => {
+        console.error("Orders page error:", error, errorInfo);
+      }}
+    >
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        }
+      >
+        <AdminOrdersContent />
+      </Suspense>
+    </OrderErrorBoundary>
   );
 }

@@ -1,653 +1,554 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
-  Star,
-  MessageSquare,
-  Check,
-  X,
-  Flag,
+  Search,
+  Filter,
   Eye,
-  MoreHorizontal,
-  TrendingUp,
-  Award,
-  Users,
+  Star,
   ThumbsUp,
   ThumbsDown,
-  Filter,
+  MoreHorizontal,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useReviews } from "@/lib/hooks/useAdminData";
 import {
-  useApproveReview,
-  useRejectReview,
-  useBulkReviewAction,
-  useRespondToReview,
-} from "@/lib/hooks/useAdminMutations";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
-  DataTable,
-  Column,
-  ActionItem,
-  BulkAction,
-} from "@/components/admin/DataTable";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
+import Link from "next/link";
 
 interface Review {
   id: string;
   rating: number;
   comment: string;
-  status: "pending" | "approved" | "rejected";
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    avatar?: string;
-  };
-  product: {
-    id: string;
-    name: string;
-    images?: Array<{ imageUrl: string }>;
-  };
-  response?: string;
+  isApproved: boolean;
+  isPublic: boolean;
+  customerName: string;
+  customerEmail: string;
+  customerAvatar?: string;
+  productName: string;
+  productId: string;
+  productImage?: string;
+  orderNumber?: string;
+  isVerifiedPurchase: boolean;
+  helpfulCount: number;
   createdAt: string;
   updatedAt: string;
-  helpfulVotes?: number;
-  unhelpfulVotes?: number;
-  isVerifiedPurchase?: boolean;
+}
+
+interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 export default function ReviewsPage() {
-  const router = useRouter();
-  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
-  const [responseDialog, setResponseDialog] = useState(false);
-  const [response, setResponse] = useState("");
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({
+    search: "",
+    rating: "",
+    isApproved: "",
+    isVerifiedPurchase: "",
+    sortBy: "createdAt",
+    sortOrder: "DESC" as "ASC" | "DESC",
+    page: 1,
+    limit: 20,
+  });
 
-  // Data fetching
-  const {
-    data: reviews = [],
-    total,
-    page,
-    pageSize,
-    loading,
-    search,
-    filters,
-    sortBy,
-    sortOrder,
-    setPage,
-    setPageSize,
-    setSearch,
-    setFilters,
-    setSorting,
-    refresh,
-  } = useReviews();
+  // Mock data for demo - replace with actual API calls
+  useEffect(() => {
+    fetchReviews();
+  }, [filters]);
 
-  // Mutations
-  const approveReview = useApproveReview();
-  const rejectReview = useRejectReview();
-  const bulkAction = useBulkReviewAction();
-  const respondToReview = useRespondToReview();
-
-  // Table columns configuration
-  const columns: Column<Review>[] = [
-    {
-      id: "product",
-      header: "Product",
-      sortable: true,
-      filterable: true,
-      cell: (review) => (
-        <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 rounded-md bg-gray-100 flex items-center justify-center">
-            {review.product.images?.[0] ? (
-              <img
-                src={review.product.images[0].imageUrl}
-                alt={review.product.name}
-                className="h-10 w-10 rounded-md object-cover"
-              />
-            ) : (
-              <MessageSquare className="h-5 w-5 text-gray-400" />
-            )}
-          </div>
-          <div>
-            <div className="font-medium text-sm">{review.product.name}</div>
-            <div className="text-xs text-muted-foreground">
-              ID: {review.product.id}
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "customer",
-      header: "Customer",
-      sortable: true,
-      filterable: true,
-      cell: (review) => (
-        <div className="flex items-center space-x-2">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={review.user.avatar} alt={review.user.name} />
-            <AvatarFallback>
-              {review.user.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <div className="font-medium text-sm">{review.user.name}</div>
-            <div className="text-xs text-muted-foreground">
-              {review.user.email}
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "rating",
-      header: "Rating",
-      sortable: true,
-      filterable: true,
-      filterType: "select",
-      filterOptions: [
-        { label: "5 Stars", value: "5" },
-        { label: "4 Stars", value: "4" },
-        { label: "3 Stars", value: "3" },
-        { label: "2 Stars", value: "2" },
-        { label: "1 Star", value: "1" },
-      ],
-      cell: (review) => (
-        <div className="flex items-center space-x-1">
-          {[...Array(5)].map((_, i) => (
-            <Star
-              key={i}
-              className={`h-4 w-4 ${
-                i < review.rating
-                  ? "text-yellow-400 fill-current"
-                  : "text-gray-300"
-              }`}
-            />
-          ))}
-          <span className="ml-2 text-sm font-medium">{review.rating}/5</span>
-        </div>
-      ),
-    },
-    {
-      id: "comment",
-      header: "Review",
-      cell: (review) => (
-        <div className="max-w-xs">
-          <p className="text-sm truncate" title={review.comment}>
-            {review.comment}
-          </p>
-          {review.isVerifiedPurchase && (
-            <Badge variant="outline" className="mt-1">
-              <Check className="h-3 w-3 mr-1" />
-              Verified Purchase
-            </Badge>
-          )}
-        </div>
-      ),
-    },
-    {
-      id: "status",
-      header: "Status",
-      sortable: true,
-      filterable: true,
-      filterType: "select",
-      filterOptions: [
-        { label: "Pending", value: "pending" },
-        { label: "Approved", value: "approved" },
-        { label: "Rejected", value: "rejected" },
-      ],
-      cell: (review) => (
-        <Badge
-          variant={
-            review.status === "approved"
-              ? "default"
-              : review.status === "pending"
-              ? "secondary"
-              : "destructive"
-          }
-        >
-          {review.status}
-        </Badge>
-      ),
-    },
-    {
-      id: "helpfulness",
-      header: "Helpfulness",
-      cell: (review) => (
-        <div className="flex items-center space-x-2 text-sm">
-          <div className="flex items-center space-x-1">
-            <ThumbsUp className="h-3 w-3 text-green-600" />
-            <span>{review.helpfulVotes || 0}</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <ThumbsDown className="h-3 w-3 text-red-600" />
-            <span>{review.unhelpfulVotes || 0}</span>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "response",
-      header: "Response",
-      cell: (review) => (
-        <div className="text-center">
-          {review.response ? (
-            <Badge variant="outline">
-              <MessageSquare className="h-3 w-3 mr-1" />
-              Replied
-            </Badge>
-          ) : (
-            <span className="text-sm text-muted-foreground">No response</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      id: "createdAt",
-      header: "Date",
-      accessorKey: "createdAt",
-      sortable: true,
-      cell: (review) => (
-        <div className="text-sm text-muted-foreground">
-          {new Date(review.createdAt).toLocaleDateString()}
-        </div>
-      ),
-    },
-  ];
-
-  // Action items for each row
-  const actions: ActionItem<Review>[] = [
-    {
-      label: "View Details",
-      onClick: (review) => setSelectedReview(review),
-      icon: <Eye className="h-4 w-4" />,
-    },
-    {
-      label: "Respond",
-      onClick: (review) => {
-        setSelectedReview(review);
-        setResponse(review.response || "");
-        setResponseDialog(true);
-      },
-      icon: <MessageSquare className="h-4 w-4" />,
-    },
-    {
-      label: "Approve",
-      onClick: async (review) => {
-        await approveReview.mutateAsync(review.id);
-        refresh();
-      },
-      icon: <Check className="h-4 w-4" />,
-      disabled: (review) => review.status === "approved",
-    },
-    {
-      label: "Reject",
-      onClick: async (review) => {
-        await rejectReview.mutateAsync({ id: review.id });
-        refresh();
-      },
-      icon: <X className="h-4 w-4" />,
-      variant: "destructive",
-      disabled: (review) => review.status === "rejected",
-    },
-  ];
-
-  // Bulk actions
-  const bulkActions: BulkAction<Review>[] = [
-    {
-      label: "Approve",
-      onClick: async (reviews) => {
-        await bulkAction.mutateAsync({
-          action: "approve",
-          reviewIds: reviews.map((r) => r.id),
-        });
-        refresh();
-      },
-      icon: <Check className="h-4 w-4" />,
-    },
-    {
-      label: "Reject",
-      onClick: async (reviews) => {
-        await bulkAction.mutateAsync({
-          action: "reject",
-          reviewIds: reviews.map((r) => r.id),
-        });
-        refresh();
-      },
-      icon: <X className="h-4 w-4" />,
-      variant: "destructive",
-    },
-  ];
-
-  const handleRespond = async () => {
-    if (!selectedReview || !response.trim()) return;
-
+  const fetchReviews = async () => {
     try {
-      await respondToReview.mutateAsync({
-        reviewId: selectedReview.id,
-        response: response.trim(),
+      setLoading(true);
+      // Simulated API call - replace with actual admin API
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Mock data
+      const mockReviews: Review[] = [
+        {
+          id: "1",
+          rating: 5,
+          comment:
+            "Sản phẩm rất chất lượng, tôi rất hài lòng với chiếc áo này. Chất liệu thoáng mát, form dáng đẹp.",
+          isApproved: true,
+          isPublic: true,
+          customerName: "Nguyễn Văn A",
+          customerEmail: "nguyenvana@email.com",
+          productName: "Áo Thun Basic Cotton",
+          productId: "prod-1",
+          orderNumber: "ORD-2024-001",
+          isVerifiedPurchase: true,
+          helpfulCount: 12,
+          createdAt: "2024-06-14T10:30:00Z",
+          updatedAt: "2024-06-14T11:00:00Z",
+        },
+        {
+          id: "2",
+          rating: 4,
+          comment: "Áo đẹp nhưng size hơi nhỏ so với mô tả. Chất lượng OK.",
+          isApproved: false,
+          isPublic: false,
+          customerName: "Trần Thị B",
+          customerEmail: "tranthib@email.com",
+          productName: "Áo Polo Nam Cao Cấp",
+          productId: "prod-2",
+          orderNumber: "ORD-2024-002",
+          isVerifiedPurchase: true,
+          helpfulCount: 3,
+          createdAt: "2024-06-14T09:15:00Z",
+          updatedAt: "2024-06-14T09:15:00Z",
+        },
+        {
+          id: "3",
+          rating: 1,
+          comment: "Chất lượng kém, không như mô tả. Tôi không hài lòng.",
+          isApproved: false,
+          isPublic: false,
+          customerName: "Lê Văn C",
+          customerEmail: "levanc@email.com",
+          productName: "Quần Jeans Slim Fit",
+          productId: "prod-3",
+          isVerifiedPurchase: false,
+          helpfulCount: 0,
+          createdAt: "2024-06-13T14:20:00Z",
+          updatedAt: "2024-06-14T08:45:00Z",
+        },
+      ];
+
+      setReviews(mockReviews);
+      setPagination({
+        page: 1,
+        limit: 20,
+        total: mockReviews.length,
+        totalPages: 1,
       });
-      setResponseDialog(false);
-      setSelectedReview(null);
-      setResponse("");
-      refresh();
-      toast.success("Response added successfully");
     } catch (error) {
-      toast.error("Failed to add response");
+      console.error("Error fetching reviews:", error);
+      toast.error("Failed to fetch reviews");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Calculate stats from current data
-  const stats = {
-    total: total,
-    pending: reviews.filter((r) => r.status === "pending").length,
-    approved: reviews.filter((r) => r.status === "approved").length,
-    rejected: reviews.filter((r) => r.status === "rejected").length,
-    averageRating:
-      reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length || 0,
+  const handleFilterChange = (key: string, value: string | number) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+      page: key !== "page" ? 1 : value,
+    }));
   };
+
+  const handleApprove = async (reviewId: string) => {
+    try {
+      // Mock API call - replace with actual admin API
+      toast.success("Review approved successfully");
+      fetchReviews();
+    } catch (error) {
+      console.error("Error approving review:", error);
+      toast.error("Failed to approve review");
+    }
+  };
+
+  const handleReject = async (reviewId: string) => {
+    try {
+      // Mock API call - replace with actual admin API
+      toast.success("Review rejected successfully");
+      fetchReviews();
+    } catch (error) {
+      console.error("Error rejecting review:", error);
+      toast.error("Failed to reject review");
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("vi-VN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const RatingStars = ({ rating }: { rating: number }) => {
+    return (
+      <div className="flex items-center">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`h-4 w-4 ${
+              star <= rating
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-gray-300"
+            }`}
+          />
+        ))}
+        <span className="ml-2 text-sm text-muted-foreground">({rating}/5)</span>
+      </div>
+    );
+  };
+
+  const StatusBadge = ({
+    isApproved,
+    isPublic,
+  }: {
+    isApproved: boolean;
+    isPublic: boolean;
+  }) => {
+    if (!isApproved) {
+      return <Badge variant="secondary">Pending Review</Badge>;
+    }
+    return isPublic ? (
+      <Badge variant="default">Published</Badge>
+    ) : (
+      <Badge variant="outline">Approved (Private)</Badge>
+    );
+  };
+
+  const VerifiedBadge = ({ isVerified }: { isVerified: boolean }) =>
+    isVerified ? (
+      <Badge variant="outline" className="text-green-600 border-green-600">
+        <CheckCircle className="h-3 w-3 mr-1" />
+        Verified Purchase
+      </Badge>
+    ) : (
+      <Badge variant="secondary">Unverified</Badge>
+    );
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Reviews Management
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight">Reviews</h1>
           <p className="text-muted-foreground">
-            Moderate and manage customer product reviews
+            Moderate customer reviews and feedback
           </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline">
-            <Filter className="h-4 w-4 mr-2" />
-            Filters
-          </Button>
-          <Button variant="outline">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            Analytics
-          </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Reviews</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">All reviews</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
-            <Flag className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {stats.pending}
-            </div>
-            <p className="text-xs text-muted-foreground">Awaiting review</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved</CardTitle>
-            <Check className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {stats.approved}
-            </div>
-            <p className="text-xs text-muted-foreground">Published reviews</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rejected</CardTitle>
-            <X className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {stats.rejected}
-            </div>
-            <p className="text-xs text-muted-foreground">Rejected reviews</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Rating</CardTitle>
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {stats.averageRating.toFixed(1)}
+            <div className="text-2xl font-bold">{pagination.total}</div>
+            <p className="text-xs text-muted-foreground">
+              +12% from last month
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Pending Approval
+            </CardTitle>
+            <Eye className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {reviews.filter((r) => !r.isApproved).length}
             </div>
-            <p className="text-xs text-muted-foreground">Overall rating</p>
+            <p className="text-xs text-muted-foreground">Requires moderation</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Average Rating
+            </CardTitle>
+            <Star className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {reviews.length > 0
+                ? (
+                    reviews.reduce((sum, r) => sum + r.rating, 0) /
+                    reviews.length
+                  ).toFixed(1)
+                : "0.0"}
+            </div>
+            <p className="text-xs text-muted-foreground">Out of 5 stars</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Verified Purchases
+            </CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {reviews.filter((r) => r.isVerifiedPurchase).length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {reviews.length > 0
+                ? Math.round(
+                    (reviews.filter((r) => r.isVerifiedPurchase).length /
+                      reviews.length) *
+                      100
+                  )
+                : 0}
+              % of total
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Data Table */}
+      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Reviews List</CardTitle>
-          <CardDescription>
-            Manage customer reviews, responses, and moderation status
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable
-            data={reviews}
-            columns={columns}
-            total={total}
-            page={page}
-            pageSize={pageSize}
-            loading={loading}
-            search={search}
-            filters={filters}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-            onSearchChange={setSearch}
-            onFiltersChange={setFilters}
-            onSortChange={setSorting}
-            onRefresh={refresh}
-            actions={actions}
-            bulkActions={bulkActions}
-            selectable={true}
-            getRowId={(review) => review.id}
-            searchPlaceholder="Search reviews, products, or customers..."
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search reviews..."
+                value={filters.search}
+                onChange={(e) => handleFilterChange("search", e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            <Select
+              value={filters.rating}
+              onValueChange={(value) => handleFilterChange("rating", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All ratings" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All ratings</SelectItem>
+                <SelectItem value="5">5 stars</SelectItem>
+                <SelectItem value="4">4 stars</SelectItem>
+                <SelectItem value="3">3 stars</SelectItem>
+                <SelectItem value="2">2 stars</SelectItem>
+                <SelectItem value="1">1 star</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filters.isApproved}
+              onValueChange={(value) => handleFilterChange("isApproved", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All status</SelectItem>
+                <SelectItem value="true">Approved</SelectItem>
+                <SelectItem value="false">Pending</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filters.isVerifiedPurchase}
+              onValueChange={(value) =>
+                handleFilterChange("isVerifiedPurchase", value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All purchases" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All purchases</SelectItem>
+                <SelectItem value="true">Verified only</SelectItem>
+                <SelectItem value="false">Unverified only</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={`${filters.sortBy}-${filters.sortOrder}`}
+              onValueChange={(value) => {
+                const [sortBy, sortOrder] = value.split("-");
+                setFilters((prev) => ({
+                  ...prev,
+                  sortBy,
+                  sortOrder: sortOrder as "ASC" | "DESC",
+                }));
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="createdAt-DESC">Newest first</SelectItem>
+                <SelectItem value="createdAt-ASC">Oldest first</SelectItem>
+                <SelectItem value="rating-DESC">Highest rating</SelectItem>
+                <SelectItem value="rating-ASC">Lowest rating</SelectItem>
+                <SelectItem value="helpfulCount-DESC">Most helpful</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Review Details Dialog */}
-      <Dialog
-        open={!!selectedReview && !responseDialog}
-        onOpenChange={() => setSelectedReview(null)}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Review Details</DialogTitle>
-          </DialogHeader>
-          {selectedReview && (
-            <div className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="h-16 w-16 rounded-md bg-gray-100 flex items-center justify-center">
-                  {selectedReview.product.images?.[0] ? (
-                    <img
-                      src={selectedReview.product.images[0].imageUrl}
-                      alt={selectedReview.product.name}
-                      className="h-16 w-16 rounded-md object-cover"
-                    />
-                  ) : (
-                    <MessageSquare className="h-8 w-8 text-gray-400" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold">
-                    {selectedReview.product.name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    by {selectedReview.user.name} ({selectedReview.user.email})
-                  </p>
-                  <div className="flex items-center space-x-1 mt-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-4 w-4 ${
-                          i < selectedReview.rating
-                            ? "text-yellow-400 fill-current"
-                            : "text-gray-300"
-                        }`}
+      {/* Reviews Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Reviews ({pagination.total})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Rating</TableHead>
+                  <TableHead>Review</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Verification</TableHead>
+                  <TableHead>Helpful</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reviews.map((review) => (
+                  <TableRow key={review.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={review.customerAvatar} />
+                          <AvatarFallback>
+                            {review.customerName.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">
+                            {review.customerName}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {review.customerEmail}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{review.productName}</div>
+                        {review.orderNumber && (
+                          <div className="text-sm text-muted-foreground">
+                            Order: {review.orderNumber}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <RatingStars rating={review.rating} />
+                    </TableCell>
+                    <TableCell className="max-w-xs">
+                      <div className="truncate" title={review.comment}>
+                        {review.comment}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        isApproved={review.isApproved}
+                        isPublic={review.isPublic}
                       />
-                    ))}
-                    <span className="ml-2 text-sm font-medium">
-                      {selectedReview.rating}/5
-                    </span>
-                  </div>
-                </div>
-                <Badge
-                  variant={
-                    selectedReview.status === "approved"
-                      ? "default"
-                      : selectedReview.status === "pending"
-                      ? "secondary"
-                      : "destructive"
-                  }
-                >
-                  {selectedReview.status}
-                </Badge>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Review Comment</Label>
-                <div className="p-3 bg-muted rounded-md">
-                  <p className="text-sm">{selectedReview.comment}</p>
-                </div>
-              </div>
-
-              {selectedReview.response && (
-                <div className="space-y-2">
-                  <Label>Admin Response</Label>
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                    <p className="text-sm">{selectedReview.response}</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <Label>Helpful Votes</Label>
-                  <p className="flex items-center space-x-1">
-                    <ThumbsUp className="h-4 w-4 text-green-600" />
-                    <span>{selectedReview.helpfulVotes || 0}</span>
-                  </p>
-                </div>
-                <div>
-                  <Label>Unhelpful Votes</Label>
-                  <p className="flex items-center space-x-1">
-                    <ThumbsDown className="h-4 w-4 text-red-600" />
-                    <span>{selectedReview.unhelpfulVotes || 0}</span>
-                  </p>
-                </div>
-                <div>
-                  <Label>Created</Label>
-                  <p>{new Date(selectedReview.createdAt).toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label>Updated</Label>
-                  <p>{new Date(selectedReview.updatedAt).toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
+                    </TableCell>
+                    <TableCell>
+                      <VerifiedBadge isVerified={review.isVerifiedPurchase} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <ThumbsUp className="h-4 w-4 text-green-600" />
+                        <span>{review.helpfulCount}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{formatDate(review.createdAt)}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/admin/reviews/${review.id}`}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </Link>
+                          </DropdownMenuItem>
+                          {!review.isApproved && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => handleApprove(review.id)}
+                                className="text-green-600"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Approve
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleReject(review.id)}
+                                className="text-red-600"
+                              >
+                                <XCircle className="h-4 w-4 mr-2" />
+                                Reject
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedReview(null)}>
-              Close
-            </Button>
-            <Button
-              onClick={() => {
-                setResponse(selectedReview?.response || "");
-                setResponseDialog(true);
-              }}
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Respond
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Response Dialog */}
-      <Dialog open={responseDialog} onOpenChange={setResponseDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Admin Response</DialogTitle>
-            <DialogDescription>
-              Respond to this review as an admin. This response will be visible
-              to all customers.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="response">Response</Label>
-              <Textarea
-                id="response"
-                value={response}
-                onChange={(e) => setResponse(e.target.value)}
-                placeholder="Type your response here..."
-                rows={4}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setResponseDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRespond}
-              disabled={!response.trim() || respondToReview.loading}
-            >
-              {respondToReview.loading ? "Adding..." : "Add Response"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </CardContent>
+      </Card>
     </div>
   );
 }

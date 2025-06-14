@@ -13,6 +13,31 @@ export function formatPrice(price: number): string {
   }).format(price);
 }
 
+// Format currency - alias for formatPrice for consistency
+export function formatCurrency(price: number): string {
+  return formatPrice(price);
+}
+
+// Format date with time
+export function formatDate(dateString: string): string {
+  return new Intl.DateTimeFormat("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(dateString));
+}
+
+// Format date only (without time)
+export function formatDateOnly(dateString: string): string {
+  return new Intl.DateTimeFormat("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(dateString));
+}
+
 // Calculate discounted price
 export function calculateDiscountedPrice(
   basePrice: number,
@@ -126,13 +151,4 @@ export function getPlaceholderImage(
   height: number = 300
 ): string {
   return `https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=${width}&h=${height}&fit=crop&crop=center`;
-}
-
-// Format date
-export function formatDate(date: string | Date): string {
-  return new Intl.DateTimeFormat("vi-VN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(new Date(date));
 }

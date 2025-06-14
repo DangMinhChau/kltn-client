@@ -12,7 +12,6 @@ import { CartIcon } from "@/components/cart/CartIcon";
 import { CartSheet } from "@/components/cart/CartSheet";
 import { useWishlist } from "@/lib/context/WishlistContext";
 import { UserMenuHoverCard } from "@/components/auth/UserMenuHoverCard";
-import { TopBanner } from "@/components/layout/TopBanner";
 import { SearchBar } from "@/components/layout/SearchBar";
 import { useCategories } from "@/hooks/useCategories";
 import CategoryDropdown from "@/components/layout/CategoryDropdown";
@@ -356,7 +355,6 @@ const Header = () => {
         )}
         style={{ isolation: "isolate" }}
       >
-        <TopBanner />
         {/* Main header */}
         <div className="container mx-auto px-3 sm:px-4 lg:px-8">
           <div className="flex h-14 sm:h-16 items-center justify-between gap-2 sm:gap-4">

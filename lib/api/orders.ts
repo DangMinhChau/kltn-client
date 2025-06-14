@@ -1,7 +1,6 @@
 import api from "../api";
 import {
   Order,
-  CreateOrderRequest,
   OrderHistory,
   OrderTracking,
   OrderPreview,
@@ -9,51 +8,66 @@ import {
   VoucherValidationResult,
   ShippingInfo,
   PaymentMethod,
+  PaymentStatus,
+  OrderStatus,
+  ShippingMethod,
 } from "@/types";
+import {
+  CreateOrderDto,
+  CreateShippingDto,
+  UpdateOrderStatusDto,
+  OrderApiResponse,
+  OrderListResponse,
+  OrderTrackingResponse,
+  OrderPreviewResponse,
+  VoucherValidationResponse,
+  ShippingCalculationResponse,
+  PaymentCreationResponse,
+  PaymentStatusResponse,
+} from "@/types/api-order";
 
 // Order API
 export const orderApi = {
   // Create a new order
-  createOrder: (orderData: CreateOrderRequest): Promise<Order> =>
+  createOrder: (orderData: CreateOrderDto): Promise<OrderApiResponse> =>
     api.post("/orders", orderData),
 
   // Get order by ID
-  getOrder: (orderId: string): Promise<Order> => api.get(`/orders/${orderId}`),
+  getOrder: (orderId: string): Promise<OrderApiResponse> =>
+    api.get(`/orders/${orderId}`),
 
   // Get order by order number
-  getOrderByNumber: (orderNumber: string): Promise<Order> =>
+  getOrderByNumber: (orderNumber: string): Promise<OrderApiResponse> =>
     api.get(`/orders/number/${orderNumber}`),
 
   // Get user's order history
   getOrderHistory: (
     page = 1,
     limit = 10,
-    status?: string
-  ): Promise<OrderHistory> =>
+    status?: OrderStatus
+  ): Promise<OrderListResponse> =>
     api.get("/orders/history", { params: { page, limit, status } }),
 
   // Get order tracking information
-  getOrderTracking: (orderNumber: string): Promise<OrderTracking> =>
+  getOrderTracking: (orderNumber: string): Promise<OrderTrackingResponse> =>
     api.get(`/orders/${orderNumber}/tracking`),
 
   // Cancel order
-  cancelOrder: (orderId: string, reason?: string): Promise<Order> =>
+  cancelOrder: (orderId: string, reason?: string): Promise<OrderApiResponse> =>
     api.patch(`/orders/${orderId}/cancel`, { reason }),
 
   // Admin: Update order status
   updateOrderStatus: (
     orderId: string,
-    status: string,
-    notes?: string
-  ): Promise<Order> =>
-    api.patch(`/orders/${orderId}/status`, { status, notes }),
-
+    updateData: UpdateOrderStatusDto
+  ): Promise<OrderApiResponse> =>
+    api.patch(`/orders/${orderId}/status`, updateData),
   // Get order preview (calculate totals before creating order)
   getOrderPreview: (
     items: { productId: string; variantId: string; quantity: number }[],
-    shippingInfo: ShippingInfo,
+    shippingInfo: CreateShippingDto,
     voucherCode?: string
-  ): Promise<OrderPreview> =>
+  ): Promise<OrderPreviewResponse> =>
     api.post("/orders/preview", {
       items,
       shippingInfo,
@@ -67,11 +81,11 @@ export const voucherApi = {
   validateVoucher: (
     code: string,
     orderAmount: number
-  ): Promise<VoucherValidationResult> =>
+  ): Promise<VoucherValidationResponse> =>
     api.post("/vouchers/validate", { code, orderAmount }),
 
   // Get available vouchers for user
-  getAvailableVouchers: (): Promise<Voucher[]> =>
+  getAvailableVouchers: (): Promise<{ data: Voucher[] }> =>
     api.get("/vouchers/available"),
 
   // Apply voucher to cart
@@ -79,9 +93,11 @@ export const voucherApi = {
     code: string,
     cartTotal: number
   ): Promise<{
-    voucher: Voucher;
-    discountAmount: number;
-    newTotal: number;
+    data: {
+      voucher: Voucher;
+      discountAmount: number;
+      newTotal: number;
+    };
   }> => api.post("/vouchers/apply", { code, cartTotal }),
 };
 
@@ -95,45 +111,43 @@ export const shippingApi = {
       district: string;
       ward: string;
     }
-  ): Promise<{
-    standardFee: number;
-    expressWithin24hFee: number;
-    standardDeliveryDays: number;
-    expressDeliveryDays: number;
-  }> =>
+  ): Promise<ShippingCalculationResponse> =>
     api.post("/shipping/calculate", {
       items,
       destination,
     }),
 
   // Get shipping methods
-  getShippingMethods: (): Promise<
-    {
+  getShippingMethods: (): Promise<{
+    data: {
       id: string;
       name: string;
       description: string;
       baseFee: number;
       estimatedDays: number;
       isActive: boolean;
-    }[]
-  > => api.get("/shipping/methods"),
+    }[];
+  }> => api.get("/shipping/methods"),
 
   // Get provinces/cities
-  getProvinces: (): Promise<
-    { code: string; name: string; districts: any[] }[]
-  > => api.get("/shipping/provinces"),
+  getProvinces: (): Promise<{
+    data: { code: string; name: string; districts: any[] }[];
+  }> => api.get("/shipping/provinces"),
 
   // Get districts by province
   getDistricts: (
     provinceCode: string
-  ): Promise<{ code: string; name: string; wards: any[] }[]> =>
-    api.get(`/shipping/provinces/${provinceCode}/districts`),
+  ): Promise<{
+    data: { code: string; name: string; wards: any[] }[];
+  }> => api.get(`/shipping/provinces/${provinceCode}/districts`),
 
   // Get wards by district
   getWards: (
     provinceCode: string,
     districtCode: string
-  ): Promise<{ code: string; name: string }[]> =>
+  ): Promise<{
+    data: { code: string; name: string }[];
+  }> =>
     api.get(
       `/shipping/provinces/${provinceCode}/districts/${districtCode}/wards`
     ),
@@ -145,27 +159,22 @@ export const paymentApi = {
   createPayment: (
     orderId: string,
     paymentMethod: PaymentMethod
-  ): Promise<{
-    paymentUrl?: string; // For online payments
-    qrCode?: string; // For QR code payments
-    instructions?: string; // For bank transfer
-  }> => api.post(`/orders/${orderId}/payment`, { paymentMethod }),
+  ): Promise<PaymentCreationResponse> =>
+    api.post(`/orders/${orderId}/payment`, { paymentMethod }),
 
   // Check payment status
-  checkPaymentStatus: (
-    orderId: string
-  ): Promise<{
-    status: "pending" | "paid" | "failed";
-    paidAt?: Date;
-    transactionId?: string;
-  }> => api.get(`/orders/${orderId}/payment/status`),
+  checkPaymentStatus: (orderId: string): Promise<PaymentStatusResponse> =>
+    api.get(`/orders/${orderId}/payment/status`),
 
   // Handle payment callback (webhook)
   handlePaymentCallback: (
     provider: string,
     data: any
-  ): Promise<{ success: boolean; orderId?: string }> =>
-    api.post(`/payments/callback/${provider}`, data),
+  ): Promise<{
+    success: boolean;
+    orderId?: string;
+    message?: string;
+  }> => api.post(`/payments/callback/${provider}`, data),
 };
 
 export default {

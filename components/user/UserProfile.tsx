@@ -126,9 +126,8 @@ export default function UserProfile() {
                       <Label className="flex items-center gap-2 text-sm font-medium">
                         <Shield className="h-4 w-4" />
                         Vai trò
-                      </Label>
-                      <div className="p-3 bg-gray-50 rounded-md">
-                        {user.role === "ADMIN" ? "Quản trị viên" : "Khách hàng"}
+                      </Label>                      <div className="p-3 bg-gray-50 rounded-md">
+                        {user.role?.toUpperCase() === "ADMIN" ? "Quản trị viên" : "Khách hàng"}
                       </div>
                     </div>
 

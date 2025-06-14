@@ -1,115 +1,101 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import AdminGuard from "@/components/auth/AdminGuard";
 import { useAuth } from "@/lib/context/AuthContext";
 import {
-  LayoutDashboard,
   Package,
-  ShoppingCart,
   Users,
-  BarChart3,
+  ShoppingCart,
+  Star,
+  Tag,
   Settings,
+  BarChart3,
   Menu,
-  LogOut,
   Package2,
-  FileText,
-  Gift,
-  MessageSquare,
-  Truck,
+  Home,
   Palette,
+  Ruler,
+  Archive,
+  Layers,
+  Shirt,
+  LogOut,
   Bell,
-  Activity,
-  Monitor,
-  Warehouse,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const sidebarItems = [
+const navigation = [
   {
-    title: "Dashboard",
+    name: "Dashboard",
     href: "/admin",
-    icon: LayoutDashboard,
+    icon: Home,
+    description: "Overview and analytics",
   },
   {
-    title: "Products",
+    name: "Products",
     href: "/admin/products",
     icon: Package,
+    description: "Manage products and inventory",
+    children: [
+      { name: "All Products", href: "/admin/products" },
+      { name: "Add Product", href: "/admin/products/new" },
+      { name: "Variants", href: "/admin/products/variants" },
+      { name: "Categories", href: "/admin/products/categories" },
+      { name: "Collections", href: "/admin/products/collections" },
+    ],
   },
   {
-    title: "Variants",
-    href: "/admin/variants",
-    icon: Package2,
-  },
-  {
-    title: "Attributes",
+    name: "Attributes",
     href: "/admin/attributes",
-    icon: Palette,
+    icon: Settings,
+    description: "Product attributes",
+    children: [
+      { name: "Colors", href: "/admin/attributes/colors" },
+      { name: "Sizes", href: "/admin/attributes/sizes" },
+      { name: "Materials", href: "/admin/attributes/materials" },
+      { name: "Styles", href: "/admin/attributes/styles" },
+      { name: "Tags", href: "/admin/attributes/tags" },
+    ],
   },
   {
-    title: "Inventory",
-    href: "/admin/inventory",
-    icon: Warehouse,
-  },
-  {
-    title: "Orders",
+    name: "Orders",
     href: "/admin/orders",
     icon: ShoppingCart,
+    description: "Order management",
+    children: [
+      { name: "All Orders", href: "/admin/orders" },
+      { name: "Payments", href: "/admin/orders/payments" },
+      { name: "Shipping", href: "/admin/orders/shipping" },
+    ],
   },
   {
-    title: "Users",
+    name: "Users",
     href: "/admin/users",
     icon: Users,
+    description: "Customer management",
   },
   {
-    title: "Reviews",
+    name: "Reviews",
     href: "/admin/reviews",
-    icon: MessageSquare,
+    icon: Star,
+    description: "Review moderation",
   },
   {
-    title: "Vouchers",
-    href: "/admin/vouchers",
-    icon: Gift,
+    name: "Promotions",
+    href: "/admin/promotions",
+    icon: Tag,
+    description: "Vouchers and discounts",
   },
   {
-    title: "Notifications",
-    href: "/admin/notifications",
-    icon: Bell,
-  },
-  {
-    title: "Shipping",
-    href: "/admin/shipping",
-    icon: Truck,
-  },
-  {
-    title: "Analytics",
+    name: "Analytics",
     href: "/admin/analytics",
     icon: BarChart3,
-  },
-  {
-    title: "Webhooks",
-    href: "/admin/webhooks",
-    icon: Activity,
-  },
-  {
-    title: "System",
-    href: "/admin/system",
-    icon: Monitor,
-  },
-  {
-    title: "Reports",
-    href: "/admin/reports",
-    icon: FileText,
-  },
-  {
-    title: "Settings",
-    href: "/admin/settings",
-    icon: Settings,
+    description: "Sales and performance",
   },
 ];
 
@@ -118,156 +104,142 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const router = useRouter();
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
 
-  useEffect(() => {
-    if (!isLoading) {
-      console.log("Admin Layout: Checking admin access...");
-      console.log("Admin Layout: isAuthenticated:", isAuthenticated);
-      console.log("Admin Layout: user:", user);
-      console.log("Admin Layout: user role:", user?.role);
-
-      if (!isAuthenticated || !user) {
-        console.log("Admin Layout: Not authenticated, redirecting to login");
-        router.push("/auth/login");
-        return;
-      }
-      if (user.role?.toUpperCase() !== "ADMIN") {
-        console.log("Admin Layout: User is not admin, redirecting to home");
-        router.push("/");
-        return;
-      }
-
-      console.log("Admin Layout: User is admin, access granted");
+  const isActive = (href: string) => {
+    if (href === "/admin") {
+      return pathname === href;
     }
-  }, [user, isAuthenticated, isLoading, router]);
-
-  const handleLogout = () => {
-    logout();
-    router.push("/auth/login");
+    return pathname.startsWith(href);
   };
-  console.log(
-    "Admin Layout: Rendering, isLoading:",
-    isLoading,
-    "user:",
-    !!user
-  );
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  const SidebarContent = () => (
+    <div className="flex h-full max-h-screen flex-col gap-2">
+      {/* Logo */}
+      <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+        <Link href="/admin" className="flex items-center gap-2 font-semibold">
+          <Package2 className="h-6 w-6" />
+          <span>Fashion Admin</span>
+        </Link>
+        <Button variant="outline" size="icon" className="ml-auto h-8 w-8">
+          <Bell className="h-4 w-4" />
+          <span className="sr-only">Toggle notifications</span>
+        </Button>
       </div>
-    );
-  }
-  if (!isAuthenticated || !user || user.role?.toUpperCase() !== "ADMIN") {
-    console.log("Admin Layout: Access denied, returning null");
-    return null;
-  }
+      {/* Navigation */}
+      <div className="flex-1">
+        <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+          {navigation.map((item) => {
+            const isItemActive = isActive(item.href);
+            return (
+              <div key={item.name}>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary",
+                    isItemActive
+                      ? "bg-muted text-primary"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.name}
+                  {item.name === "Orders" && (
+                    <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
+                      6
+                    </Badge>
+                  )}
+                </Link>
 
-  console.log("Admin Layout: Rendering admin layout with user:", user.fullName);
-
-  return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r">
-        <div className="flex items-center h-16 px-6 border-b">
-          <Package2 className="h-8 w-8 text-primary" />
-          <span className="ml-2 text-lg font-semibold">Admin Dashboard</span>
-        </div>
-
-        <ScrollArea className="flex-1 px-4 py-6">
-          <nav className="space-y-2">
-            {sidebarItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-gray-100 transition-colors",
-                  "text-gray-700 hover:text-gray-900"
+                {/* Sub-navigation */}
+                {item.children && isItemActive && (
+                  <div className="ml-6 mt-1 space-y-1">
+                    {item.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className={cn(
+                          "block rounded-md px-3 py-1.5 text-sm transition-all hover:text-primary",
+                          pathname === child.href
+                            ? "text-primary font-medium"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {child.name}
+                      </Link>
+                    ))}
+                  </div>
                 )}
-              >
-                <item.icon className="mr-3 h-4 w-4" />
-                {item.title}
-              </Link>
-            ))}
-          </nav>
-        </ScrollArea>
-
-        <div className="border-t p-4">
-          <div className="flex items-center space-x-3">
-            <Avatar>
-              <AvatarFallback>
-                {user?.fullName
-                  ?.split(" ")
-                  .map((n: string) => n[0])
-                  .join("") || "AD"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {user?.fullName || "Admin"}
-              </p>
-              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Mobile Layout */}
-      <div className="lg:hidden">
-        <div className="flex items-center justify-between h-16 px-4 bg-white border-b">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0">
-              <div className="flex items-center h-16 px-6 border-b">
-                <Package2 className="h-8 w-8 text-primary" />
-                <span className="ml-2 text-lg font-semibold">Admin</span>
               </div>
-
-              <ScrollArea className="flex-1 px-4 py-6">
-                <nav className="space-y-2">
-                  {sidebarItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-gray-100 transition-colors text-gray-700 hover:text-gray-900"
-                    >
-                      <item.icon className="mr-3 h-4 w-4" />
-                      {item.title}
-                    </Link>
-                  ))}
-                </nav>
-              </ScrollArea>
-            </SheetContent>
-          </Sheet>
-
-          <div className="flex items-center space-x-3">
-            <span className="text-sm font-medium">Admin Dashboard</span>
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
-            </Button>
+            );
+          })}
+        </nav>
+      </div>{" "}
+      {/* User menu */}
+      <div className="mt-auto p-4 space-y-3">
+        {user && (
+          <div className="px-3 py-2 text-sm text-muted-foreground">
+            <div className="font-medium text-foreground">{user.fullName}</div>
+            <div className="text-xs">{user.email}</div>
+            <div className="text-xs">
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                Admin
+              </span>
+            </div>
           </div>
+        )}
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={handleLogout}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign Out
+        </Button>
+      </div>
+    </div>
+  );
+  return (
+    <AdminGuard>
+      <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+        {/* Desktop Sidebar */}
+        <div className="hidden border-r bg-muted/40 md:block">
+          <SidebarContent />
+        </div>
+
+        {/* Main Content */}
+        <div className="flex flex-col">
+          {/* Mobile Header */}
+          <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6 md:hidden">
+            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon" className="shrink-0">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Toggle navigation menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="flex flex-col">
+                <SidebarContent />
+              </SheetContent>
+            </Sheet>
+          </header>
+
+          {/* Main Content Area */}
+          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+            {children}
+          </main>
         </div>
       </div>
-
-      {/* Main Content */}
-      <main className="flex-1 lg:ml-64">
-        <div className="p-6">{children}</div>
-      </main>
-    </div>
+    </AdminGuard>
   );
 }

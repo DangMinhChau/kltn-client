@@ -79,8 +79,9 @@ export function CartSheet() {
               <div key={item.id} className="flex gap-4 rounded-lg border p-4">
                 {/* Product Image */}
                 <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
+                  {" "}
                   <Image
-                    src={item.image}
+                    src={item.image || item.imageUrl}
                     alt={item.name}
                     fill
                     className="object-cover"
@@ -101,13 +102,11 @@ export function CartSheet() {
                     >
                       <X className="h-4 w-4" />
                     </Button>
-                  </div>
-
+                  </div>{" "}
                   <div className="text-xs text-muted-foreground">
-                    <p>Màu: {item.color}</p>
-                    <p>Size: {item.size}</p>
+                    <p>Màu: {item.color || item.variant?.color?.name || ""}</p>
+                    <p>Size: {item.size || item.variant?.size?.name || ""}</p>
                   </div>
-
                   <div className="flex items-center justify-between">
                     {/* Quantity Controls */}
                     <div className="flex items-center gap-2">

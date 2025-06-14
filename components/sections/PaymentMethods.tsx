@@ -2,7 +2,7 @@
  * PaymentMethods Component
  *
  * Displays supported payment methods with beautiful icons and descriptions.
- * Used in BrandShowcase to show payment options.
+ * Used in  to show payment options.
  *
  * Features:
  * - VNPay integration (primary payment method)

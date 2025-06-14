@@ -15,7 +15,7 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => void;
   refreshAuth: () => Promise<void>;
@@ -169,8 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     state.accessToken,
     state.refreshToken,
     state.user,
-  ]);
-  const login = async (email: string, password: string) => {
+  ]);  const login = async (email: string, password: string): Promise<User> => {
     try {
       dispatch({ type: "AUTH_START" });
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -208,6 +207,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.setItem("refreshToken", data.refreshToken);
       localStorage.setItem("user", JSON.stringify(data.user));
       console.log("localStorage saved manually");
+      
+      // Return the user data for redirect logic
+      return data.user;
     } catch (error) {
       console.error("Login error:", error);
       dispatch({ type: "AUTH_FAILURE" });

@@ -42,10 +42,9 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
 }) => {
   // Use useRef for initialization to avoid re-initializing state on every render
   const initializedRef = React.useRef(false);
-
   const [selectedVariant, setSelectedVariant] = useState<
     ProductVariant | undefined
-  >(null);
+  >(undefined);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // Set initial variant only once when component mounts or product changes
@@ -57,42 +56,64 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
   }, [product]);
 
   if (!product) return null;
-
-  const discountedPrice = calculateDiscountedPrice(
-    product.basePrice,
-    product.discountPercent
-  );
+  const basePrice = parseFloat(product.basePrice);
+  const discountPercent = product.discount || 0;
+  const discountedPrice = calculateDiscountedPrice(basePrice, discountPercent);
 
   const currentStock = selectedVariant
     ? selectedVariant.stockQuantity
     : product.variants?.reduce((sum, v) => sum + v.stockQuantity, 0) || 0;
 
   const stockStatus = getStockStatus(currentStock);
-  const stars = generateStarRating(product.averageRating);
+  const stars = generateStarRating(product.averageRating || 0);
+
+  // Get product main image
+  const productMainImage =
+    product.image?.imageUrl ||
+    (product.images && product.images.length > 0
+      ? product.images[0].imageUrl
+      : "");
+
   // Get current images with useMemo to prevent recalculation on every render
   const currentImages = React.useMemo(() => {
     if (selectedVariant?.images && selectedVariant.images.length > 0) {
       return selectedVariant.images.map((img) => img.imageUrl);
     }
-    return [product.mainImageUrl];
-  }, [selectedVariant, product.mainImageUrl]);
-
-  // Convert Product to CartItem format
+    return [productMainImage];
+  }, [selectedVariant, productMainImage]); // Convert Product to CartItem format
   const createCartItem = (): Omit<CartItem, "quantity"> => {
     const variant = selectedVariant || product.variants?.[0];
     const currentPrice = discountedPrice;
+    const imageUrl = currentImages[selectedImageIndex];
+
+    // Get primary image or first image from product if available
+    const productImage =
+      product.image?.imageUrl ||
+      (product.images && product.images.length > 0
+        ? product.images[0].imageUrl
+        : "");
 
     return {
       id: variant?.id || product.id,
       name: product.name,
-      image: currentImages[selectedImageIndex],
-      price: product.basePrice,
-      discountPrice: product.discountPercent > 0 ? currentPrice : undefined,
+      image: imageUrl || productImage,
+      imageUrl: imageUrl || productImage, // For backward compatibility
+      price: basePrice, // Already parsed to number
+      discountPrice: discountPercent > 0 ? currentPrice : undefined,
       color: variant?.color?.name || "Mặc định",
       size: variant?.size?.name || "Mặc định",
       sku: variant?.sku || product.baseSku,
-      variantId: variant?.id || product.id,
       maxQuantity: variant?.stockQuantity || 0,
+      slug: product.slug,
+      variant: variant || {
+        id: product.id,
+        sku: product.baseSku,
+        stockQuantity: 0,
+        isActive: true,
+        color: undefined,
+        size: undefined,
+        images: product.images || [],
+      },
     };
   }; // Use React.useCallback to memoize the function and prevent recreation on every render
   const handleVariantChange = React.useCallback(
@@ -123,7 +144,8 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
             <div className="relative">
               {/* Badges */}
               <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
-                {product.isFeatured && (
+                {" "}
+                {(product as any).isFeatured && (
                   <Badge
                     variant="secondary"
                     className="bg-yellow-500 text-white text-xs"
@@ -131,9 +153,9 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
                     Nổi bật
                   </Badge>
                 )}
-                {product.discountPercent > 0 && (
+                {discountPercent > 0 && (
                   <Badge variant="destructive" className="text-xs">
-                    -{product.discountPercent}%
+                    -{discountPercent}%
                   </Badge>
                 )}
               </div>
@@ -227,10 +249,10 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-2xl font-bold text-primary">
                 {formatPrice(discountedPrice)}
-              </span>
-              {product.discountPercent > 0 && (
+              </span>{" "}
+              {discountPercent > 0 && (
                 <span className="text-lg text-muted-foreground line-through">
-                  {formatPrice(product.basePrice)}
+                  {formatPrice(basePrice)}
                 </span>
               )}
             </div>

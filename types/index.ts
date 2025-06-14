@@ -1,3 +1,8 @@
+// Export order types
+export * from "./order";
+// Export API DTOs with specific naming to avoid conflicts
+export * from "./api-order";
+
 // Product Types
 export interface Product {
   id: string;
@@ -125,6 +130,13 @@ export interface Size {
   updatedAt: string;
 }
 
+// Size Type (Deprecated but still used for backward compatibility)
+export enum SizeType {
+  TOP = "top",
+  BOTTOM = "bottom",
+  ACCESSORY = "accessory",
+}
+
 // Review Types
 export interface Review {
   id: string;
@@ -135,12 +147,18 @@ export interface Review {
 }
 
 // User and Authentication Types
+export enum UserRole {
+  ADMIN = "admin",
+  CUSTOMER = "customer",
+  STAFF = "seller", // Backend uses 'seller' instead of 'staff'
+}
+
 export interface User {
   id: string;
   fullName: string;
   email: string;
   phoneNumber: string;
-  role: "CUSTOMER" | "ADMIN" | "STAFF";
+  role: UserRole;
   isActive: boolean;
   isEmailVerified: boolean;
   createdAt: string;
@@ -188,9 +206,13 @@ export interface CartItem {
   name: string;
   price: number;
   discountPrice?: number;
-  imageUrl: string;
+  imageUrl: string; // Used in page.tsx
+  image: string; // Used in components
   slug: string;
   variant: ProductVariant;
+  color: string; // For convenience access to variant.color.name
+  size: string; // For convenience access to variant.size.name
+  sku: string; // For convenience access to variant.sku
 }
 
 // Cart Context Types
@@ -212,44 +234,7 @@ export interface CartContextType {
   closeCart: () => void;
 }
 
-// Order Types
-export interface Order {
-  id: string;
-  orderNumber: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  shippingAddress: string;
-  subTotal: number;
-  shippingFee: number;
-  discount: number;
-  totalPrice: number;
-  status: OrderStatus;
-  note?: string;
-  orderedAt: Date;
-  items: OrderItem[];
-}
-
-export interface OrderItem {
-  id: string;
-  quantity: number;
-  unitPrice: number;
-  productName: string;
-  variantSku: string;
-  colorName: string;
-  sizeName: string;
-  variant: ProductVariant;
-}
-
-// Enums
-export enum OrderStatus {
-  PENDING = "PENDING",
-  PROCESSING = "PROCESSING",
-  SHIPPED = "SHIPPED",
-  DELIVERED = "DELIVERED",
-  CANCELLED = "CANCELLED",
-  COMPLETED = "COMPLETED",
-}
+// Order Types are now exported from ./order.ts to avoid duplication
 
 // API Response Types
 export interface ApiResponse<T> {
@@ -343,4 +328,101 @@ export interface FilterColorItem {
 export interface FilterSizeItem {
   name: string;
   productCount: number;
+}
+
+// Wishlist Types
+export interface Wishlist {
+  id: string;
+  user: User;
+  items: WishlistItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WishlistItem {
+  id: string;
+  product: Product;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Voucher Types
+// Matching backend DiscountType but extended for frontend
+export enum VoucherType {
+  PERCENTAGE = "PERCENT", // Matches backend DiscountType.PERCENT
+  FIXED_AMOUNT = "AMOUNT", // Matches backend DiscountType.AMOUNT
+  FREE_SHIPPING = "FREE_SHIPPING", // Extended for frontend
+  BUY_X_GET_Y = "BUY_X_GET_Y", // Extended for frontend
+  CUSTOM = "CUSTOM", // Extended for frontend
+}
+
+export interface Voucher {
+  id: string;
+  code: string;
+  name?: string; // Optional since backend might not have this field
+  description?: string;
+  type: VoucherType;
+  value: number; // Giá trị giảm giá (% hoặc số tiền cố định)
+  minPurchaseAmount?: number;
+  maxDiscountAmount?: number;
+  startDate: string; // Maps to startAt in backend
+  endDate: string; // Maps to expireAt in backend
+  isActive: boolean;
+  usageLimit?: number;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VoucherValidationResult {
+  isValid: boolean;
+  voucher?: Voucher;
+  discountAmount: number;
+  message: string;
+}
+
+// Payment Types are now exported from ./order.ts to avoid duplication
+
+export interface Payment {
+  id: string;
+  orderId: string;
+  amount: number;
+  method: string; // Use string instead of enum to avoid conflicts
+  status: string; // Use string instead of enum to avoid conflicts
+  transactionId?: string;
+  paymentData?: Record<string, any>;
+  paidAt?: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Shipping Types are now exported from ./order.ts to avoid duplication
+
+// Notification Types
+// Đồng bộ với NotificationType từ backend
+export enum NotificationType {
+  ORDER_CREATED = "order_created",
+  ORDER_UPDATED = "order_updated",
+  ORDER_SHIPPED = "order_shipped",
+  ORDER_DELIVERED = "order_delivered",
+  ORDER_CANCELLED = "order_cancelled",
+  PAYMENT_SUCCESS = "payment_success",
+  PAYMENT_FAILED = "payment_failed",
+  PROMOTION = "promotion",
+  SYSTEM = "system",
+  ACCOUNT = "account", // Extended for frontend
+}
+
+export interface Notification {
+  id: string;
+  userId: string; // Reference to user.id
+  title: string;
+  message: string; // Maps to content in backend
+  type: NotificationType;
+  isRead: boolean;
+  relatedId?: string; // Maps to metadata in backend
+  readAt?: string; // Added from backend
+  createdAt: string;
+  updatedAt: string;
 }

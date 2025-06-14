@@ -1,4 +1,5 @@
 import { api } from "../api";
+import { CartItem } from "@/types";
 
 // Cart interfaces
 export interface Cart {
@@ -15,7 +16,7 @@ export interface Cart {
   updatedAt: Date;
 }
 
-export interface CartItem {
+export interface ApiCartItem {
   id: string;
   cart: {
     id: string;

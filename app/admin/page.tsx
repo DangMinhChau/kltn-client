@@ -1,33 +1,145 @@
 "use client";
 
-import { useAuth } from "@/lib/context/AuthContext";
+import { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
-import { StatsCards } from "@/components/admin/dashboard/StatsCards";
-import { DashboardCharts } from "@/components/admin/dashboard/DashboardCharts";
-import { TablesSection } from "@/components/admin/dashboard/TablesSection";
-import { QuickActions } from "@/components/admin/dashboard/QuickActions";
-import { useDashboardAnalytics, useAdminStats } from "@/lib/hooks/useAdminData";
-import { Skeleton } from "@/components/ui/skeleton";
-import type { DashboardAnalytics, AdminStats } from "@/lib/api/admin";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Package,
+  Users,
+  ShoppingCart,
+  Star,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Eye,
+  Plus,
+} from "lucide-react";
+import Link from "next/link";
+
+interface DashboardStats {
+  totalProducts: number;
+  totalOrders: number;
+  totalUsers: number;
+  totalRevenue: number;
+  pendingOrders: number;
+  pendingReviews: number;
+  activeProducts: number;
+  lowStockProducts: number;
+}
+
+interface RecentOrder {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  total: number;
+  status: string;
+  createdAt: string;
+}
+
+interface RecentProduct {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  stock: number;
+  status: string;
+  createdAt: string;
+}
 
 export default function AdminDashboard() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const {
-    data: analytics,
-    loading: analyticsLoading,
-    refresh: refreshAnalytics,
-  } = useDashboardAnalytics();
-  const {
-    data: stats,
-    loading: statsLoading,
-    refresh: refreshStats,
-  } = useAdminStats();
+  const [stats, setStats] = useState<DashboardStats>({
+    totalProducts: 0,
+    totalOrders: 0,
+    totalUsers: 0,
+    totalRevenue: 0,
+    pendingOrders: 0,
+    pendingReviews: 0,
+    activeProducts: 0,
+    lowStockProducts: 0,
+  });
 
-  const loading = analyticsLoading || statsLoading;
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [recentProducts, setRecentProducts] = useState<RecentProduct[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleRefresh = async () => {
-    await Promise.all([refreshAnalytics(), refreshStats()]);
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      // TODO: Replace with actual API calls
+      // const [statsRes, ordersRes, productsRes] = await Promise.all([
+      //   api.get('/admin/dashboard/stats'),
+      //   api.get('/admin/orders?limit=5'),
+      //   api.get('/admin/products?limit=5&sortBy=createdAt&sortOrder=DESC')
+      // ]);
+
+      // Mock data for now
+      setStats({
+        totalProducts: 150,
+        totalOrders: 1250,
+        totalUsers: 850,
+        totalRevenue: 125000,
+        pendingOrders: 23,
+        pendingReviews: 12,
+        activeProducts: 145,
+        lowStockProducts: 8,
+      });
+
+      setRecentOrders([
+        {
+          id: "1",
+          orderNumber: "ORD-2024-000123",
+          customerName: "Nguyễn Văn A",
+          total: 1200000,
+          status: "pending",
+          createdAt: "2024-01-15T10:30:00Z",
+        },
+        {
+          id: "2",
+          orderNumber: "ORD-2024-000124",
+          customerName: "Trần Thị B",
+          total: 850000,
+          status: "confirmed",
+          createdAt: "2024-01-15T09:15:00Z",
+        },
+      ]);
+
+      setRecentProducts([
+        {
+          id: "1",
+          name: "Áo sơ mi nam công sở",
+          category: "Áo sơ mi",
+          price: 450000,
+          stock: 25,
+          status: "active",
+          createdAt: "2024-01-15T08:00:00Z",
+        },
+        {
+          id: "2",
+          name: "Quần jean slim fit",
+          category: "Quần jean",
+          price: 650000,
+          stock: 3,
+          status: "active",
+          createdAt: "2024-01-14T16:30:00Z",
+        },
+      ]);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -37,95 +149,287 @@ export default function AdminDashboard() {
     }).format(amount);
   };
 
-  if (isLoading) {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("vi-VN");
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      active: { variant: "default" as const, label: "Hoạt động" },
+      inactive: { variant: "secondary" as const, label: "Không hoạt động" },
+      pending: { variant: "outline" as const, label: "Chờ xử lý" },
+      confirmed: { variant: "default" as const, label: "Đã xác nhận" },
+      shipping: { variant: "secondary" as const, label: "Đang giao" },
+      delivered: { variant: "default" as const, label: "Đã giao" },
+      cancelled: { variant: "destructive" as const, label: "Đã hủy" },
+    };
+
+    const config = statusConfig[status as keyof typeof statusConfig] || {
+      variant: "outline" as const,
+      label: status,
+    };
+
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-4 w-20 bg-muted animate-pulse rounded"></div>
+                <div className="h-4 w-4 bg-muted animate-pulse rounded"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 w-16 bg-muted animate-pulse rounded mb-1"></div>
+                <div className="h-3 w-24 bg-muted animate-pulse rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back! Here's what's happening with your store.
-          </p>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <div className="flex items-center gap-2">
+          <Button asChild>
+            <Link href="/admin/products/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Thêm sản phẩm
+            </Link>
+          </Button>
         </div>
-        <Button
-          onClick={handleRefresh}
-          disabled={loading}
-          variant="outline"
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
-      </div>{" "}
+      </div>
+
       {/* Stats Cards */}
-      {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
-      ) : (
-        stats && <StatsCards stats={stats} formatCurrency={formatCurrency} />
-      )}{" "}
-      {/* Charts */}
-      {loading ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Skeleton className="h-80" />
-          <Skeleton className="h-80" />
-        </div>
-      ) : (
-        analytics && (
-          <DashboardCharts
-            revenueData={(analytics.revenueChart || []).map((item) => ({
-              name: item.date,
-              value: item.revenue,
-              revenue: item.revenue,
-              orders: item.orders,
-            }))}
-            orderData={(analytics.revenueChart || []).map((item) => ({
-              name: item.date,
-              value: item.orders,
-              orders: item.orders,
-            }))}
-            customerData={(analytics.customerGrowth || []).map((item) => ({
-              name: item.month,
-              value: item.customers,
-              customers: item.customers,
-            }))}
-            categoryData={[]}
-          />
-        )
-      )}
-      {/* Tables and Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="md:col-span-2">
-          {loading ? (
-            <Skeleton className="h-96" />
-          ) : (
-            analytics && (
-              <TablesSection
-                topProducts={analytics.topProducts || []}
-                recentOrders={analytics.recentOrders || []}
-                formatCurrency={formatCurrency}
-              />
-            )
-          )}
-        </div>
-        <div>
-          <QuickActions />
-        </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Tổng đơn hàng</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {stats.totalOrders.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              <span className="inline-flex items-center">
+                <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
+                +20.1% từ tháng trước
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Doanh thu</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(stats.totalRevenue)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              <span className="inline-flex items-center">
+                <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
+                +15.3% từ tháng trước
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Sản phẩm</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalProducts}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.lowStockProducts} sản phẩm sắp hết hàng
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Khách hàng</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalUsers}</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="inline-flex items-center">
+                <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
+                +8.2% từ tháng trước
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Đơn hàng chờ xử lý</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">
+              {stats.pendingOrders}
+            </div>
+            <Button variant="link" className="h-auto p-0" asChild>
+              <Link href="/admin/orders?status=pending">
+                <Eye className="mr-1 h-3 w-3" />
+                Xem tất cả
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Đánh giá chờ duyệt</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              {stats.pendingReviews}
+            </div>
+            <Button variant="link" className="h-auto p-0" asChild>
+              <Link href="/admin/reviews?status=pending">
+                <Eye className="mr-1 h-3 w-3" />
+                Xem tất cả
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Sản phẩm sắp hết</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {stats.lowStockProducts}
+            </div>
+            <Button variant="link" className="h-auto p-0" asChild>
+              <Link href="/admin/products?stock=low">
+                <Eye className="mr-1 h-3 w-3" />
+                Xem tất cả
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Sản phẩm hoạt động</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.activeProducts}
+            </div>
+            <Button variant="link" className="h-auto p-0" asChild>
+              <Link href="/admin/products?status=active">
+                <Eye className="mr-1 h-3 w-3" />
+                Xem tất cả
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Recent Orders */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Đơn hàng gần đây</CardTitle>
+            <CardDescription>
+              5 đơn hàng mới nhất trong hệ thống
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className="flex items-center justify-between"
+                >
+                  <div>
+                    <p className="font-medium">{order.orderNumber}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {order.customerName}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{formatCurrency(order.total)}</p>
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(order.status)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/admin/orders">Xem tất cả đơn hàng</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Products */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Sản phẩm mới</CardTitle>
+            <CardDescription>5 sản phẩm được thêm gần đây</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between"
+                >
+                  <div>
+                    <p className="font-medium">{product.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {product.category}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">
+                      {formatCurrency(product.price)}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-xs ${
+                          product.stock < 10
+                            ? "text-red-600"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        SL: {product.stock}
+                      </span>
+                      {getStatusBadge(product.status)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/admin/products">Xem tất cả sản phẩm</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -1,27 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
-  Upload,
-  Download,
-  MoreHorizontal,
-  Package,
-  AlertTriangle,
-  Search,
-  Filter,
-  Star,
-  CheckCircle,
-  XCircle,
-  Clock,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -30,14 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -46,6 +21,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -53,469 +36,576 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useProducts, type Product } from "@/lib/hooks/useAdminData";
 import {
-  useDeleteProduct,
-  useBulkProductAction,
-  useUploadProductImages,
-} from "@/lib/hooks/useAdminMutations";
-import {
-  DataTable,
-  Column,
-  ActionItem,
-  BulkAction,
-} from "@/components/admin/DataTable";
-import { StatsCard } from "@/components/admin/StatsCard";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import {
+  Plus,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Eye,
+  Download,
+  RefreshCw,
+  Package,
+} from "lucide-react";
+import Link from "next/link";
 import Image from "next/image";
-import { adminApi } from "@/lib/api/admin";
+import { Product, Category, PaginationResult } from "@/types";
+import { adminProductsApi, AdminProductFilters } from "@/lib/api/admin";
+import { adminCategoriesApi } from "@/lib/api/admin";
 
 export default function ProductsPage() {
   const router = useRouter();
-  const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [uploadProductId, setUploadProductId] = useState<string | null>(null);
-  // Data fetching
-  const {
-    data: productsData,
-    total,
-    page,
-    pageSize,
-    loading,
-    search,
-    filters,
-    sortBy,
-    sortOrder,
-    setPage,
-    setPageSize,
-    setSearch,
-    setFilters,
-    setSorting,
-    refresh,
-  } = useProducts();
 
-  // Safely handle null data
-  const products = productsData || [];
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [filters, setFilters] = useState<AdminProductFilters>({
+    page: 1,
+    limit: 10,
+    search: "",
+    categoryId: "",
+    isActive: undefined,
+    sortBy: "createdAt",
+    sortOrder: "DESC",
+  });
 
-  // Mutations
-  const deleteProduct = useDeleteProduct();
-  const bulkAction = useBulkProductAction();
-  const uploadImages = useUploadProductImages();
+  // Fetch data
+  useEffect(() => {
+    fetchProducts();
+  }, [filters]);
 
-  // Table columns configuration
-  const columns: Column<Product>[] = [
-    {
-      id: "name",
-      header: "Product",
-      accessorKey: "name",
-      sortable: true,
-      filterable: true,
-      cell: (product) => (
-        <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 rounded-md bg-gray-100 flex items-center justify-center">
-            {product.mainImageUrl ? (
-              <img
-                src={product.mainImageUrl}
-                alt={product.name}
-                className="h-10 w-10 rounded-md object-cover"
-              />
-            ) : (
-              <Package className="h-5 w-5 text-gray-400" />
-            )}
-          </div>
-          <div>
-            <div className="font-medium">{product.name}</div>
-            <div className="text-sm text-muted-foreground">
-              SKU: {product.sku}
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "category",
-      header: "Category",
-      sortable: true,
-      filterable: true,
-      filterType: "select",
-      cell: (product) => (
-        <Badge variant="outline">
-          {product.category?.name || "No Category"}
-        </Badge>
-      ),
-    },
-    {
-      id: "price",
-      header: "Price",
-      accessorKey: "price",
-      sortable: true,
-      align: "right",
-      cell: (product) => (
-        <div className="text-right">
-          {product.salePrice && product.salePrice < product.price ? (
-            <div>
-              <div className="text-sm line-through text-muted-foreground">
-                ${product.price.toFixed(2)}
-              </div>
-              <div className="font-medium text-red-600">
-                ${product.salePrice.toFixed(2)}
-              </div>
-            </div>
-          ) : (
-            <div className="font-medium">${product.price.toFixed(2)}</div>
-          )}
-        </div>
-      ),
-    },
-    {
-      id: "stock",
-      header: "Stock",
-      accessorKey: "stockQuantity",
-      sortable: true,
-      align: "center",
-      cell: (product) => (
-        <div className="text-center">
-          <Badge
-            variant={
-              product.stockQuantity === 0
-                ? "destructive"
-                : product.stockQuantity < 10
-                ? "secondary"
-                : "default"
-            }
-          >
-            {product.stockQuantity === 0 ? (
-              <AlertTriangle className="h-3 w-3 mr-1" />
-            ) : null}
-            {product.stockQuantity}
-          </Badge>
-        </div>
-      ),
-    },
-    {
-      id: "status",
-      header: "Status",
-      accessorKey: "status",
-      sortable: true,
-      filterable: true,
-      filterType: "select",
-      filterOptions: [
-        { label: "Active", value: "active" },
-        { label: "Inactive", value: "inactive" },
-        { label: "Draft", value: "draft" },
-      ],
-      cell: (product) => (
-        <Badge
-          variant={
-            product.status === "active"
-              ? "default"
-              : product.status === "inactive"
-              ? "secondary"
-              : "outline"
-          }
-        >
-          {product.status}
-        </Badge>
-      ),
-    },
-    {
-      id: "createdAt",
-      header: "Created",
-      accessorKey: "createdAt",
-      sortable: true,
-      cell: (product) => (
-        <div className="text-sm text-muted-foreground">
-          {new Date(product.createdAt).toLocaleDateString()}
-        </div>
-      ),
-    },
-  ];
-
-  // Action items for each row
-  const actions: ActionItem<Product>[] = [
-    {
-      label: "View",
-      onClick: (product) => router.push(`/admin/products/${product.id}`),
-      icon: <Eye className="h-4 w-4" />,
-    },
-    {
-      label: "Edit",
-      onClick: (product) => router.push(`/admin/products/${product.id}/edit`),
-      icon: <Edit className="h-4 w-4" />,
-    },
-    {
-      label: "Upload Images",
-      onClick: (product) => {
-        setUploadProductId(product.id);
-        setUploadDialogOpen(true);
-      },
-      icon: <Upload className="h-4 w-4" />,
-    },
-    {
-      label: "Delete",
-      onClick: (product) => setDeleteProductId(product.id),
-      icon: <Trash2 className="h-4 w-4" />,
-      variant: "destructive",
-    },
-  ];
-
-  // Bulk actions
-  const bulkActions: BulkAction<Product>[] = [
-    {
-      label: "Activate",
-      onClick: async (products) => {
-        await bulkAction.mutate({
-          action: "activate",
-          productIds: products.map((p) => p.id),
-        });
-        refresh();
-      },
-      icon: <Package className="h-4 w-4" />,
-    },
-    {
-      label: "Deactivate",
-      onClick: async (products) => {
-        await bulkAction.mutate({
-          action: "deactivate",
-          productIds: products.map((p) => p.id),
-        });
-        refresh();
-      },
-      icon: <Package className="h-4 w-4" />,
-    },
-    {
-      label: "Delete",
-      onClick: async (products) => {
-        if (
-          confirm(
-            `Are you sure you want to delete ${products.length} products?`
-          )
-        ) {
-          await bulkAction.mutate({
-            action: "delete",
-            productIds: products.map((p) => p.id),
-          });
-          refresh();
-        }
-      },
-      icon: <Trash2 className="h-4 w-4" />,
-      variant: "destructive",
-    },
-  ];
-
-  const handleDeleteProduct = async () => {
-    if (!deleteProductId) return;
-
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+  const fetchProducts = async () => {
     try {
-      await deleteProduct.mutate(deleteProductId);
-      setDeleteProductId(null);
-      refresh();
+      setLoading(true);
+      const result = await adminProductsApi.getProducts(filters);
+      setProducts(result.data);
+      setPagination({
+        page: result.meta.page,
+        limit: result.meta.limit,
+        total: result.meta.total,
+        totalPages: result.meta.totalPages,
+      });
     } catch (error) {
-      console.error("Failed to delete product:", error);
+      console.error("Error fetching products:", error);
+      toast.error("Không thể tải danh sách sản phẩm");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleImageUpload = async (files: FileList) => {
-    if (!uploadProductId || !files.length) return;
-
+  const fetchCategories = async () => {
     try {
-      await uploadImages.mutate({ productId: uploadProductId, files });
-      setUploadDialogOpen(false);
-      setUploadProductId(null);
-      refresh();
+      const result = await adminCategoriesApi.getCategories({ limit: 100 });
+      setCategories(result.data || []);
     } catch (error) {
-      console.error("Failed to upload images:", error);
+      console.error("Error fetching categories:", error);
     }
   };
 
-  const handleExport = () => {
-    // Implementation for exporting products
-    toast.info("Export functionality will be implemented soon");
+  const handleSearch = (value: string) => {
+    setFilters((prev) => ({ ...prev, search: value, page: 1 }));
   };
+
+  const handleFilterChange = (key: keyof AdminProductFilters, value: any) => {
+    setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
+  };
+
+  const handlePageChange = (page: number) => {
+    setFilters((prev) => ({ ...prev, page }));
+  };
+
+  const handleSelectProduct = (productId: string) => {
+    setSelectedProducts((prev) =>
+      prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedProducts.length === products.length) {
+      setSelectedProducts([]);
+    } else {
+      setSelectedProducts(products.map((p) => p.id));
+    }
+  };
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      await adminProductsApi.deleteProduct(productId);
+      toast.success("Đã xóa sản phẩm thành công");
+      fetchProducts();
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      toast.error("Không thể xóa sản phẩm");
+    }
+  };
+  const handleBulkDelete = async () => {
+    try {
+      await adminProductsApi.bulkDeleteProducts(selectedProducts);
+      toast.success(`Đã xóa ${selectedProducts.length} sản phẩm`);
+      setSelectedProducts([]);
+      fetchProducts();
+    } catch (error) {
+      console.error("Error bulk deleting products:", error);
+      toast.error("Không thể xóa các sản phẩm đã chọn");
+    }
+  };
+
+  const formatCurrency = (amount: number | string) => {
+    const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(numAmount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("vi-VN");
+  };
+
+  const getStatusBadge = (isActive: boolean) => {
+    return (
+      <Badge variant={isActive ? "default" : "secondary"}>
+        {isActive ? "Hoạt động" : "Không hoạt động"}
+      </Badge>
+    );
+  };
+
+  const getTotalVariants = (product: Product) => {
+    return product.variants?.length || 0;
+  };
+
+  const getTotalStock = (product: Product) => {
+    return (
+      product.variants?.reduce(
+        (total, variant) => total + variant.stockQuantity,
+        0
+      ) || 0
+    );
+  };
+
+  if (loading && products.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-10 w-28" />
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center space-x-4">
+                  <Skeleton className="h-12 w-12" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Products</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Sản phẩm</h1>
           <p className="text-muted-foreground">
-            Manage your product catalog, inventory, and pricing.
+            Quản lý {pagination.total} sản phẩm trong hệ thống
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={fetchProducts} disabled={loading}>
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
+            />
+            Làm mới
           </Button>
           <Button asChild>
-            <Link href="/admin/products/create">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Product
+            <Link href="/admin/products/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Thêm sản phẩm
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Products
-            </CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{total}</div>
-            <p className="text-xs text-muted-foreground">
-              +12% from last month
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Active Products
-            </CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {products.filter((p) => p.status === "active").length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {(
-                (products.filter((p) => p.status === "active").length / total) *
-                100
-              ).toFixed(1)}
-              % of total
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {products.filter((p) => p.stockQuantity === 0).length}
-            </div>
-            <p className="text-xs text-muted-foreground">Needs restocking</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {
-                products.filter(
-                  (p) => p.stockQuantity > 0 && p.stockQuantity < 10
-                ).length
-              }
-            </div>
-            <p className="text-xs text-muted-foreground">{"< 10 items"}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Data Table */}
+      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Product List</CardTitle>
-          <CardDescription>
-            A comprehensive list of all products in your catalog.
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Bộ lọc
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable
-            data={products}
-            columns={columns}
-            total={total}
-            page={page}
-            pageSize={pageSize}
-            loading={loading}
-            search={search}
-            filters={filters}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-            onSearchChange={setSearch}
-            onFiltersChange={setFilters}
-            onSortChange={setSorting}
-            onRefresh={refresh}
-            onExport={handleExport}
-            actions={actions}
-            bulkActions={bulkActions}
-            selectable={true}
-            getRowId={(product) => product.id}
-          />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tìm kiếm</label>
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Tìm theo tên, mô tả..."
+                  value={filters.search || ""}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>{" "}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Danh mục</label>
+              <Select
+                value={filters.categoryId || "all"}
+                onValueChange={(value) =>
+                  handleFilterChange("categoryId", value === "all" ? "" : value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Tất cả danh mục" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả danh mục</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>{" "}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Trạng thái</label>
+              <Select
+                value={
+                  filters.isActive === undefined
+                    ? "all"
+                    : filters.isActive.toString()
+                }
+                onValueChange={(value) =>
+                  handleFilterChange(
+                    "isActive",
+                    value === "all" ? undefined : value === "true"
+                  )
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Tất cả trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="true">Hoạt động</SelectItem>
+                  <SelectItem value="false">Không hoạt động</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Sắp xếp</label>
+              <Select
+                value={`${filters.sortBy}-${filters.sortOrder}`}
+                onValueChange={(value) => {
+                  const [sortBy, sortOrder] = value.split("-");
+                  setFilters((prev) => ({
+                    ...prev,
+                    sortBy,
+                    sortOrder: sortOrder as "ASC" | "DESC",
+                  }));
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="createdAt-DESC">Mới nhất</SelectItem>
+                  <SelectItem value="createdAt-ASC">Cũ nhất</SelectItem>
+                  <SelectItem value="name-ASC">Tên A-Z</SelectItem>
+                  <SelectItem value="name-DESC">Tên Z-A</SelectItem>
+                  <SelectItem value="basePrice-ASC">Giá thấp - cao</SelectItem>
+                  <SelectItem value="basePrice-DESC">Giá cao - thấp</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Delete Product Dialog */}
-      <Dialog
-        open={!!deleteProductId}
-        onOpenChange={() => setDeleteProductId(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Product</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this product? This action cannot
-              be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteProductId(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteProduct}
-              disabled={deleteProduct.loading}
-            >
-              {deleteProduct.loading ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Bulk Actions */}
+      {selectedProducts.length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                Đã chọn {selectedProducts.length} sản phẩm
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm">
+                  <Download className="mr-2 h-4 w-4" />
+                  Xuất Excel
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Xóa đã chọn
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Bạn có chắc chắn muốn xóa {selectedProducts.length} sản
+                        phẩm đã chọn? Hành động này không thể hoàn tác.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Hủy</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleBulkDelete}>
+                        Xóa
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Upload Images Dialog */}
-      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upload Product Images</DialogTitle>
-            <DialogDescription>
-              Select images to upload for this product.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={(e) =>
-                e.target.files && handleImageUpload(e.target.files)
-              }
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setUploadDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Products Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Danh sách sản phẩm
+          </CardTitle>
+          <CardDescription>
+            Hiển thị {products.length} / {pagination.total} sản phẩm
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={
+                      selectedProducts.length === products.length &&
+                      products.length > 0
+                    }
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
+                <TableHead>Sản phẩm</TableHead>
+                <TableHead>Danh mục</TableHead>
+                <TableHead>Giá gốc</TableHead>
+                <TableHead>Variants</TableHead>
+                <TableHead>Tồn kho</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead>Ngày tạo</TableHead>
+                <TableHead className="w-12"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {products.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedProducts.includes(product.id)}
+                      onCheckedChange={() => handleSelectProduct(product.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="relative h-12 w-12 rounded-md overflow-hidden bg-muted">
+                        {product.image?.imageUrl ? (
+                          <Image
+                            src={product.image.imageUrl}
+                            alt={product.name}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center">
+                            <Package className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium">{product.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {product.baseSku}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {product.category?.name || "Chưa phân loại"}
+                  </TableCell>
+                  <TableCell>{formatCurrency(product.basePrice)}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {getTotalVariants(product)} variants
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={
+                        getTotalStock(product) < 10
+                          ? "text-red-600 font-medium"
+                          : ""
+                      }
+                    >
+                      {getTotalStock(product)}
+                    </span>
+                  </TableCell>
+                  <TableCell>{getStatusBadge(product.isActive)}</TableCell>
+                  <TableCell>{formatDate(product.createdAt)}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link href={`/products/${product.slug}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Xem chi tiết
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/admin/products/${product.id}/edit`}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Chỉnh sửa
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={`/admin/products/variants?productId=${product.id}`}
+                          >
+                            <Package className="mr-2 h-4 w-4" />
+                            Quản lý variants
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem
+                              onSelect={(e) => e.preventDefault()}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Xóa
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Bạn có chắc chắn muốn xóa sản phẩm "
+                                {product.name}"? Hành động này không thể hoàn
+                                tác.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Hủy</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteProduct(product.id)}
+                              >
+                                Xóa
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          {products.length === 0 && !loading && (
+            <div className="text-center py-8">
+              <Package className="mx-auto h-12 w-12 text-muted-foreground" />
+              <p className="mt-2 text-sm text-muted-foreground">
+                Không tìm thấy sản phẩm nào
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Hiển thị {(pagination.page - 1) * pagination.limit + 1} -{" "}
+                {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
+                / {pagination.total} sản phẩm
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page <= 1 || loading}
+                >
+                  Trước
+                </Button>
+                <span className="text-sm">
+                  Trang {pagination.page} / {pagination.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.totalPages || loading}
+                >
+                  Sau
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -115,7 +115,7 @@ function CartContent({
                       <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg border sm:h-32 sm:w-32">
                         {" "}
                         <Image
-                          src={item.imageUrl}
+                          src={item.imageUrl || item.image}
                           alt={item.name}
                           fill
                           className="object-cover object-center"
@@ -132,13 +132,15 @@ function CartContent({
                               </h3>
                             </div>{" "}
                             <p className="mt-1 text-sm text-gray-500">
-                              Màu: {item.variant.color.name}
+                              Màu:{" "}
+                              {item.color || item.variant?.color?.name || ""}
                             </p>
                             <p className="mt-1 text-sm text-gray-500">
-                              Size: {item.variant.size.name}
+                              Size:{" "}
+                              {item.size || item.variant?.size?.name || ""}
                             </p>
                             <p className="mt-1 text-sm text-gray-500">
-                              SKU: {item.variant.sku}
+                              SKU: {item.sku || item.variant?.sku || ""}
                             </p>
                           </div>
 

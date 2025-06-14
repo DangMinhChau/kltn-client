@@ -136,45 +136,9 @@ const FeaturedProducts = () => {
               </Link>
             </Button>
           </div>
-        )}{" "}
-        {/* Stats Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 mt-12 sm:mt-16 pt-12 sm:pt-16 border-t">
-          <div className="text-center">
-            <div className="text-2xl sm:text-3xl font-bold text-primary mb-1 sm:mb-2">
-              1000+
-            </div>
-            <div className="text-muted-foreground text-sm sm:text-base">
-              Sản phẩm
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl sm:text-3xl font-bold text-primary mb-1 sm:mb-2">
-              50K+
-            </div>
-            <div className="text-muted-foreground text-sm sm:text-base">
-              Khách hàng hài lòng
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl sm:text-3xl font-bold text-primary mb-1 sm:mb-2">
-              99%
-            </div>
-            <div className="text-muted-foreground text-sm sm:text-base">
-              Đánh giá tích cực
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl sm:text-3xl font-bold text-primary mb-1 sm:mb-2">
-              24/7
-            </div>
-            <div className="text-muted-foreground text-sm sm:text-base">
-              Hỗ trợ khách hàng
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </section>
   );
 };
-
 export default FeaturedProducts;

@@ -93,8 +93,9 @@ export function MiniCart() {
             {state.items.slice(0, 3).map((item) => (
               <div key={item.id} className="flex gap-3">
                 <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded">
+                  {" "}
                   <Image
-                    src={item.image}
+                    src={item.image || item.imageUrl}
                     alt={item.name}
                     fill
                     className="object-cover"
@@ -103,9 +104,11 @@ export function MiniCart() {
                 <div className="flex-1 space-y-1">
                   <h4 className="text-sm font-medium line-clamp-1">
                     {item.name}
-                  </h4>
+                  </h4>{" "}
                   <p className="text-xs text-muted-foreground">
-                    {item.color} • {item.size} • x{item.quantity}
+                    {item.color || item.variant?.color?.name || ""} •{" "}
+                    {item.size || item.variant?.size?.name || ""} • x
+                    {item.quantity}
                   </p>
                   <p className="text-sm font-medium">
                     {formatPrice(

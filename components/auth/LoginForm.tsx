@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,9 +32,9 @@ export const LoginForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isEmailUnverified, setIsEmailUnverified] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
-
   const { login, resendVerificationEmail } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -53,12 +53,25 @@ export const LoginForm = () => {
     setIsLoading(true);
 
     try {
-      await login(formData.email, formData.password);
-      console.log("Login completed, redirecting...");
-      // Force a small delay to ensure state is updated
-      setTimeout(() => {
+      const user = await login(formData.email, formData.password);
+      console.log("Login completed, checking user role for redirect...", user);
+
+      // Check for redirect parameter
+      const redirectTo = searchParams.get("redirect");
+
+      if (redirectTo) {
+        // If there's a redirect parameter, use it
+        console.log("Redirecting to specified path:", redirectTo);
+        router.push(redirectTo);
+      } else if (user.role?.toUpperCase() === "ADMIN") {
+        // If no redirect but user is admin, go to admin dashboard
+        console.log("Admin user detected, redirecting to admin dashboard");
+        router.push("/admin");
+      } else {
+        // Default redirect for regular users
+        console.log("Regular user, redirecting to home");
         router.push("/");
-      }, 100);
+      }
     } catch (err: any) {
       setError(err.message || "Đăng nhập thất bại");
     } finally {

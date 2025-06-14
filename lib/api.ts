@@ -54,53 +54,38 @@ api.interceptors.response.use(
     // Log the response for debugging
     console.log("API Response - Status:", response.status);
     console.log("API Response - URL:", response.config.url);
-    console.log("API Response - Full data:", response.data); // Special handling for products endpoint that returns pagination
-    // Only for main products API, not filter-options
-    if (
-      response.config.url?.includes("/products") &&
-      !response.config.url?.includes("/filter-options") &&
-      response.data &&
-      response.data.meta &&
-      response.data.data
-    ) {
-      console.log(
-        "API Response - Products pagination detected, preserving meta"
-      );
-      return response.data; // Return entire response with data + meta for products
-    }
+    console.log("API Response - Data:", response.data);
 
-    // Handle standard ApiResponse structure (NestJS format) for other endpoints
-    if (
-      response.data &&
-      response.data.statusCode &&
-      response.data.data !== undefined
-    ) {
-      console.log("API Response - Standard ApiResponse structure detected");
-      return response.data.data; // Return just the data part for other APIs
-    } // Check if response.data has a data property (NestJS format)
-    if (response.data && response.data.data !== undefined) {
-      console.log("API Response - NestJS data structure detected");
-      return response.data.data;
-    }
-
-    // If response.data is an array or object, return it directly
-    if (
-      response.data &&
-      (Array.isArray(response.data) || typeof response.data === "object")
-    ) {
-      console.log("API Response - Direct array/object");
-      return response.data;
-    }
-
-    // Otherwise return the response.data directly
-    console.log("API Response - Fallback");
-    return response.data;
+    // Return the full response for the API methods to handle
+    return response;
   },
   (error) => {
     console.error("API Error - Status:", error.response?.status);
     console.error("API Error - URL:", error.config?.url);
     console.error("API Error - Message:", error.response?.data?.message);
     console.error("API Error - Full Response:", error.response?.data);
+
+    // Handle 401 Unauthorized errors
+    if (error.response?.status === 401) {
+      console.warn(
+        "API Error - Unauthorized (401), clearing tokens and redirecting to login"
+      );
+
+      // Clear tokens from localStorage
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
+
+      // Only redirect if we're on an admin route
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname.startsWith("/admin")
+      ) {
+        window.location.href =
+          "/auth/login?redirect=" +
+          encodeURIComponent(window.location.pathname);
+      }
+    }
 
     if (error.response) {
       console.error("Error Response:", error.response.data);
@@ -117,124 +102,276 @@ api.interceptors.response.use(
 // Product API
 export const productApi = {
   // Get all products with filters (public endpoint)
-  getProducts: (filters?: ProductFilters): Promise<PaginationResult<Product>> =>
-    api.get("/products", { params: filters }),
+  getProducts: async (
+    filters?: ProductFilters
+  ): Promise<PaginationResult<Product>> => {
+    const response = await api.get("/products", { params: filters });
+    const responseBody = response.data; // { message, data, meta }
+
+    // Backend returns: { message, data: Product[], meta: { page, limit, total, totalPages, timestamp } }
+    return {
+      data: responseBody.data || [],
+      meta: {
+        page: responseBody.meta?.page || 1,
+        limit: responseBody.meta?.limit || 10,
+        total: responseBody.meta?.total || 0,
+        totalPages: responseBody.meta?.totalPages || 0,
+      },
+    };
+  },
 
   // Get single product by slug
-  getProductBySlug: (slug: string): Promise<Product> =>
-    api.get(`/products/${slug}`), // Get featured products (get newest products as featured)
-  getFeaturedProducts: (limit = 8): Promise<Product[]> =>
-    api.get("/products", {
+  getProductBySlug: async (slug: string): Promise<Product> => {
+    const response = await api.get(`/products/${slug}`);
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Product, meta: { timestamp } }
+    return responseBody.data;
+  },
+
+  // Get featured products (get newest products as featured)
+  getFeaturedProducts: async (limit = 8): Promise<Product[]> => {
+    const response = await api.get("/products", {
       params: {
         sort: "newest",
         limit,
       },
-    }),
+    });
+    const responseBody = response.data;
 
+    // Backend returns: { message, data: Product[], meta: { ... } }
+    return responseBody.data || [];
+  },
   // Get products by category
-  getProductsByCategory: (
+  getProductsByCategory: async (
     categorySlug: string,
     filters?: ProductFilters
-  ): Promise<PaginationResult<Product>> =>
-    api.get("/products", {
+  ): Promise<PaginationResult<Product>> => {
+    const response = await api.get("/products", {
       params: {
         category: categorySlug,
         ...filters,
       },
-    }),
+    });
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Product[], meta: { page, limit, total, totalPages, timestamp } }
+    return {
+      data: responseBody.data || [],
+      meta: {
+        page: responseBody.meta?.page || 1,
+        limit: responseBody.meta?.limit || 10,
+        total: responseBody.meta?.total || 0,
+        totalPages: responseBody.meta?.totalPages || 0,
+      },
+    };
+  },
 
   // Search products
-  searchProducts: (
+  searchProducts: async (
     query: string,
     filters?: ProductFilters
-  ): Promise<PaginationResult<Product>> =>
-    api.get("/products", {
+  ): Promise<PaginationResult<Product>> => {
+    const response = await api.get("/products", {
       params: {
         search: query,
         ...filters,
       },
-    }),
+    });
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Product[], meta: { page, limit, total, totalPages, timestamp } }
+    return {
+      data: responseBody.data || [],
+      meta: {
+        page: responseBody.meta?.page || 1,
+        limit: responseBody.meta?.limit || 10,
+        total: responseBody.meta?.total || 0,
+        totalPages: responseBody.meta?.totalPages || 0,
+      },
+    };
+  },
+
   // Get product filter options
-  getFilterOptions: (categorySlug?: string): Promise<FilterOptions> => {
+  getFilterOptions: async (categorySlug?: string): Promise<FilterOptions> => {
     const params = categorySlug ? { category: categorySlug } : {};
-    return api.get("/products/filter-options", { params });
+    const response = await api.get("/products/filter-options", { params });
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: FilterOptions, meta: { timestamp } }
+    return responseBody.data;
   },
 };
 
 // Category API
 export const categoryApi = {
   // Get all categories
-  getCategories: (): Promise<Category[]> => api.get("/categories"),
+  getCategories: async (): Promise<Category[]> => {
+    const response = await api.get("/categories");
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Category[], meta: { timestamp } }
+    return responseBody.data || [];
+  },
 
   // Get category by slug
-  getCategory: (slug: string): Promise<Category> =>
-    api.get(`/categories/${slug}`), // Get category tree
-  getCategoryTree: (): Promise<Category[]> => api.get("/categories/tree"),
+  getCategory: async (slug: string): Promise<Category> => {
+    const response = await api.get(`/categories/${slug}`);
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Category, meta: { timestamp } }
+    return responseBody.data;
+  },
+
+  // Get category tree
+  getCategoryTree: async (): Promise<Category[]> => {
+    const response = await api.get("/categories/tree");
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Category[], meta: { timestamp } }
+    return responseBody.data || [];
+  },
 };
 
 // Collection API
 export const collectionApi = {
   // Get all collections
-  getCollections: (): Promise<Collection[]> => api.get("/collections"),
+  getCollections: async (): Promise<Collection[]> => {
+    const response = await api.get("/collections");
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Collection[], meta: { page, limit, total, totalPages, timestamp } }
+    return responseBody.data || [];
+  },
 
   // Get collection by slug
-  getCollection: (slug: string): Promise<Collection> =>
-    api.get(`/collections/${slug}`),
+  getCollection: async (slug: string): Promise<Collection> => {
+    const response = await api.get(`/collections/${slug}`);
+    const responseBody = response.data;
 
+    // Backend returns: { message, data: Collection, meta: { timestamp } }
+    return responseBody.data;
+  },
   // Get products by collection
-  getCollectionProducts: (
+  getCollectionProducts: async (
     slug: string,
     filters?: ProductFilters
-  ): Promise<PaginationResult<Product>> =>
-    api.get(`/products`, { params: { ...filters, collection: slug } }),
+  ): Promise<PaginationResult<Product>> => {
+    const response = await api.get(`/products`, {
+      params: { ...filters, collection: slug },
+    });
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Product[], meta: { page, limit, total, totalPages, timestamp } }
+    return {
+      data: responseBody.data || [],
+      meta: {
+        page: responseBody.meta?.page || 1,
+        limit: responseBody.meta?.limit || 10,
+        total: responseBody.meta?.total || 0,
+        totalPages: responseBody.meta?.totalPages || 0,
+      },
+    };
+  },
 };
 
 // Style API
 export const styleApi = {
   // Get all styles
-  getStyles: (): Promise<Style[]> => api.get("/styles"),
+  getStyles: async (): Promise<Style[]> => {
+    const response = await api.get("/styles");
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Style[], meta: { timestamp, total } }
+    return responseBody.data || [];
+  },
 
   // Get style by slug
-  getStyle: (slug: string): Promise<Style> => api.get(`/styles/${slug}`),
+  getStyle: async (slug: string): Promise<Style> => {
+    const response = await api.get(`/styles/${slug}`);
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Style, meta: { timestamp } }
+    return responseBody.data;
+  },
 };
 
 // Material API
 export const materialApi = {
   // Get all materials
-  getMaterials: (): Promise<Material[]> => api.get("/materials"),
+  getMaterials: async (): Promise<Material[]> => {
+    const response = await api.get("/materials");
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Material[], meta: { timestamp, total } }
+    return responseBody.data || [];
+  },
 
   // Get material by slug
-  getMaterial: (slug: string): Promise<Material> =>
-    api.get(`/materials/${slug}`),
+  getMaterial: async (slug: string): Promise<Material> => {
+    const response = await api.get(`/materials/${slug}`);
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Material, meta: { timestamp } }
+    return responseBody.data;
+  },
 };
 
 // Tag API
 export const tagApi = {
   // Get all tags
-  getTags: (): Promise<Tag[]> => api.get("/tags"),
+  getTags: async (): Promise<Tag[]> => {
+    const response = await api.get("/tags");
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Tag[], meta: { timestamp, total } }
+    return responseBody.data || [];
+  },
 };
 
 // Color API
 export const colorApi = {
   // Get all colors
-  getColors: (): Promise<Color[]> => api.get("/colors"),
+  getColors: async (): Promise<Color[]> => {
+    const response = await api.get("/colors");
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Color[], meta: { timestamp, total } }
+    return responseBody.data || [];
+  },
 };
 
 // Size API
 export const sizeApi = {
   // Get all sizes
-  getSizes: (): Promise<Size[]> => api.get("/sizes"),
+  getSizes: async (): Promise<Size[]> => {
+    const response = await api.get("/sizes");
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Size[], meta: { timestamp, total } }
+    return responseBody.data || [];
+  },
 
   // Get sizes by type
-  getSizesByType: (type: string): Promise<Size[]> =>
-    api.get("/sizes", { params: { type } }),
+  getSizesByType: async (type: string): Promise<Size[]> => {
+    const response = await api.get("/sizes", { params: { type } });
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: Size[], meta: { timestamp, total } }
+    return responseBody.data || [];
+  },
 };
 
 // Filter API - Get all filter options
 export const filterApi = {
   // Get all filter options for product filtering
-  getFilterOptions: (): Promise<FilterOptions> =>
-    api.get("/products/filter-options"),
+  getFilterOptions: async (): Promise<FilterOptions> => {
+    const response = await api.get("/products/filter-options");
+    const responseBody = response.data;
+
+    // Backend returns: { message, data: FilterOptions, meta: { timestamp } }
+    return responseBody.data;
+  },
 };
 
 // Export the main api instance for custom requests

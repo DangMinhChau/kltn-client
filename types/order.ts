@@ -3,87 +3,140 @@ import { CartItem } from "./index";
 // Order interfaces
 export interface OrderItem {
   id: string;
-  orderId: string;
-  productId: string;
-  variantId: string;
   quantity: number;
   unitPrice: number;
-  totalPrice: number;
-  product: {
-    id: string;
-    name: string;
-    sku: string;
-    mainImageUrl: string;
-  };
-  variant: {
-    id: string;
-    color: {
-      name: string;
-      hexCode: string;
-    };
-    size: {
-      name: string;
-    };
-  };
+  productName: string;
+  variantSku: string;
+  colorName: string;
+  sizeName: string;
+  // Relations from backend
+  orderId?: string;
+  variantId?: string;
+  // Calculated field
+  totalPrice?: number;
 }
 
 export interface ShippingInfo {
-  fullName: string;
-  phone: string;
-  email: string;
-  address: string;
+  recipientName: string;
+  phoneNumber: string;
+  streetAddress: string;
   ward: string;
   district: string;
   province: string;
+  wardCode: string;
+  districtId: number;
+  provinceId: number;
   notes?: string;
+}
+
+// Enhanced shipping response to match backend
+export interface ShippingResponse {
+  id: string;
+  orderId: string;
+  recipientName: string;
+  recipientPhone: string;
+  address: string;
+  wardCode: string;
+  districtId: number;
+  provinceId: number;
+  ward: string;
+  district: string;
+  province: string;
+  shippingMethod: string;
+  shippingFee: number;
+  trackingNumber: string;
+  status: string;
+  note?: string;
+  // GHN specific fields
+  ghnOrderCode?: string;
+  ghnSortCode?: string;
+  codAmount?: number;
+  serviceId?: number;
+  weight?: number;
+  length?: number;
+  width?: number;
+  height?: number;
+  insuranceValue?: number;
+  expectedDeliveryDate?: Date;
+  shippedAt?: Date;
+  deliveredAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Order {
   id: string;
   orderNumber: string;
-  userId?: string;
+  user?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddress: string;
   status: OrderStatus;
-  paymentStatus: PaymentStatus;
-  paymentMethod: PaymentMethod;
 
   // Pricing
-  subtotal: number;
+  subTotal: number;
   shippingFee: number;
-  discountAmount: number;
-  totalAmount: number;
-
-  // Shipping
-  shippingInfo: ShippingInfo;
-  shippingMethod: string;
-  estimatedDelivery?: Date;
+  discount: number;
+  totalPrice: number;
 
   // Items
   items: OrderItem[];
 
   // Voucher
-  voucherCode?: string;
+  voucher?: {
+    id: string;
+    code: string;
+    name: string;
+  };
+
+  // Payment info
+  payment?: {
+    id: string;
+    method: string;
+    status: string;
+    amount: number;
+  };
+
+  // Shipping info
+  shipping?: {
+    id: string;
+    trackingNumber: string;
+    status: string;
+    shippingFee: number;
+    // Additional GHN fields
+    ghnOrderCode?: string;
+    expectedDeliveryDate?: Date;
+  };
 
   // Timestamps
+  orderedAt: Date;
   createdAt: Date;
   updatedAt: Date;
-  confirmedAt?: Date;
-  shippedAt?: Date;
-  deliveredAt?: Date;
-  cancelledAt?: Date;
+
+  // Backend specific fields
+  isPaid?: boolean;
+  paidAt?: Date | null;
+  canceledAt?: Date | null;
+  completedAt?: Date | null;
 
   // Additional info
-  notes?: string;
-  trackingNumber?: string;
+  note?: string;
 }
 
 export enum OrderStatus {
   PENDING = "pending",
-  CONFIRMED = "confirmed",
+  CONFIRMED = "confirmed", // Add missing status from backend
   PROCESSING = "processing",
-  SHIPPED = "shipped",
-  DELIVERED = "delivered",
+  SHIPPED = "shipped", // Add missing status from backend
+  DELIVERED = "delivered", // Add missing status from backend
+  COMPLETED = "completed",
   CANCELLED = "cancelled",
-  RETURNED = "returned",
+  RETURNED = "returned", // Add missing status from backend
 }
 
 export enum PaymentStatus {
@@ -91,14 +144,35 @@ export enum PaymentStatus {
   PAID = "paid",
   FAILED = "failed",
   REFUNDED = "refunded",
+  UNPAID = "unpaid",
+  CANCELLED = "cancelled",
 }
 
 export enum PaymentMethod {
-  COD = "cod", // Cash on delivery
-  BANK_TRANSFER = "bank_transfer",
-  MOMO = "momo",
-  ZALOPAY = "zalopay",
-  VNPAY = "vnpay",
+  COD = "COD", // Cash on delivery
+  CREDIT_CARD = "CREDIT_CARD",
+  VNPAY = "VNPAY",
+}
+
+// Add shipping enums to match backend
+export enum ShippingStatus {
+  PENDING = "pending",
+  CONFIRMED = "confirmed",
+  PICKING = "picking",
+  PICKED = "picked",
+  IN_TRANSIT = "in_transit",
+  DELIVERING = "delivering",
+  DELIVERED = "delivered",
+  FAILED = "failed",
+  CANCELLED = "cancelled",
+  RETURNED = "returned",
+}
+
+export enum ShippingMethod {
+  STANDARD = "STANDARD",
+  EXPRESS = "EXPRESS",
+  ECONOMY = "ECONOMY",
+  OVERNIGHT = "OVERNIGHT",
 }
 
 // Order creation request
@@ -172,9 +246,13 @@ export interface Voucher {
 }
 
 export enum VoucherType {
-  PERCENTAGE = "percentage",
-  FIXED_AMOUNT = "fixed_amount",
+  FIXED = "fixed",
+  PERCENT = "percent",
   FREE_SHIPPING = "free_shipping",
+  MIN_ORDER_FIXED = "min_order_fixed",
+  MIN_ORDER_PERCENT = "min_order_percent",
+  BUY_X_GET_Y = "buy_x_get_y",
+  CUSTOM = "custom",
 }
 
 export interface VoucherValidationResult {
@@ -199,26 +277,130 @@ export function convertCartToOrderItems(
   cartItems: CartItem[]
 ): Omit<OrderItem, "id" | "orderId">[] {
   return cartItems.map((item) => ({
-    productId: item.id,
-    variantId: item.variantId,
     quantity: item.quantity,
     unitPrice: item.discountPrice || item.price,
     totalPrice: (item.discountPrice || item.price) * item.quantity,
-    product: {
-      id: item.id,
-      name: item.name,
-      sku: item.sku,
-      mainImageUrl: item.image,
-    },
-    variant: {
-      id: item.variantId,
-      color: {
-        name: item.color,
-        hexCode: "#000000", // Default, should be fetched from API
-      },
-      size: {
-        name: item.size,
-      },
-    },
+    productName: item.name,
+    variantSku: item.variant.sku,
+    colorName: item.variant.color?.name || "Default",
+    sizeName: item.variant.size?.name || "Default",
+    variantId: item.variant.id,
   }));
+}
+
+// API mapping interfaces
+export interface OrderApiRequest {
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddress: string;
+  items: Array<{
+    productId: string;
+    variantId: string;
+    quantity: number;
+  }>;
+  voucherCode?: string;
+  note?: string;
+  paymentMethod: PaymentMethod;
+  shippingMethod: string;
+}
+
+export interface OrderApiResponse {
+  id: string;
+  orderNumber: string;
+  user: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddress: string;
+  items: Array<{
+    id: string;
+    productName: string;
+    variantSku: string;
+    quantity: number;
+    unitPrice: number;
+    colorName: string;
+    sizeName: string;
+  }>;
+  voucher?: {
+    id: string;
+    code: string;
+    name: string;
+  };
+  subTotal: number;
+  shippingFee: number;
+  discount: number;
+  totalPrice: number;
+  status: string;
+  note?: string;
+  payment?: {
+    id: string;
+    method: string;
+    status: string;
+    amount: number;
+    transactionId?: string;
+    paidAt?: Date;
+  };
+  shipping?: {
+    id: string;
+    trackingNumber: string;
+    status: string;
+    shippingFee: number;
+    ghnOrderCode?: string;
+    expectedDeliveryDate?: Date;
+  };
+  isPaid?: boolean;
+  paidAt?: Date;
+  canceledAt?: Date;
+  completedAt?: Date;
+  orderedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Shipping API responses to match backend
+export interface ShippingTrackingResponse {
+  success: boolean;
+  data: {
+    trackingNumber: string;
+    status: string;
+    statusDescription: string;
+    trackingHistory: Array<{
+      time: string;
+      description: string;
+      location: string;
+    }>;
+    estimatedDeliveryTime: string;
+    ghnStatus?: string;
+    expectedDeliveryTime?: string;
+    logs?: Array<{
+      status: string;
+      updated_date: string;
+      description: string;
+    }>;
+  };
+}
+
+export interface ShippingFeeResponse {
+  success: boolean;
+  data: {
+    totalFee: number;
+    serviceFee: number;
+    insuranceFee: number;
+    codFee: number;
+    estimatedDeliveryTime: string;
+    currency: string;
+  };
+}
+
+export interface AvailableShippingService {
+  serviceId: number;
+  serviceName: string;
+  serviceTypeId: number;
+  estimatedDeliveryTime: string;
+  isAvailable: boolean;
 }
