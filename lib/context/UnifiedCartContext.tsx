@@ -21,10 +21,16 @@ import { api } from "@/lib/api";
 // Conversion utility function to convert CartItemResponse to CartItem
 const convertCartItemResponseToCartItem = (
   item: CartItemResponse
-): CartItem => {
+): CartItem | null => {
   console.log("Raw cart item data:", item);
   console.log("Variant data:", item.variant);
   console.log("Product data:", item.variant?.product);
+
+  // Check if variant data exists, if not, skip this item or fetch it separately
+  if (!item.variant) {
+    console.error("Cart item missing variant data:", item);
+    return null; // Return null for invalid items
+  }
 
   // Safely extract product data with fallbacks
   const product = item.variant?.product;
@@ -155,17 +161,23 @@ export function UnifiedCartProvider({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
-
   // Load local cart from localStorage
   const loadLocalCart = useCallback(() => {
     try {
       const savedCart = localStorage.getItem("cart");
+      console.log("Loading local cart from localStorage:", savedCart);
+
       if (savedCart) {
         const cartItems = JSON.parse(savedCart);
+        console.log("Parsed local cart items:", cartItems);
         setLocalItems(cartItems);
+      } else {
+        console.log("No saved cart found in localStorage");
+        setLocalItems([]);
       }
     } catch (error) {
       console.error("Error loading local cart:", error);
+      setLocalItems([]);
     }
   }, []);
 
@@ -278,26 +290,46 @@ export function UnifiedCartProvider({
       console.error("Failed to fetch variant data for local cart:", err);
       throw new Error("Could not fetch product details");
     }
-  };
-  // Merge local cart to API cart when user logs in
+  }; // Merge local cart to API cart when user logs in
   const mergeLocalToApiCart = useCallback(async () => {
-    if (!isAuthenticated || localItems.length === 0) return;
+    console.log("mergeLocalToApiCart called:", {
+      isAuthenticated,
+      localItemsCount: localItems.length,
+    });
+
+    if (!isAuthenticated || localItems.length === 0) {
+      console.log("Skipping merge: not authenticated or no local items");
+      return;
+    }
 
     try {
-      setLoading(true);      // Convert local items to merge format
+      setLoading(true);
+      console.log("Starting merge process with local items:", localItems);
+
+      // Convert local items to merge format
       const guestCartItems = (localItems || []).map((item) => ({
-        variantId: typeof item.variant === 'string' ? item.variant : item.variant?.id || '',
+        variantId:
+          typeof item.variant === "string"
+            ? item.variant
+            : item.variant?.id || "",
         quantity: item.quantity,
-      }));// Merge with API
+      }));
+
+      console.log("Guest cart items to merge:", guestCartItems);
+
+      // Merge with API
       const request: MergeGuestCartRequest = { items: guestCartItems };
-      await cartApi.mergeGuestCart(request);
+      const mergeResult = await cartApi.mergeGuestCart(request);
+      console.log("Merge result:", mergeResult);
 
       // Clear local cart after successful merge
       localStorage.removeItem("cart");
       setLocalItems([]);
+      console.log("Local cart cleared after merge");
 
       // Fetch updated API cart
       await fetchApiCart();
+      console.log("API cart fetched after merge");
     } catch (err: any) {
       console.error("Failed to merge local cart:", err);
       setError(err.message);
@@ -318,8 +350,11 @@ export function UnifiedCartProvider({
     setCart(null);
   }, [cart, saveLocalCart]); // Initialize cart based on auth status  // Main effect for auth changes and cart management
   useEffect(() => {
-    console.log("Auth effect triggered:", { isAuthenticated, localItemsCount: localItems.length });
-    
+    console.log("Auth effect triggered:", {
+      isAuthenticated,
+      localItemsCount: localItems.length,
+    });
+
     if (isAuthenticated) {
       // User is logged in - fetch API cart first
       fetchApiCart().then(() => {
@@ -413,7 +448,8 @@ export function UnifiedCartProvider({
             }
             await fetchApiCart();
           }
-        } else {          // Update local cart
+        } else {
+          // Update local cart
           const updatedItems = (localItems || [])
             .map((item) =>
               item.variant?.id === variantId
@@ -488,10 +524,12 @@ export function UnifiedCartProvider({
   // Cart UI actions
   const openCart = useCallback(() => setIsCartOpen(true), []);
   const closeCart = useCallback(() => setIsCartOpen(false), []);
-  const toggleCart = useCallback(() => setIsCartOpen((prev) => !prev), []);  // Computed values
+  const toggleCart = useCallback(() => setIsCartOpen((prev) => !prev), []); // Computed values
   const items = isAuthenticated
-    ? (cart?.items || []).map(convertCartItemResponseToCartItem)
-    : (localItems || []);
+    ? ((cart?.items || [])
+        .map(convertCartItemResponseToCartItem)
+        .filter(Boolean) as CartItem[])
+    : localItems || [];
   const totalItems = (items || []).reduce(
     (sum: number, item: CartItem) => sum + item.quantity,
     0
