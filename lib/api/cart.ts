@@ -70,7 +70,18 @@ export interface CartValidationResult {
 }
 
 // Helper function to extract data from BaseResponse
-const extractData = <T>(response: BaseResponse<T>): T => response.data;
+const extractData = <T>(response: any): T => {
+  // Handle case where response.data is the wrapper {message, data, meta}
+  if (
+    response.data &&
+    typeof response.data === "object" &&
+    "data" in response.data
+  ) {
+    return response.data.data;
+  }
+  // Handle direct data case
+  return response.data;
+};
 
 // Helper function to extract data from PaginatedResponse
 const extractPaginatedData = <T>(response: PaginatedResponse<T>): T[] =>
@@ -84,9 +95,20 @@ export const cartApi = {
       "/carts/my-cart"
     );
     console.log("getMyCart API response:", response);
-    const extractedData = extractData(response);
+    const extractedData = extractData<CartResponse>(response);
     console.log("getMyCart extracted data:", extractedData);
-    return extractedData;
+    console.log("Cart items structure:", (extractedData as any).items);
+    if (
+      (extractedData as any).items &&
+      (extractedData as any).items.length > 0
+    ) {
+      console.log("First cart item:", (extractedData as any).items[0]);
+      console.log(
+        "First cart item variant:",
+        (extractedData as any).items[0].variant
+      );
+    }
+    return extractedData as CartResponse;
   },
 
   // Get cart summary

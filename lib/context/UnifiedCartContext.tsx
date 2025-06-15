@@ -44,18 +44,24 @@ const convertCartItemResponseToCartItem = (
   // Get images from product first, then variant, then fallback
   const productImages = product?.images || [];
   const variantImages = item.variant?.images || [];
-
   console.log("Image data:", {
     productImages,
     variantImages,
     productImagesLength: productImages.length,
     variantImagesLength: variantImages.length,
-    firstProductImageUrl: productImages[0]?.url,
-    firstVariantImageUrl: variantImages[0]?.url,
+    firstProductImageUrl:
+      (productImages[0] as any)?.url || (productImages[0] as any)?.imageUrl,
+    firstVariantImageUrl:
+      (variantImages[0] as any)?.url || (variantImages[0] as any)?.imageUrl,
   });
 
+  // Fixed: Use correct field names for images - prioritize variant images
   const mainImage =
-    productImages[0]?.url || variantImages[0]?.url || "/placeholder-image.jpg";
+    (variantImages[0] as any)?.imageUrl || // Variant images (most specific)
+    (variantImages[0] as any)?.url || // Alternative field name
+    (productImages[0] as any)?.imageUrl || // Product images
+    (productImages[0] as any)?.url || // Alternative field name
+    "/placeholder-image.jpg";
 
   console.log("Converting cart item:", {
     itemId: item.id,
@@ -190,7 +196,6 @@ export function UnifiedCartProvider({
       console.error("Error saving local cart:", error);
     }
   }, []);
-
   // Fetch API cart for authenticated users
   const fetchApiCart = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -198,6 +203,18 @@ export function UnifiedCartProvider({
     try {
       setLoading(true);
       const apiCart = await cartApi.getMyCart();
+      console.log("=== FETCH API CART DEBUG ===");
+      console.log("API cart response:", apiCart);
+      console.log("API cart items:", apiCart.items);
+      if (apiCart.items && apiCart.items.length > 0) {
+        console.log("First API cart item:", apiCart.items[0]);
+        console.log("First item has variant?", !!apiCart.items[0].variant);
+        if (apiCart.items[0].variant) {
+          console.log("Variant data:", apiCart.items[0].variant);
+          console.log("Variant product:", apiCart.items[0].variant.product);
+        }
+      }
+      console.log("=== END FETCH API CART DEBUG ===");
       setCart(apiCart);
     } catch (err: any) {
       console.error("Failed to fetch API cart:", err);
@@ -332,14 +349,21 @@ export function UnifiedCartProvider({
       console.log("API cart fetched after merge");
     } catch (err: any) {
       console.error("Failed to merge local cart:", err);
-      setError(err.message);
+      console.error("Error details:", {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+      });
+      setError(err.message || "Failed to merge cart");
     } finally {
       setLoading(false);
     }
   }, [isAuthenticated, localItems]); // Removed fetchApiCart from dependencies
   // Handle logout - optionally preserve cart items in localStorage
   const handleLogout = useCallback(async () => {
-    if (cart && cart.items && cart.items.length > 0) {      // Convert API cart items to local format before logout
+    if (cart && cart.items && cart.items.length > 0) {
+      // Convert API cart items to local format before logout
       const localCartItems: CartItem[] = cart.items
         .map(convertCartItemResponseToCartItem)
         .filter((item): item is CartItem => item !== null);
@@ -525,9 +549,9 @@ export function UnifiedCartProvider({
   const closeCart = useCallback(() => setIsCartOpen(false), []);
   const toggleCart = useCallback(() => setIsCartOpen((prev) => !prev), []); // Computed values
   const items = isAuthenticated
-    ? ((cart?.items || [])
+    ? (cart?.items || [])
         .map(convertCartItemResponseToCartItem)
-        .filter((item): item is CartItem => item !== null))
+        .filter((item): item is CartItem => item !== null)
     : localItems || [];
   const totalItems = (items || []).reduce(
     (sum: number, item: CartItem) => sum + item.quantity,
