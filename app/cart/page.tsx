@@ -10,16 +10,20 @@ import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 interface CartContentProps {
   items: CartItem[];
-  removeItem: (variantId: string) => void;
-  updateItemQuantity: (variantId: string, quantity: number) => void;
-  clearCart: () => void;
-  handleQuantityChange: (id: string, newQuantity: number) => void;
+  removeItem: (variantId: string) => Promise<void>;
+  updateItemQuantity: (variantId: string, quantity: number) => Promise<void>;
+  clearCart: () => Promise<void>;
+  handleQuantityChange: (
+    variantId: string,
+    newQuantity: number
+  ) => Promise<void>;
   totalItems: number;
   totalAmount: number;
+  loading: boolean;
+  error: string | null;
 }
 
 export default function CartPage() {
@@ -30,29 +34,44 @@ export default function CartPage() {
     clearCart,
     totalItems,
     totalAmount,
+    loading,
+    error,
   } = useCart();
+  const handleQuantityChange = async (
+    variantId: string,
+    newQuantity: number
+  ) => {
+    try {
+      if (newQuantity <= 0) {
+        await removeItem(variantId);
+      } else {
+        await updateItemQuantity(variantId, newQuantity);
+      }
+    } catch (error) {
+      console.error("Failed to update cart:", error);
+    }
+  };
 
-  const handleQuantityChange = (id: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeItem(id);
-    } else {
-      updateItemQuantity(id, newQuantity);
+  const handleClearCart = async () => {
+    try {
+      await clearCart();
+    } catch (error) {
+      console.error("Failed to clear cart:", error);
     }
   };
 
   return (
-    <ProtectedRoute>
-      {" "}
-      <CartContent
-        items={items}
-        removeItem={removeItem}
-        updateItemQuantity={updateItemQuantity}
-        clearCart={clearCart}
-        handleQuantityChange={handleQuantityChange}
-        totalItems={totalItems}
-        totalAmount={totalAmount}
-      />
-    </ProtectedRoute>
+    <CartContent
+      items={items}
+      removeItem={removeItem}
+      updateItemQuantity={updateItemQuantity}
+      clearCart={handleClearCart}
+      handleQuantityChange={handleQuantityChange}
+      totalItems={totalItems}
+      totalAmount={totalAmount}
+      loading={loading}
+      error={error}
+    />
   );
 }
 
@@ -64,7 +83,31 @@ function CartContent({
   handleQuantityChange,
   totalItems,
   totalAmount,
+  loading,
+  error,
 }: CartContentProps) {
+  // Show error if any
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h1 className="mb-4 text-3xl font-bold text-red-600">
+              Có lỗi xảy ra
+            </h1>
+            <p className="mb-8 text-lg text-gray-600">{error}</p>
+            <Button asChild size="lg" className="px-8">
+              <Link href="/products">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Quay lại mua sắm
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -107,19 +150,24 @@ function CartContent({
           {/* Cart Items */}
           <div className="lg:col-span-7">
             <div className="space-y-6">
+              {" "}
               {/* Clear Cart Button */}
               <div className="flex justify-between items-center">
-                <Button variant="outline" asChild>
+                <Button variant="outline" asChild disabled={loading}>
                   <Link href="/products">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Tiếp tục mua sắm
                   </Link>
                 </Button>
-                <Button variant="destructive" size="sm" onClick={clearCart}>
-                  Xóa tất cả
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={clearCart}
+                  disabled={loading}
+                >
+                  {loading ? "Đang xóa..." : "Xóa tất cả"}
                 </Button>
               </div>
-
               {/* Items List */}
               <ul className="divide-y divide-gray-200">
                 {items.map((item: CartItem) => (
@@ -175,22 +223,30 @@ function CartContent({
                                   {formatPrice(item.price)}
                                 </p>
                               )}
-                            </div>
-
+                            </div>{" "}
                             {/* Remove Button */}
                             <div className="absolute top-0 right-0">
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-gray-400 hover:text-red-500"
-                                onClick={() => removeItem(item.id)}
+                                onClick={async () => {
+                                  try {
+                                    await removeItem(item.variant.id);
+                                  } catch (error) {
+                                    console.error(
+                                      "Failed to remove item:",
+                                      error
+                                    );
+                                  }
+                                }}
+                                disabled={loading}
                               >
                                 <X className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>
-                        </div>
-
+                        </div>{" "}
                         {/* Quantity Controls */}
                         <div className="mt-4 flex items-center justify-between">
                           <div className="flex items-center space-x-3">
@@ -199,9 +255,12 @@ function CartContent({
                               size="icon"
                               className="h-8 w-8"
                               onClick={() =>
-                                handleQuantityChange(item.id, item.quantity - 1)
+                                handleQuantityChange(
+                                  item.variant.id,
+                                  item.quantity - 1
+                                )
                               }
-                              disabled={item.quantity <= 1}
+                              disabled={item.quantity <= 1 || loading}
                             >
                               <Minus className="h-3 w-3" />
                             </Button>
@@ -213,9 +272,14 @@ function CartContent({
                               size="icon"
                               className="h-8 w-8"
                               onClick={() =>
-                                handleQuantityChange(item.id, item.quantity + 1)
+                                handleQuantityChange(
+                                  item.variant.id,
+                                  item.quantity + 1
+                                )
                               }
-                              disabled={item.quantity >= item.maxQuantity}
+                              disabled={
+                                item.quantity >= item.maxQuantity || loading
+                              }
                             >
                               <Plus className="h-3 w-3" />
                             </Button>
@@ -275,10 +339,17 @@ function CartContent({
                       {formatPrice(totalAmount)}
                     </dd>
                   </div>
-                </div>
+                </div>{" "}
                 <div className="mt-6">
-                  <Button asChild className="w-full" size="lg">
-                    <Link href="/checkout">Tiến hành thanh toán</Link>
+                  <Button
+                    asChild
+                    className="w-full"
+                    size="lg"
+                    disabled={loading}
+                  >
+                    <Link href="/checkout">
+                      {loading ? "Đang cập nhật..." : "Tiến hành thanh toán"}
+                    </Link>
                   </Button>
                 </div>
                 <div className="mt-6 text-center text-sm text-gray-500">

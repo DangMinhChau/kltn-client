@@ -195,7 +195,6 @@ export function UnifiedCartProvider({
       throw new Error("Could not fetch product details");
     }
   };
-
   // Merge local cart to API cart when user logs in
   const mergeLocalToApiCart = useCallback(async () => {
     if (!isAuthenticated || localItems.length === 0) return;
@@ -223,7 +222,7 @@ export function UnifiedCartProvider({
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, localItems, fetchApiCart]);
+  }, [isAuthenticated, localItems]); // Removed fetchApiCart from dependencies
 
   // Handle logout - optionally preserve cart items in localStorage
   const handleLogout = useCallback(async () => {
@@ -236,9 +235,7 @@ export function UnifiedCartProvider({
     }
 
     setCart(null);
-  }, [cart, saveLocalCart]);
-
-  // Initialize cart based on auth status
+  }, [cart, saveLocalCart]); // Initialize cart based on auth status
   useEffect(() => {
     if (isAuthenticated) {
       // User is logged in - fetch API cart
@@ -253,8 +250,14 @@ export function UnifiedCartProvider({
       loadLocalCart();
       setCart(null); // Clear API cart
     }
-  }, [isAuthenticated, fetchApiCart, mergeLocalToApiCart, loadLocalCart]);
+  }, [isAuthenticated]); // Simplified dependencies
 
+  // Separate effect to handle initial local cart loading
+  useEffect(() => {
+    if (!isAuthenticated) {
+      loadLocalCart();
+    }
+  }, []); // Run only once on mount
   // Watch for auth changes to trigger merge or logout
   const [prevAuth, setPrevAuth] = useState(isAuthenticated);
   useEffect(() => {
@@ -268,14 +271,7 @@ export function UnifiedCartProvider({
       }
       setPrevAuth(isAuthenticated);
     }
-  }, [
-    isAuthenticated,
-    prevAuth,
-    localItems,
-    mergeLocalToApiCart,
-    handleLogout,
-  ]);
-
+  }, [isAuthenticated, prevAuth]); // Removed localItems, mergeLocalToApiCart, handleLogout
   // Add item to cart
   const addToCart = useCallback(
     async (variantId: string, quantity: number = 1) => {
@@ -310,7 +306,7 @@ export function UnifiedCartProvider({
         setLoading(false);
       }
     },
-    [isAuthenticated, localItems, fetchApiCart, saveLocalCart]
+    [isAuthenticated, localItems] // Removed fetchApiCart and saveLocalCart dependencies
   );
 
   // Update item quantity
@@ -352,7 +348,7 @@ export function UnifiedCartProvider({
         setLoading(false);
       }
     },
-    [isAuthenticated, cart, localItems, fetchApiCart, saveLocalCart]
+    [isAuthenticated, cart, localItems] // Removed fetchApiCart and saveLocalCart dependencies
   );
 
   // Remove item
@@ -380,7 +376,7 @@ export function UnifiedCartProvider({
         setLoading(false);
       }
     },
-    [isAuthenticated, localItems, fetchApiCart, saveLocalCart]
+    [isAuthenticated, localItems] // Removed fetchApiCart and saveLocalCart dependencies
   );
 
   // Clear cart
@@ -404,7 +400,7 @@ export function UnifiedCartProvider({
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, fetchApiCart]);
+  }, [isAuthenticated]); // Removed fetchApiCart dependency
 
   // Cart UI actions
   const openCart = useCallback(() => setIsCartOpen(true), []);

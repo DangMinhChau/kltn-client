@@ -7,7 +7,6 @@ import { AuthProvider } from "@/lib/context/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import ScrollToTop from "@/components/common/ScrollToTop";
-import WebAnalytics from "@/components/common/WebAnalytics";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -59,13 +58,6 @@ export default function RootLayout({
               <ConditionalLayout>{children}</ConditionalLayout>
               <ScrollToTop />
               <Toaster />
-              <WebAnalytics
-                config={{
-                  googleAnalyticsId: process.env.NEXT_PUBLIC_GA_ID,
-                  facebookPixelId: process.env.NEXT_PUBLIC_FB_PIXEL_ID,
-                  enableHotjar: process.env.NODE_ENV === "production",
-                }}
-              />
             </WishlistProvider>
           </UnifiedCartProvider>
         </AuthProvider>
