@@ -7,6 +7,21 @@ export type {
   OrderApiResponse,
 } from "./api-order";
 
+// Export cart API types
+export type {
+  BaseResponse,
+  PaginatedResponse,
+  CartResponse,
+  CartItemResponse,
+  CartSummaryResponse,
+  CartValidationResponse,
+  AddToCartRequest,
+  BulkAddToCartRequest,
+  MergeGuestCartRequest,
+  ShippingEstimateRequest,
+  ShippingEstimateResponse,
+} from "./api-cart";
+
 // Product Types
 export interface Product {
   id: string;
@@ -237,6 +252,31 @@ export interface CartContextType {
   toggleCart: () => void;
   openCart: () => void;
   closeCart: () => void;
+}
+
+// Unified Cart Context Types
+export interface UnifiedCartContextType {
+  // Cart state
+  cart: Cart | null;
+  items: CartItem[];
+  loading: boolean;
+  error: string | null;
+
+  // Cart actions
+  addToCart: (variantId: string, quantity?: number) => Promise<void>;
+  updateItemQuantity: (variantId: string, quantity: number) => Promise<void>;
+  removeItem: (variantId: string) => Promise<void>;
+  clearCart: () => Promise<void>;
+
+  // Cart UI state
+  isCartOpen: boolean;
+  openCart: () => void;
+  closeCart: () => void;
+  toggleCart: () => void;
+
+  // Computed values
+  totalItems: number;
+  totalAmount: number;
 }
 
 // Order Types are now exported from ./order.ts to avoid duplication

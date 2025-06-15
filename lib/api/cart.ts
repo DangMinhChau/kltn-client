@@ -1,7 +1,20 @@
 import { api } from "../api";
 import { CartItem } from "@/types";
+import type {
+  BaseResponse,
+  PaginatedResponse,
+  CartResponse,
+  CartItemResponse,
+  CartSummaryResponse,
+  CartValidationResponse,
+  AddToCartRequest as AddToCartDto,
+  BulkAddToCartRequest as BulkAddToCartDto,
+  MergeGuestCartRequest as MergeGuestCartDto,
+  ShippingEstimateRequest,
+  ShippingEstimateResponse,
+} from "@/types/api-cart";
 
-// Cart interfaces
+// Legacy interfaces for backward compatibility
 export interface Cart {
   id: string;
   user: {
@@ -12,39 +25,6 @@ export interface Cart {
   items: CartItem[];
   itemCount: number;
   subtotal: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ApiCartItem {
-  id: string;
-  cart: {
-    id: string;
-  };
-  variant: {
-    id: string;
-    product: {
-      id: string;
-      name: string;
-      slug: string;
-      images: string[];
-      basePrice: number;
-    };
-    size: {
-      id: string;
-      name: string;
-    };
-    color: {
-      id: string;
-      name: string;
-      hexCode: string;
-    };
-    price: number;
-    salePrice?: number;
-    stock: number;
-  };
-  quantity: number;
-  itemTotal: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,15 +44,6 @@ export interface CartSummary {
     price: number;
     total: number;
   }[];
-}
-
-export interface AddToCartRequest {
-  variantId: string;
-  quantity: number;
-}
-
-export interface BulkAddToCartRequest {
-  items: AddToCartRequest[];
 }
 
 export interface UpdateCartItemRequest {
@@ -95,63 +66,88 @@ export interface CartValidationResult {
   }[];
 }
 
-export interface MergeGuestCartRequest {
-  guestCartItems: {
-    variantId: string;
-    quantity: number;
-  }[];
-}
+// Helper function to extract data from BaseResponse
+const extractData = <T>(response: BaseResponse<T>): T => response.data;
+
+// Helper function to extract data from PaginatedResponse
+const extractPaginatedData = <T>(response: PaginatedResponse<T>): T[] =>
+  response.data;
 
 // Cart API endpoints
 export const cartApi = {
-  // ✅ Get current user's cart with items
-  getMyCart: (): Promise<Cart> => api.get("/carts/my-cart"),
+  // Get current user's cart with items
+  getMyCart: async (): Promise<CartResponse> => {
+    const response: BaseResponse<CartResponse> = await api.get(
+      "/carts/my-cart"
+    );
+    return extractData(response);
+  },
 
-  // ✅ Get cart summary
-  getCartSummary: (): Promise<CartSummary> => api.get("/carts/summary"),
+  // Get cart summary
+  getCartSummary: async (): Promise<CartSummaryResponse> => {
+    const response: BaseResponse<CartSummaryResponse> = await api.get(
+      "/carts/summary"
+    );
+    return extractData(response);
+  },
+  // Clear entire cart
+  clearMyCart: async (): Promise<{ message: string }> => {
+    const response: BaseResponse<null> = await api.delete(
+      "/carts/my-cart/clear"
+    );
+    return { message: response.message };
+  },
 
-  // ✅ Clear entire cart
-  clearMyCart: (): Promise<{ message: string }> =>
-    api.delete("/carts/my-cart/clear"),
+  // Merge guest cart items
+  mergeGuestCart: async (request: MergeGuestCartDto): Promise<CartResponse> => {
+    const response: BaseResponse<CartResponse> = await api.post(
+      "/carts/merge-guest-cart",
+      request
+    );
+    return extractData(response);
+  },
 
-  // ✅ Merge guest cart items
-  mergeGuestCart: (request: MergeGuestCartRequest): Promise<Cart> =>
-    api.post("/carts/merge-guest-cart", request),
+  // Get product recommendations based on cart
+  getRecommendations: async (): Promise<any[]> => {
+    const response: BaseResponse<any[]> = await api.get(
+      "/carts/recommendations"
+    );
+    return extractData(response);
+  },
 
-  // ✅ Get product recommendations based on cart
-  getRecommendations: (): Promise<
-    {
-      id: string;
-      name: string;
-      slug: string;
-      images: string[];
-      basePrice: number;
-      salePrice?: number;
-    }[]
-  > => api.get("/carts/recommendations"),
-
-  // ✅ Estimate shipping costs
-  estimateShipping: (destination: {
-    province: string;
-    district: string;
-    ward: string;
-  }): Promise<{
-    standardFee: number;
-    expressFee: number;
-    standardDeliveryDays: number;
-    expressDeliveryDays: number;
-  }> => api.post("/carts/shipping-estimate", { destination }),
+  // Estimate shipping costs
+  estimateShipping: async (
+    request: ShippingEstimateRequest
+  ): Promise<ShippingEstimateResponse> => {
+    const response: BaseResponse<ShippingEstimateResponse> = await api.post(
+      "/carts/shipping-estimate",
+      request
+    );
+    return extractData(response);
+  },
 };
 
 // Cart Items API endpoints (token-based)
 export const cartItemsApi = {
-  // ✅ Add item to cart (NEW token-based endpoint)
-  addToCart: (request: AddToCartRequest): Promise<CartItem> =>
-    api.post("/cart-items/add-to-cart", request),
+  // Add item to cart
+  addToCart: async (request: AddToCartDto): Promise<CartItemResponse> => {
+    const response: BaseResponse<CartItemResponse> = await api.post(
+      "/cart-items/add-to-cart",
+      request
+    );
+    return extractData(response);
+  },
 
-  // ✅ Add multiple items to cart
-  bulkAddToCart: (request: BulkAddToCartRequest): Promise<CartItem[]> =>
-    api.post("/cart-items/bulk-add", request),
+  // Add multiple items to cart
+  bulkAddToCart: async (
+    request: BulkAddToCartDto
+  ): Promise<CartItemResponse[]> => {
+    const response: BaseResponse<CartItemResponse[]> = await api.post(
+      "/cart-items/bulk-add-to-cart",
+      request
+    );
+    return extractData(response);
+  },
 
   // ✅ Get current user's cart items (NEW token-based endpoint)
   getMyCartItems: (): Promise<CartItem[]> =>
@@ -198,7 +194,8 @@ export const cartItemsApi = {
 export const cartHelpers = {
   // Get complete cart with all details
   getFullCart: async (): Promise<Cart> => {
-    return cartApi.getMyCart();
+    const cartResponse = await cartApi.getMyCart();
+    return transformCartResponse(cartResponse);
   },
 
   // Add single item to cart
@@ -206,7 +203,8 @@ export const cartHelpers = {
     variantId: string,
     quantity: number = 1
   ): Promise<CartItem> => {
-    return cartItemsApi.addToCart({ variantId, quantity });
+    const itemResponse = await cartItemsApi.addToCart({ variantId, quantity });
+    return transformCartItemResponse(itemResponse);
   },
 
   // Update item quantity by finding the cart item
@@ -214,7 +212,8 @@ export const cartHelpers = {
     variantId: string,
     quantity: number
   ): Promise<CartItem | null> => {
-    const cart = await cartApi.getMyCart();
+    const cartResponse = await cartApi.getMyCart();
+    const cart = transformCartResponse(cartResponse);
     const cartItem = cart.items.find((item) => item.variant.id === variantId);
 
     if (!cartItem) {
@@ -228,11 +227,10 @@ export const cartHelpers = {
   removeItem: async (variantId: string): Promise<{ message: string }> => {
     return cartItemsApi.removeByVariant(variantId);
   },
-
   // Get cart item count
   getItemCount: async (): Promise<number> => {
-    const cart = await cartApi.getMyCart();
-    return cart.itemCount;
+    const cartResponse = await cartApi.getMyCart();
+    return cartResponse.itemCount;
   },
 
   // Get cart total
@@ -252,6 +250,73 @@ export const cartHelpers = {
     return cartApi.clearMyCart();
   },
 };
+
+// Transformation functions for backward compatibility
+const transformCartResponse = (cartResponse: CartResponse): Cart => ({
+  id: cartResponse.id,
+  user: cartResponse.user,
+  items: cartResponse.items.map(transformCartItemResponse),
+  itemCount: cartResponse.itemCount,
+  subtotal: cartResponse.subtotal,
+  createdAt: new Date(cartResponse.createdAt),
+  updatedAt: new Date(cartResponse.updatedAt),
+});
+
+const transformCartItemResponse = (
+  itemResponse: CartItemResponse
+): CartItem => ({
+  id: itemResponse.id,
+  quantity: itemResponse.quantity,
+  maxQuantity: itemResponse.variant.stockQuantity,
+  name: itemResponse.variant.product.name,
+  price: itemResponse.variant.product.basePrice,
+  discountPrice: itemResponse.variant.product.discountPercent
+    ? itemResponse.variant.product.basePrice *
+      (1 - itemResponse.variant.product.discountPercent / 100)
+    : undefined,
+  imageUrl:
+    itemResponse.variant.product.images?.[0]?.url ||
+    itemResponse.variant.images?.[0]?.url ||
+    "",
+  image:
+    itemResponse.variant.product.images?.[0]?.url ||
+    itemResponse.variant.images?.[0]?.url ||
+    "",
+  slug: itemResponse.variant.product.slug,
+  variant: {
+    id: itemResponse.variant.id,
+    sku: itemResponse.variant.sku,
+    stockQuantity: itemResponse.variant.stockQuantity,
+    isActive: itemResponse.variant.isActive,
+    color: {
+      ...itemResponse.variant.color,
+      code: itemResponse.variant.color.hexCode, // Map hexCode to code
+      isActive: true, // Default value
+      createdAt: itemResponse.createdAt,
+      updatedAt: itemResponse.updatedAt,
+    },
+    size: {
+      ...itemResponse.variant.size,
+      isActive: true, // Default value
+      category: {} as any, // Will need to be populated if needed
+      createdAt: itemResponse.createdAt,
+      updatedAt: itemResponse.updatedAt,
+    },
+    images: itemResponse.variant.images?.map((img) => ({
+      id: "", // Generated ID
+      imageUrl: img.url,
+      altText: img.altText,
+      isPrimary: false,
+      sortOrder: 0,
+    })),
+    product: itemResponse.variant.product,
+    createdAt: itemResponse.createdAt,
+    updatedAt: itemResponse.updatedAt,
+  },
+  color: itemResponse.variant.color.name,
+  size: itemResponse.variant.size.name,
+  sku: itemResponse.variant.sku,
+});
 
 export default {
   cartApi,

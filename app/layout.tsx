@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { CartProvider } from "@/lib/context/CartContext";
+import { UnifiedCartProvider } from "@/lib/context/UnifiedCartContext";
 import { WishlistProvider } from "@/lib/context/WishlistContext";
 import { AuthProvider } from "@/lib/context/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
@@ -55,7 +55,7 @@ export default function RootLayout({
         className={`${inter.variable} font-sans antialiased bg-background text-foreground`}
       >
         <AuthProvider>
-          <CartProvider>
+          <UnifiedCartProvider>
             <WishlistProvider>
               <ConditionalLayout>{children}</ConditionalLayout>
               <ScrollToTop />
@@ -69,7 +69,7 @@ export default function RootLayout({
                 }}
               />
             </WishlistProvider>
-          </CartProvider>
+          </UnifiedCartProvider>
         </AuthProvider>
       </body>
     </html>
