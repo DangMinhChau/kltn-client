@@ -450,29 +450,56 @@ export function UnifiedCartProvider({
     },
     [isAuthenticated, localItems] // Removed fetchApiCart and saveLocalCart dependencies
   );
-
   // Update item quantity
   const updateItemQuantity = useCallback(
     async (variantId: string, quantity: number) => {
       try {
-        setLoading(true);
         setError(null);
 
         if (isAuthenticated) {
-          // Update API cart
+          // Optimistic update: Update UI immediately
           const cartItem = cart?.items.find(
             (item) => item.variant.id === variantId
           );
-          if (cartItem) {
-            if (quantity <= 0) {
-              await cartItemsApi.removeByVariant(variantId);
-            } else {
-              await cartItemsApi.updateQuantity(cartItem.id, { quantity });
+          if (cartItem && cart) {
+            const updatedItems = cart.items
+              .map((item) =>
+                item.variant.id === variantId ? { ...item, quantity } : item
+              )
+              .filter((item) => item.quantity > 0);
+
+            const updatedCart = {
+              ...cart,
+              items: updatedItems,
+              itemCount: updatedItems.length,
+              subtotal: updatedItems.reduce((sum, item) => {
+                const price = item.variant.product.discountPercent
+                  ? item.variant.product.basePrice *
+                    (1 - item.variant.product.discountPercent / 100)
+                  : item.variant.product.basePrice;
+                return sum + price * item.quantity;
+              }, 0),
+            };
+            setCart(updatedCart);
+
+            // Then update API in background (no loading state)
+            try {
+              if (quantity <= 0) {
+                await cartItemsApi.removeByVariant(variantId);
+              } else {
+                await cartItemsApi.updateQuantity(cartItem.id, { quantity });
+              }
+              // Optionally sync with server after successful update
+              // await fetchApiCart(); // Commented out to avoid extra API call
+            } catch (apiError) {
+              // If API fails, revert the optimistic update
+              console.error("Failed to update cart on server:", apiError);
+              await fetchApiCart(); // Fetch fresh data to revert
+              setError("Failed to update cart");
             }
-            await fetchApiCart();
           }
         } else {
-          // Update local cart
+          // Update local cart (already fast)
           const updatedItems = (localItems || [])
             .map((item) =>
               item.variant?.id === variantId
@@ -485,9 +512,10 @@ export function UnifiedCartProvider({
         }
       } catch (err: any) {
         setError(err.message);
-        throw err;
-      } finally {
-        setLoading(false);
+        // Revert optimistic update on error
+        if (isAuthenticated) {
+          await fetchApiCart();
+        }
       }
     },
     [isAuthenticated, cart, localItems] // Removed fetchApiCart and saveLocalCart dependencies
