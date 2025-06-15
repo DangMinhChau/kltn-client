@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,6 +80,14 @@ interface PaginationParams {
 }
 
 export default function VariantsPage() {
+  return (
+    <Suspense fallback={<div>Loading variants...</div>}>
+      <VariantsContent />
+    </Suspense>
+  );
+}
+
+function VariantsContent() {
   const searchParams = useSearchParams();
   const productId = searchParams.get("productId");
 
