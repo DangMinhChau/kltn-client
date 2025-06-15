@@ -151,14 +151,13 @@ export default function VoucherInput({
               >
                 <X className="h-4 w-4" />
               </Button>
-            </div>
-
-            {appliedVoucher.voucher?.minPurchaseAmount && (
+            </div>{" "}
+            {appliedVoucher.voucher?.minOrderAmount && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <AlertCircle className="h-3 w-3" />
                 <span>
                   Áp dụng cho đơn hàng từ{" "}
-                  {formatPrice(appliedVoucher.voucher.minPurchaseAmount)}
+                  {formatPrice(appliedVoucher.voucher.minOrderAmount)}
                 </span>
               </div>
             )}

@@ -422,17 +422,17 @@ export enum VoucherType {
 export interface Voucher {
   id: string;
   code: string;
-  name?: string; // Optional since backend might not have this field
-  description?: string;
-  type: VoucherType;
-  value: number; // Giá trị giảm giá (% hoặc số tiền cố định)
-  minPurchaseAmount?: number;
+  description: string;
+  discountType: "amount" | "percent";
+  discountAmount?: number;
+  discountPercent?: number;
+  minOrderAmount?: number;
   maxDiscountAmount?: number;
-  startDate: string; // Maps to startAt in backend
-  endDate: string; // Maps to expireAt in backend
-  isActive: boolean;
+  startAt: string; // Backend uses startAt
+  expireAt: string; // Backend uses expireAt
   usageLimit?: number;
   usageCount: number;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
