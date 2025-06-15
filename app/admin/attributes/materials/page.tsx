@@ -60,7 +60,6 @@ export default function MaterialsPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    careInstructions: "",
   });
 
   useEffect(() => {
@@ -69,8 +68,8 @@ export default function MaterialsPage() {
   const loadMaterials = async () => {
     try {
       setLoading(true);
-      const response = await adminApi.materials.getAll();
-      setMaterials(response.data);
+      const response = await adminApi.attributes.getMaterials();
+      setMaterials(response);
     } catch (error) {
       console.error("Error loading materials:", error);
       toast.error("Failed to load materials");
@@ -80,13 +79,13 @@ export default function MaterialsPage() {
   };
   const handleCreate = async () => {
     try {
-      const newMaterial = await adminApi.materials.create({
+      const newMaterial = await adminApi.attributes.createMaterial({
         name: formData.name,
         description: formData.description,
       });
       setMaterials([...materials, newMaterial]);
       setShowCreateDialog(false);
-      setFormData({ name: "", description: "", careInstructions: "" });
+      setFormData({ name: "", description: "" });
       toast.success("Material created successfully");
     } catch (error) {
       console.error("Error creating material:", error);
@@ -97,7 +96,7 @@ export default function MaterialsPage() {
     if (!selectedMaterial) return;
 
     try {
-      const updatedMaterial = await adminApi.materials.update(
+      const updatedMaterial = await adminApi.attributes.updateMaterial(
         selectedMaterial.id,
         {
           name: formData.name,
@@ -111,7 +110,7 @@ export default function MaterialsPage() {
       );
       setShowEditDialog(false);
       setSelectedMaterial(null);
-      setFormData({ name: "", description: "", careInstructions: "" });
+      setFormData({ name: "", description: "" });
       toast.success("Material updated successfully");
     } catch (error) {
       console.error("Error updating material:", error);
@@ -122,7 +121,7 @@ export default function MaterialsPage() {
     if (!confirm("Are you sure you want to delete this material?")) return;
 
     try {
-      await adminApi.materials.delete(id);
+      await adminApi.attributes.deleteMaterial(id);
       setMaterials(materials.filter((material) => material.id !== id));
       toast.success("Material deleted successfully");
     } catch (error) {
@@ -135,7 +134,6 @@ export default function MaterialsPage() {
     setFormData({
       name: material.name,
       description: material.description || "",
-      careInstructions: material.careInstructions || "",
     });
     setShowEditDialog(true);
   };
@@ -181,19 +179,42 @@ export default function MaterialsPage() {
             </div>
             <Button variant="outline" size="sm">
               <Filter className="mr-2 h-4 w-4" />
-              Filter
+              Filter{" "}
             </Button>
           </div>
-
           {loading ? (
-            <div className="text-center py-4">Loading materials...</div>
+            <div className="text-center py-8">
+              <div className="flex flex-col items-center space-y-2">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                <p className="text-muted-foreground">Loading materials...</p>
+              </div>
+            </div>
+          ) : filteredMaterials.length === 0 ? (
+            <div className="text-center py-8">
+              <Package className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-2 text-sm font-semibold text-gray-900">
+                No materials found
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {materials.length === 0
+                  ? "Get started by creating a new material."
+                  : "Try adjusting your search term."}
+              </p>
+              {materials.length === 0 && (
+                <div className="mt-6">
+                  <Button onClick={() => setShowCreateDialog(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Material
+                  </Button>
+                </div>
+              )}
+            </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Care Instructions</TableHead>
                   <TableHead>Products</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -206,13 +227,10 @@ export default function MaterialsPage() {
                       <div className="flex items-center gap-2">
                         <Package className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">{material.name}</span>
-                      </div>
+                      </div>{" "}
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {material.description || "-"}
-                    </TableCell>{" "}
-                    <TableCell className="max-w-[200px] truncate">
-                      {material.careInstructions || "-"}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">0</Badge>
@@ -288,18 +306,6 @@ export default function MaterialsPage() {
                 placeholder="Material description"
               />
             </div>
-            <div className="grid gap-2">
-              {" "}
-              <Label htmlFor="careInstructions">Care Instructions</Label>
-              <Textarea
-                id="careInstructions"
-                value={formData.careInstructions}
-                onChange={(e) =>
-                  setFormData({ ...formData, careInstructions: e.target.value })
-                }
-                placeholder="Care instructions for this material"
-              />
-            </div>
           </div>
           <DialogFooter>
             <Button
@@ -345,18 +351,6 @@ export default function MaterialsPage() {
                   setFormData({ ...formData, description: e.target.value })
                 }
                 placeholder="Material description"
-              />
-            </div>
-            <div className="grid gap-2">
-              {" "}
-              <Label htmlFor="edit-careInstructions">Care Instructions</Label>
-              <Textarea
-                id="edit-careInstructions"
-                value={formData.careInstructions}
-                onChange={(e) =>
-                  setFormData({ ...formData, careInstructions: e.target.value })
-                }
-                placeholder="Care instructions for this material"
               />
             </div>
           </div>

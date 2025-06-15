@@ -6,10 +6,7 @@ import { orderApi, voucherApi, shippingApi } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-impor                        setShippingInfo((prev: ShippingInfo) => ({
-                          ...prev,
-                          fullName: event.target.value,
-                        }));Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -287,7 +284,9 @@ export default function CheckoutPage() {
                 <div className="space-y-6">
                   {state.items.map((item) => (
                     <div key={item.id} className="flex gap-4">
-                      <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border">                        <Image
+                      <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border">
+                        {" "}
+                        <Image
                           src={item.image || item.imageUrl}
                           alt={item.name}
                           fill
@@ -297,8 +296,10 @@ export default function CheckoutPage() {
                       <div className="flex-1">
                         <h3 className="text-sm font-medium text-gray-900">
                           {item.name}
-                        </h3>                        <p className="text-sm text-gray-500">
-                          {item.color || (item.variant?.color?.name || '')} • {item.size || (item.variant?.size?.name || '')}
+                        </h3>{" "}
+                        <p className="text-sm text-gray-500">
+                          {item.color || item.variant?.color?.name || ""} •{" "}
+                          {item.size || item.variant?.size?.name || ""}
                         </p>
                         <div className="mt-1 flex items-center gap-4">
                           <div className="flex items-center gap-2">

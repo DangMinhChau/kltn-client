@@ -161,20 +161,9 @@ export const paymentApi = {
     paymentMethod: PaymentMethod
   ): Promise<PaymentCreationResponse> =>
     api.post(`/orders/${orderId}/payment`, { paymentMethod }),
-
   // Check payment status
   checkPaymentStatus: (orderId: string): Promise<PaymentStatusResponse> =>
     api.get(`/orders/${orderId}/payment/status`),
-
-  // Handle payment callback (webhook)
-  handlePaymentCallback: (
-    provider: string,
-    data: any
-  ): Promise<{
-    success: boolean;
-    orderId?: string;
-    message?: string;
-  }> => api.post(`/payments/callback/${provider}`, data),
 };
 
 export default {

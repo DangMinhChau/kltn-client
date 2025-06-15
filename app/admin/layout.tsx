@@ -1,11 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import AdminGuard from "@/components/auth/AdminGuard";
 import { useAuth } from "@/lib/context/AuthContext";
 import {
@@ -26,6 +37,7 @@ import {
   Shirt,
   LogOut,
   Bell,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,17 +53,15 @@ const navigation = [
     href: "/admin/products",
     icon: Package,
     description: "Manage products and inventory",
-    children: [
-      { name: "All Products", href: "/admin/products" },
-      { name: "Add Product", href: "/admin/products/new" },
-      { name: "Variants", href: "/admin/products/variants" },
-      { name: "Categories", href: "/admin/products/categories" },
-      { name: "Collections", href: "/admin/products/collections" },
-    ],
+  },
+  {
+    name: "Categories",
+    href: "/admin/categories",
+    icon: Layers,
+    description: "Product categories",
   },
   {
     name: "Attributes",
-    href: "/admin/attributes",
     icon: Settings,
     description: "Product attributes",
     children: [
@@ -105,8 +115,16 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [attributesOpen, setAttributesOpen] = useState(false);
+  const [ordersOpen, setOrdersOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const { user, logout } = useAuth();
+
+  // Prevent hydration mismatch by deferring client-side state updates
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isActive = (href: string) => {
     if (href === "/admin") {
@@ -114,6 +132,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
     return pathname.startsWith(href);
   };
+
+  const isAnyChildActive = (children: any[] = []) => {
+    return children?.some((child) => pathname.startsWith(child.href));
+  };
+
+  // Auto-open collapsibles if any child is active (only after mounted)
+  const isAttributesChildActive = mounted
+    ? isAnyChildActive(
+        navigation.find((item) => item.name === "Attributes")?.children
+      )
+    : false;
+  const isOrdersChildActive = mounted
+    ? isAnyChildActive(
+        navigation.find((item) => item.name === "Orders")?.children
+      )
+    : false;
 
   const handleLogout = async () => {
     try {
@@ -135,59 +169,140 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <Bell className="h-4 w-4" />
           <span className="sr-only">Toggle notifications</span>
         </Button>
-      </div>
+      </div>{" "}
       {/* Navigation */}
       <div className="flex-1">
         <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
           {navigation.map((item) => {
-            const isItemActive = isActive(item.href);
-            return (
-              <div key={item.name}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary",
-                    isItemActive
-                      ? "bg-muted text-primary"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.name}
-                  {item.name === "Orders" && (
-                    <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
-                      6
-                    </Badge>
-                  )}
-                </Link>
+            // For items with href (regular navigation items)
+            if (item.href) {
+              const isItemActive = isActive(item.href);
+              const hasActiveChild = isAnyChildActive(item.children || []);
 
-                {/* Sub-navigation */}
-                {item.children && isItemActive && (
-                  <div className="ml-6 mt-1 space-y-1">
-                    {item.children.map((child) => (
-                      <Link
-                        key={child.href}
-                        href={child.href}
+              return (
+                <div key={item.name}>
+                  {item.children ? ( // Items with children - use Collapsible (only Orders now)
+                    <Collapsible
+                      open={
+                        mounted && item.name === "Orders"
+                          ? isOrdersChildActive || ordersOpen
+                          : false
+                      }
+                      onOpenChange={
+                        item.name === "Orders" ? setOrdersOpen : undefined
+                      }
+                    >
+                      <CollapsibleTrigger asChild>
+                        <Link
+                          href={item.href}
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary w-full",
+                            isItemActive || hasActiveChild
+                              ? "bg-muted text-primary"
+                              : "text-muted-foreground"
+                          )}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {item.name}
+                          {item.name === "Orders" && (
+                            <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
+                              6
+                            </Badge>
+                          )}
+                          <ChevronDown className="ml-auto h-4 w-4 transition-transform data-[state=open]:rotate-180" />
+                        </Link>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="ml-6 mt-1 space-y-1">
+                          {item.children.map((child) => (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              className={cn(
+                                "block rounded-md px-3 py-1.5 text-sm transition-all hover:text-primary",
+                                pathname === child.href
+                                  ? "text-primary font-medium"
+                                  : "text-muted-foreground"
+                              )}
+                            >
+                              {child.name}
+                            </Link>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ) : (
+                    // Regular items without children
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary",
+                        isItemActive
+                          ? "bg-muted text-primary"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.name}
+                    </Link>
+                  )}
+                </div>
+              );
+            } else {
+              // Items without href (like Attributes) - pure dropdown
+              const hasActiveChild = isAnyChildActive(item.children || []);
+
+              return (
+                <div key={item.name}>
+                  {" "}
+                  <Collapsible
+                    open={
+                      mounted && (isAttributesChildActive || attributesOpen)
+                    }
+                    onOpenChange={setAttributesOpen}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <button
                         className={cn(
-                          "block rounded-md px-3 py-1.5 text-sm transition-all hover:text-primary",
-                          pathname === child.href
-                            ? "text-primary font-medium"
+                          "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary w-full text-left",
+                          hasActiveChild
+                            ? "bg-muted text-primary"
                             : "text-muted-foreground"
                         )}
                       >
-                        {child.name}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
+                        <item.icon className="h-4 w-4" />
+                        {item.name}
+                        <ChevronDown className="ml-auto h-4 w-4 transition-transform data-[state=open]:rotate-180" />
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="ml-6 mt-1 space-y-1">
+                        {item.children?.map((child) => (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className={cn(
+                              "block rounded-md px-3 py-1.5 text-sm transition-all hover:text-primary",
+                              pathname === child.href
+                                ? "text-primary font-medium"
+                                : "text-muted-foreground"
+                            )}
+                          >
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              );
+            }
           })}
         </nav>
       </div>{" "}
       {/* User menu */}
       <div className="mt-auto p-4 space-y-3">
-        {user && (
+        {mounted && user && (
           <div className="px-3 py-2 text-sm text-muted-foreground">
             <div className="font-medium text-foreground">{user.fullName}</div>
             <div className="text-xs">{user.email}</div>
@@ -227,8 +342,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   <Menu className="h-5 w-5" />
                   <span className="sr-only">Toggle navigation menu</span>
                 </Button>
-              </SheetTrigger>
+              </SheetTrigger>{" "}
               <SheetContent side="left" className="flex flex-col">
+                <SheetHeader>
+                  <SheetTitle>Navigation Menu</SheetTitle>
+                </SheetHeader>
                 <SidebarContent />
               </SheetContent>
             </Sheet>

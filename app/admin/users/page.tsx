@@ -57,12 +57,24 @@ import { adminUsersApi } from "@/lib/api/admin";
 import { User } from "@/types";
 import { toast } from "sonner";
 
+// Utility function to format dates consistently between server and client
+const formatDate = (dateString: string | undefined | null): string => {
+  try {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Invalid Date";
+    return date.toISOString().split("T")[0]; // YYYY-MM-DD format
+  } catch (error) {
+    return "Invalid Date";
+  }
+};
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -88,11 +100,15 @@ export default function UsersPage() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const data = await adminUsersApi.getUsers();
-      setUsers(data.data || []);
-    } catch (error) {
+      const response = await adminUsersApi.getUsers();
+      setUsers(response.data || []);
+    } catch (error: any) {
       console.error("Error loading users:", error);
-      toast.error("Failed to load users");
+      if (error?.response?.status === 401) {
+        toast.error("Unauthorized - please login again");
+      } else {
+        toast.error("Failed to load users");
+      }
     } finally {
       setLoading(false);
     }
@@ -134,6 +150,7 @@ export default function UsersPage() {
         email: formData.email,
         phoneNumber: formData.phoneNumber,
         role: formData.role as "CUSTOMER" | "ADMIN",
+        isActive: formData.isActive,
       });
       setUsers(
         users.map((user) => (user.id === selectedUser.id ? updatedUser : user))
@@ -171,12 +188,10 @@ export default function UsersPage() {
 
   const handleToggleActive = async (id: string, isActive: boolean) => {
     try {
-      const updatedUser = await adminUsersApi.toggleUserActive(id, !isActive);
-      setUsers(
-        users.map((user) =>
-          user.id === id ? { ...user, isActive: !isActive } : user
-        )
-      );
+      const updatedUser = await adminUsersApi.updateUser(id, {
+        isActive: !isActive,
+      });
+      setUsers(users.map((user) => (user.id === id ? updatedUser : user)));
       toast.success(
         `User ${!isActive ? "activated" : "deactivated"} successfully`
       );
@@ -188,17 +203,10 @@ export default function UsersPage() {
 
   const handleChangeRole = async (id: string, newRole: string) => {
     try {
-      const updatedUser = await adminUsersApi.changeUserRole(
-        id,
-        newRole as "CUSTOMER" | "ADMIN"
-      );
-      setUsers(
-        users.map((user) =>
-          user.id === id
-            ? { ...user, role: newRole as "CUSTOMER" | "ADMIN" }
-            : user
-        )
-      );
+      const updatedUser = await adminUsersApi.updateUser(id, {
+        role: newRole,
+      });
+      setUsers(users.map((user) => (user.id === id ? updatedUser : user)));
       toast.success("User role updated successfully");
     } catch (error) {
       console.error("Error changing user role:", error);
@@ -221,14 +229,21 @@ export default function UsersPage() {
   };
 
   const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.phoneNumber.includes(searchTerm);
+    if (!user || typeof user !== "object") return false;
 
-    const matchesRole = !roleFilter || user.role === roleFilter;
+    const fullName = user.fullName || "";
+    const email = user.email || "";
+    const phoneNumber = user.phoneNumber || "";
+    const role = user.role || "";
+
+    const matchesSearch =
+      fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      phoneNumber.includes(searchTerm);
+    const matchesRole =
+      roleFilter === "all" || role?.toUpperCase() === roleFilter?.toUpperCase();
     const matchesStatus =
-      !statusFilter ||
+      statusFilter === "all" ||
       (statusFilter === "active" && user.isActive) ||
       (statusFilter === "inactive" && !user.isActive);
 
@@ -260,19 +275,32 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {" "}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Users</h1>
           <p className="text-muted-foreground">
             Manage user accounts and permissions
           </p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add User
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+          <Button
+            variant="outline"
+            onClick={loadUsers}
+            disabled={loading}
+            className="w-full sm:w-auto"
+          >
+            {loading ? "Loading..." : "Refresh"}
+          </Button>
+          <Button
+            onClick={() => setShowCreateDialog(true)}
+            className="w-full sm:w-auto"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add User
+          </Button>
+        </div>
       </div>
-
       <Card>
         <CardHeader>
           <CardTitle>All Users</CardTitle>
@@ -281,8 +309,9 @@ export default function UsersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-2 mb-4">
-            <div className="relative flex-1">
+          {" "}
+          <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search users..."
@@ -291,157 +320,163 @@ export default function UsersPage() {
                 className="pl-8"
               />
             </div>
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All roles</SelectItem>
-                {roles.map((role) => (
-                  <SelectItem key={role.value} value={role.value}>
-                    {role.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm">
-              <Filter className="mr-2 h-4 w-4" />
-              Filter
-            </Button>
-          </div>
-
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-full sm:w-[150px]">
+                  <SelectValue placeholder="Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All roles</SelectItem>
+                  {roles.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[150px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                <Filter className="mr-2 h-4 w-4" />
+                Filter
+              </Button>
+            </div>
+          </div>{" "}
           {loading ? (
             <div className="text-center py-4">Loading users...</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => {
-                  const statusBadge = getUserStatusBadge(user);
-                  const roleBadge = getRoleBadge(user.role);
-                  const RoleIcon = roleBadge.icon;
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[200px]">User</TableHead>
+                    <TableHead className="min-w-[200px]">Email</TableHead>
+                    <TableHead className="min-w-[120px]">Phone</TableHead>
+                    <TableHead className="min-w-[100px]">Role</TableHead>
+                    <TableHead className="min-w-[100px]">Status</TableHead>
+                    <TableHead className="min-w-[120px]">Joined</TableHead>
+                    <TableHead className="text-right min-w-[100px]">
+                      Actions
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user) => {
+                    const statusBadge = getUserStatusBadge(user);
+                    const roleBadge = getRoleBadge(user.role);
+                    const RoleIcon = roleBadge.icon;
 
-                  return (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                            <RoleIcon className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <div className="font-medium">{user.fullName}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {user.isEmailVerified ? "Verified" : "Unverified"}
+                    return (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                              <RoleIcon className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <div className="font-medium">{user.fullName}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {user.isEmailVerified
+                                  ? "Verified"
+                                  : "Unverified"}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.phoneNumber}</TableCell>
-                      <TableCell>
-                        <Badge variant={roleBadge.variant}>
-                          <RoleIcon className="mr-1 h-3 w-3" />
-                          {roleBadge.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={statusBadge.variant}>
-                          {statusBadge.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => openEditDialog(user)}
-                            >
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleToggleActive(user.id, user.isActive)
-                              }
-                            >
-                              {user.isActive ? (
-                                <>
-                                  <UserX className="mr-2 h-4 w-4" />
-                                  Deactivate
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="mr-2 h-4 w-4" />
-                                  Activate
-                                </>
+                        </TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.phoneNumber}</TableCell>
+                        <TableCell>
+                          <Badge variant={roleBadge.variant}>
+                            <RoleIcon className="mr-1 h-3 w-3" />
+                            {roleBadge.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusBadge.variant}>
+                            {statusBadge.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell suppressHydrationWarning>
+                          {formatDate(user.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => openEditDialog(user)}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleToggleActive(user.id, user.isActive)
+                                }
+                              >
+                                {user.isActive ? (
+                                  <>
+                                    <UserX className="mr-2 h-4 w-4" />
+                                    Deactivate
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserCheck className="mr-2 h-4 w-4" />
+                                    Activate
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              {user.role?.toUpperCase() !== "ADMIN" && (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleChangeRole(user.id, "ADMIN")
+                                  }
+                                >
+                                  <Crown className="mr-2 h-4 w-4" />
+                                  Make Admin
+                                </DropdownMenuItem>
                               )}
-                            </DropdownMenuItem>{" "}
-                            {user.role?.toUpperCase() !== "ADMIN" && (
+                              {user.role?.toUpperCase() === "ADMIN" && (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleChangeRole(user.id, "CUSTOMER")
+                                  }
+                                >
+                                  <UserCheck className="mr-2 h-4 w-4" />
+                                  Make Customer
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
-                                onClick={() =>
-                                  handleChangeRole(user.id, "ADMIN")
-                                }
+                                onClick={() => handleDelete(user.id)}
+                                className="text-red-600"
                               >
-                                <Crown className="mr-2 h-4 w-4" />
-                                Make Admin
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
                               </DropdownMenuItem>
-                            )}
-                            {user.role?.toUpperCase() === "ADMIN" && (
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleChangeRole(user.id, "CUSTOMER")
-                                }
-                              >
-                                <UserCheck className="mr-2 h-4 w-4" />
-                                Make Customer
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              onClick={() => handleDelete(user.id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}{" "}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
-
       {/* Create User Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
@@ -540,7 +575,6 @@ export default function UsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* Edit User Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent>

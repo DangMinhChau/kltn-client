@@ -56,6 +56,15 @@ const productSchema = z.object({
   description: z.string().optional(),
   categoryId: z.string().min(1, "Vui lòng chọn danh mục"),
   basePrice: z.number().min(0, "Giá không được âm"),
+  discountPercent: z
+    .number()
+    .min(0, "Giảm giá không được âm")
+    .max(99, "Giảm giá không được quá 99%")
+    .optional(),
+  baseSku: z
+    .string()
+    .min(1, "SKU không được để trống")
+    .max(20, "SKU không được quá 20 ký tự"),
   isActive: z.boolean(),
   tags: z.array(z.string()),
   materials: z.array(z.string()),
@@ -86,6 +95,8 @@ export default function NewProductPage() {
       description: "",
       categoryId: "",
       basePrice: 0,
+      discountPercent: 0,
+      baseSku: "",
       isActive: true,
       tags: [],
       materials: [],
@@ -141,7 +152,6 @@ export default function NewProductPage() {
     setImageFile(null);
     setImagePreview("");
   };
-
   const onSubmit = async (data: ProductFormData) => {
     try {
       setLoading(true);
@@ -151,11 +161,23 @@ export default function NewProductPage() {
       }
 
       const productData: CreateProductData = {
-        ...data,
-        image: imageFile,
+        name: data.name,
+        description: data.description,
+        categoryId: data.categoryId,
+        basePrice: data.basePrice,
+        discountPercent: data.discountPercent,
+        baseSku: data.baseSku,
+        isActive: data.isActive,
+        materialIds: data.materials,
+        styleIds: data.styles,
+        tagIds: data.tags,
+        collectionIds: data.collections,
       };
 
-      const product = await adminProductsApi.createProduct(productData);
+      const product = await adminProductsApi.createProduct(
+        productData,
+        imageFile
+      );
       toast.success("Đã tạo sản phẩm thành công");
 
       router.push(`/admin/products/${product.id}/edit`);
@@ -239,7 +261,6 @@ export default function NewProductPage() {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="description"
@@ -259,8 +280,7 @@ export default function NewProductPage() {
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
-
+                  />{" "}
                   <div className="grid gap-4 md:grid-cols-2">
                     <FormField
                       control={form.control}
@@ -295,6 +315,28 @@ export default function NewProductPage() {
 
                     <FormField
                       control={form.control}
+                      name="baseSku"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>SKU *</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Nhập SKU sản phẩm..."
+                              maxLength={20}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Mã định danh duy nhất cho sản phẩm (tối đa 20 ký tự)
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
                       name="basePrice"
                       render={({ field }) => (
                         <FormItem>
@@ -315,6 +357,40 @@ export default function NewProductPage() {
                             {field.value
                               ? formatCurrency(field.value)
                               : "Nhập giá gốc của sản phẩm"}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="discountPercent"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Giảm giá (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="1"
+                              min="0"
+                              max="99"
+                              placeholder="0"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(Number(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            {field.value && field.value > 0
+                              ? `Giảm ${
+                                  field.value
+                                }% - Giá sau giảm: ${formatCurrency(
+                                  form.getValues("basePrice") *
+                                    (1 - field.value / 100)
+                                )}`
+                              : "Phần trăm giảm giá (0-99%)"}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>

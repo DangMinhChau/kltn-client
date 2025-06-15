@@ -18,14 +18,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   // Memoize expensive calculations
   const actualPrice = React.useMemo(() => {
-    // Calculate actual price from basePrice and discount
-    const discountValue = product.discount || 0;
-    return product.basePrice * (1 - discountValue);
-  }, [product.basePrice, product.discount]);
+    // Calculate actual price from basePrice and discountPercent
+    const discountValue = product.discountPercent || 0;
+    return product.basePrice * (1 - discountValue / 100);
+  }, [product.basePrice, product.discountPercent]);
 
   const hasDiscount = React.useMemo(() => {
-    return Boolean(product.discount && product.discount > 0);
-  }, [product.discount]);
+    return Boolean(product.discountPercent && product.discountPercent > 0);
+  }, [product.discountPercent]);
 
   const currentStock = React.useMemo(() => {
     return product.variants?.reduce((sum, v) => sum + v.stockQuantity, 0) || 0;

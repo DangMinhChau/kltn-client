@@ -1,7 +1,11 @@
 // Export order types
 export * from "./order";
-// Export API DTOs with specific naming to avoid conflicts
-export * from "./api-order";
+// Export API DTOs separately to avoid naming conflicts
+export type {
+  CreateOrderDto,
+  CreateOrderItemDto,
+  OrderApiResponse,
+} from "./api-order";
 
 // Product Types
 export interface Product {
@@ -10,20 +14,20 @@ export interface Product {
   slug: string;
   description?: string;
   baseSku: string;
-  basePrice: string;
-  discount?: number;
+  basePrice: number;
+  discountPercent?: number;
   isActive: boolean;
   tags?: Tag[];
   materials?: Material[];
   styles?: Style[];
   collections?: Collection[];
-  images?: ProductImage[];
-  image?: ProductImage;
+  images?: ProductImageType[];
+  image?: ProductImageType;
   category?: Category;
   variants?: ProductVariant[];
   createdAt: string;
   updatedAt: string;
-  // Computed fields for compatibility
+  // Optional computed fields
   averageRating?: number;
   totalReviews?: number;
   reviews?: Review[];
@@ -34,9 +38,16 @@ export interface ProductVariant {
   sku: string;
   stockQuantity: number;
   isActive: boolean;
-  color?: Color;
-  size?: Size;
-  images?: ProductImage[];
+  color: Color;
+  size: Size;
+  images?: ProductImageType[];
+  product: {
+    id: string;
+    name: string;
+    basePrice?: number;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ProductImage {
@@ -48,6 +59,9 @@ export interface ProductImage {
   publicId?: string;
 }
 
+// Helper type for flexible image handling
+export type ProductImageType = ProductImage | string;
+
 // Category Types
 export interface Category {
   id: string;
@@ -55,7 +69,6 @@ export interface Category {
   description?: string;
   slug: string;
   isActive: boolean;
-  parentId?: string;
   parent?: Category;
   children?: Category[];
   createdAt: string;
@@ -122,19 +135,11 @@ export interface Color {
 export interface Size {
   id: string;
   name: string;
-  code: string;
-  type?: string;
   description?: string;
   isActive: boolean;
+  category: Category;
   createdAt: string;
   updatedAt: string;
-}
-
-// Size Type (Deprecated but still used for backward compatibility)
-export enum SizeType {
-  TOP = "top",
-  BOTTOM = "bottom",
-  ACCESSORY = "accessory",
 }
 
 // Review Types
@@ -148,9 +153,9 @@ export interface Review {
 
 // User and Authentication Types
 export enum UserRole {
-  ADMIN = "admin",
-  CUSTOMER = "customer",
-  STAFF = "seller", // Backend uses 'seller' instead of 'staff'
+  ADMIN = "ADMIN",
+  CUSTOMER = "CUSTOMER",
+  SELLER = "SELLER",
 }
 
 export interface User {

@@ -9,9 +9,9 @@ export const ProductBadges: React.FC<ProductBadgesProps> = ({
   stockStatus,
   className = "",
 }) => {
-  const hasDiscount = product.discount && product.discount > 0;
+  const hasDiscount = product.discountPercent && product.discountPercent > 0;
   const discountPercent = hasDiscount
-    ? Math.round((product.discount || 0) * 100)
+    ? Math.round(product.discountPercent || 0)
     : 0;
 
   return (

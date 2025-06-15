@@ -32,12 +32,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
   // Calculate discounted price
-  const hasDiscount = product.discount && product.discount > 0;
+  const hasDiscount = product.discountPercent && product.discountPercent > 0;
   const basePrice = parseFloat(product.basePrice);
   const discountedPrice = hasDiscount
-    ? basePrice * (1 - (product.discount || 0) / 100)
+    ? basePrice * (1 - (product.discountPercent || 0) / 100)
     : basePrice;
 
   // Get product images - prioritize variant images first
@@ -144,9 +143,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             {/* Badges */}{" "}
             <div className="absolute top-3 left-3 flex flex-col gap-2">
+              {" "}
               {hasDiscount && (
                 <Badge className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1">
-                  -{product.discount}%
+                  -{product.discountPercent}%
                 </Badge>
               )}
               {product.variants?.[0]?.stockQuantity === 0 && (

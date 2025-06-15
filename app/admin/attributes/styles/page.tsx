@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Edit, Trash2, MoreHorizontal } from "lucide-react";
+import { Plus, Search, Edit, Trash2, MoreHorizontal, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -67,17 +67,17 @@ export default function StylesPage() {
   useEffect(() => {
     fetchStyles();
   }, [search, pagination.page]);
-
   const fetchStyles = async () => {
     try {
       setLoading(true);
-      const response = await adminApi.styles.getAll({
-        page: pagination.page,
-        limit: pagination.limit,
-        search: search || undefined,
+      const response = await adminApi.attributes.getStyles();
+      setStyles(response);
+      setPagination({
+        total: response.length,
+        page: 1,
+        limit: 20,
+        totalPages: Math.ceil(response.length / 20),
       });
-      setStyles(response.data);
-      setPagination(response.meta);
     } catch (error) {
       console.error("Error fetching styles:", error);
       toast.error("Failed to fetch styles");
@@ -85,7 +85,6 @@ export default function StylesPage() {
       setLoading(false);
     }
   };
-
   const handleCreate = async () => {
     if (!formData.name.trim()) {
       toast.error("Style name is required");
@@ -93,7 +92,7 @@ export default function StylesPage() {
     }
 
     try {
-      await adminApi.styles.create(formData);
+      await adminApi.attributes.createStyle(formData);
       toast.success("Style created successfully");
       setIsCreateDialogOpen(false);
       setFormData({ name: "", description: "" });
@@ -103,7 +102,6 @@ export default function StylesPage() {
       toast.error("Failed to create style");
     }
   };
-
   const handleEdit = async () => {
     if (!selectedStyle || !formData.name.trim()) {
       toast.error("Style name is required");
@@ -111,7 +109,7 @@ export default function StylesPage() {
     }
 
     try {
-      await adminApi.styles.update(selectedStyle.id, formData);
+      await adminApi.attributes.updateStyle(selectedStyle.id, formData);
       toast.success("Style updated successfully");
       setIsEditDialogOpen(false);
       setSelectedStyle(null);
@@ -122,12 +120,11 @@ export default function StylesPage() {
       toast.error("Failed to update style");
     }
   };
-
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this style?")) return;
 
     try {
-      await adminApi.styles.delete(id);
+      await adminApi.attributes.deleteStyle(id);
       toast.success("Style deleted successfully");
       fetchStyles();
     } catch (error) {
@@ -209,36 +206,66 @@ export default function StylesPage() {
               <Button onClick={handleCreate}>Create Style</Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Search */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Search Styles</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search styles..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
+        </Dialog>      </div>
 
       {/* Styles Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Styles ({pagination.total})</CardTitle>
+          <CardTitle>All Styles</CardTitle>
+          <CardDescription>
+            A list of all style attributes in your store.
+          </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="flex items-center space-x-2 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search styles..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <Button variant="outline" size="sm">
+              <Search className="mr-2 h-4 w-4" />
+              Filter
+            </Button>
+          </div>
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : styles.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="mx-auto max-w-sm">
+                <div className="mx-auto h-12 w-12 text-muted-foreground">
+                  <svg
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    className="h-full w-full"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a4 4 0 004-4V5z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="mt-4 text-lg font-semibold">No styles found</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Get started by creating your first style.
+                </p>
+                <Button
+                  className="mt-4"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Style
+                </Button>
+              </div>
             </div>
           ) : (
             <>
@@ -249,8 +276,6 @@ export default function StylesPage() {
                     <TableHead>Slug</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Products</TableHead>
-                    <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -268,17 +293,10 @@ export default function StylesPage() {
                       <TableCell>
                         {style.description || (
                           <span className="text-muted-foreground">—</span>
-                        )}
+                        )}{" "}
                       </TableCell>
                       <TableCell>
                         <StatusBadge isActive={style.isActive} />
-                      </TableCell>
-                      <TableCell>
-                        {" "}
-                        <Badge variant="outline">0 products</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(style.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>

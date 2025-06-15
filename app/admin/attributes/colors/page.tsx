@@ -56,6 +56,7 @@ export default function ColorsPage() {
   const [selectedColor, setSelectedColor] = useState<Color | null>(null);
   const [formData, setFormData] = useState({
     name: "",
+    code: "",
     hexCode: "#000000",
   });
 
@@ -65,7 +66,9 @@ export default function ColorsPage() {
   const loadColors = async () => {
     try {
       setLoading(true);
+      console.log("Loading colors...");
       const response = await adminApi.colors.getAll();
+      console.log("Colors response:", response);
       setColors(response.data);
     } catch (error) {
       console.error("Error loading colors:", error);
@@ -78,12 +81,12 @@ export default function ColorsPage() {
     try {
       const newColor = await adminApi.colors.create({
         name: formData.name,
-        code: formData.name.toLowerCase().replace(/\s+/g, "-"),
+        code: formData.code,
         hexCode: formData.hexCode,
       });
       setColors([...colors, newColor]);
       setShowCreateDialog(false);
-      setFormData({ name: "", hexCode: "#000000" });
+      setFormData({ name: "", code: "", hexCode: "#000000" });
       toast.success("Color created successfully");
     } catch (error) {
       console.error("Error creating color:", error);
@@ -96,6 +99,7 @@ export default function ColorsPage() {
     try {
       const updatedColor = await adminApi.colors.update(selectedColor.id, {
         name: formData.name,
+        code: formData.code,
         hexCode: formData.hexCode,
       });
       setColors(
@@ -105,7 +109,7 @@ export default function ColorsPage() {
       );
       setShowEditDialog(false);
       setSelectedColor(null);
-      setFormData({ name: "", hexCode: "#000000" });
+      setFormData({ name: "", code: "", hexCode: "#000000" });
       toast.success("Color updated successfully");
     } catch (error) {
       console.error("Error updating color:", error);
@@ -125,10 +129,33 @@ export default function ColorsPage() {
     }
   };
 
+  const handleToggleActive = async (id: string) => {
+    try {
+      const color = colors.find((c) => c.id === id);
+      if (!color) return;
+
+      const updatedColor = await adminApi.colors.update(id, {
+        isActive: !color.isActive,
+      });
+
+      setColors(colors.map((c) => (c.id === id ? updatedColor : c)));
+
+      toast.success(
+        `Color ${
+          updatedColor.isActive ? "activated" : "deactivated"
+        } successfully`
+      );
+    } catch (error) {
+      console.error("Error toggling color status:", error);
+      toast.error("Failed to update color status");
+    }
+  };
+
   const openEditDialog = (color: Color) => {
     setSelectedColor(color);
     setFormData({
       name: color.name,
+      code: color.code,
       hexCode: color.hexCode,
     });
     setShowEditDialog(true);
@@ -185,8 +212,8 @@ export default function ColorsPage() {
                 <TableRow>
                   <TableHead>Color</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Code</TableHead>
                   <TableHead>Hex Code</TableHead>
-                  <TableHead>Products</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -204,11 +231,11 @@ export default function ColorsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{color.name}</TableCell>
+                    <TableCell className="font-mono text-sm text-muted-foreground">
+                      {color.code}
+                    </TableCell>{" "}
                     <TableCell className="font-mono text-sm">
                       {color.hexCode}
-                    </TableCell>{" "}
-                    <TableCell>
-                      <Badge variant="secondary">0</Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant={color.isActive ? "default" : "secondary"}>
@@ -221,13 +248,19 @@ export default function ColorsPage() {
                           <Button variant="ghost" className="h-8 w-8 p-0">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        </DropdownMenuTrigger>
+                        </DropdownMenuTrigger>{" "}
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onClick={() => openEditDialog(color)}
                           >
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleToggleActive(color.id)}
+                          >
+                            <div className="mr-2 h-4 w-4" />
+                            {color.isActive ? "Deactivate" : "Activate"}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDelete(color.id)}
@@ -269,6 +302,18 @@ export default function ColorsPage() {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="code">Code</Label>
+              <Input
+                id="code"
+                value={formData.code}
+                onChange={(e) =>
+                  setFormData({ ...formData, code: e.target.value })
+                }
+                placeholder="color-code"
+                className="font-mono"
+              />
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="hexCode">Hex Code</Label>
               <div className="flex items-center gap-2">
                 <input
@@ -300,7 +345,7 @@ export default function ColorsPage() {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name || !formData.hexCode}
+              disabled={!formData.name || !formData.code || !formData.hexCode}
             >
               Create Color
             </Button>
@@ -325,6 +370,18 @@ export default function ColorsPage() {
                   setFormData({ ...formData, name: e.target.value })
                 }
                 placeholder="Color name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-code">Code</Label>
+              <Input
+                id="edit-code"
+                value={formData.code}
+                onChange={(e) =>
+                  setFormData({ ...formData, code: e.target.value })
+                }
+                placeholder="Color code"
+                className="font-mono"
               />
             </div>
             <div className="grid gap-2">
@@ -356,7 +413,7 @@ export default function ColorsPage() {
             </Button>
             <Button
               onClick={handleUpdate}
-              disabled={!formData.name || !formData.hexCode}
+              disabled={!formData.name || !formData.code || !formData.hexCode}
             >
               Update Color
             </Button>

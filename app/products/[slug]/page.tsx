@@ -451,7 +451,7 @@ export default function ProductDetailPage() {
     console.log("parsed basePrice:", basePrice);
     console.log("isNaN(basePrice):", isNaN(basePrice));
     console.log("basePrice <= 0:", basePrice <= 0);
-    console.log("product.discount:", product.discount);
+    console.log("product.discountPercent:", product.discountPercent);
 
     // Only consider price invalid if it's actually NaN or negative
     // A price of 0 is still valid (free product)
@@ -462,11 +462,9 @@ export default function ProductDetailPage() {
         originalPrice: null,
         hasDiscount: false,
       };
-    }
-
-    // Apply discount if exists
-    if (product.discount && product.discount > 0) {
-      const discountedPrice = basePrice * (1 - product.discount);
+    } // Apply discount if exists
+    if (product.discountPercent && product.discountPercent > 0) {
+      const discountedPrice = basePrice * (1 - product.discountPercent / 100);
       console.log("discounted price:", discountedPrice);
       return {
         price: discountedPrice,
@@ -537,8 +535,8 @@ export default function ProductDetailPage() {
               )}{" "}
               {priceInfo.hasDiscount && (
                 <Badge className="absolute top-3 left-3 bg-red-500 text-white">
-                  {product.discount
-                    ? `-${Math.round(product.discount * 100)}%`
+                  {product.discountPercent
+                    ? `-${Math.round(product.discountPercent)}%`
                     : "SALE"}
                 </Badge>
               )}

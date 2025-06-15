@@ -280,10 +280,10 @@ export default function ProductDetailPage() {
                 <div>
                   <h4 className="font-medium text-sm text-muted-foreground">
                     Giảm giá
-                  </h4>
+                  </h4>{" "}
                   <p className="mt-1">
-                    {product.discount
-                      ? `${(product.discount * 100).toFixed(0)}%`
+                    {product.discountPercent
+                      ? `${product.discountPercent.toFixed(0)}%`
                       : "Không có"}
                   </p>
                 </div>

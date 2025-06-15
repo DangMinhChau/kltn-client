@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -13,6 +16,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -40,7 +52,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  Search,
   MoreHorizontal,
   Edit,
   Trash2,
@@ -48,64 +59,130 @@ import {
   ImageIcon,
   RefreshCw,
   Loader2,
+  ArrowLeft,
+  Plus,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { ProductVariant, Product, Color, Size } from "@/types";
-import { adminProductsApi, adminVariantsApi } from "@/lib/api/admin";
-import { adminApi } from "@/lib/api/admin";
-import { formatCurrency, debounce } from "@/lib/utils";
+import {
+  adminProductsApi,
+  adminVariantsApi,
+  adminColorsApi,
+  adminSizesApi,
+} from "@/lib/api/admin";
+import { formatCurrency } from "@/lib/utils";
 
 interface PaginationParams {
   page?: number;
   limit?: number;
-  search?: string;
-  productId?: string;
+  productId: string;
 }
 
 export default function VariantsPage() {
+  const searchParams = useSearchParams();
+  const productId = searchParams.get("productId");
+
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedVariants, setSelectedVariants] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [variantToDelete, setVariantToDelete] = useState<string | null>(null);
+  // Add variant states
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [colors, setColors] = useState<Color[]>([]);
+  const [sizes, setSizes] = useState<Size[]>([]);
+  const [selectedVariantForEdit, setSelectedVariantForEdit] =
+    useState<ProductVariant | null>(null);
+  const [newVariant, setNewVariant] = useState({
+    colorId: "",
+    sizeId: "",
+    stockQuantity: 0,
+    isActive: true,
+    images: [] as File[],
+  });
+  const [editVariant, setEditVariant] = useState({
+    colorId: "",
+    sizeId: "",
+    stockQuantity: 0,
+    isActive: true,
+    images: [] as File[],
+  });
 
   const itemsPerPage = 10;
-
   useEffect(() => {
+    if (!productId) {
+      toast.error("Không tìm thấy ID sản phẩm");
+      return;
+    }
     loadData();
-  }, [currentPage, searchTerm, selectedProduct]);
-
+  }, [currentPage, productId]);
   const loadData = async () => {
+    if (!productId) return;
+
     try {
       setLoading(true);
 
       const params: PaginationParams = {
         page: currentPage,
         limit: itemsPerPage,
+        productId: productId,
       };
 
-      if (searchTerm) {
-        params.search = searchTerm;
-      }
-
-      if (selectedProduct) {
-        params.productId = selectedProduct;
-      }
-
-      const [variantsResponse, productsData] = await Promise.all([
+      // First load product and basic data
+      const [variantsResponse, productData, colorsData] = await Promise.all([
         adminVariantsApi.getVariants(params),
-        adminProductsApi.getProducts({ limit: 1000 }),
+        adminProductsApi.getProduct(productId),
+        adminColorsApi.getColors(),
       ]);
 
       setVariants(variantsResponse.data || []);
       setTotalItems(variantsResponse.totalCount || 0);
-      setProducts(productsData.data || []);
+      setCurrentProduct(productData);
+      setColors(colorsData);
+
+      // Load sizes based on product category
+      let sizesData: Size[] = [];
+      if (productData?.category?.slug) {
+        try {
+          // Try to get sizes for specific category
+          sizesData = await adminSizesApi.getSizesByCategory(
+            productData.category.slug
+          );
+          console.log(
+            `Loaded ${sizesData.length} sizes for category: ${productData.category.name}`
+          );
+        } catch (error) {
+          console.warn(
+            "Failed to load category-specific sizes, falling back to all sizes:",
+            error
+          );
+          // Fallback to all sizes if category-specific fails
+          sizesData = await adminSizesApi.getSizes();
+        }
+      } else {
+        // No category, load all sizes
+        console.log("Product has no category, loading all sizes");
+        sizesData = await adminSizesApi.getSizes();
+      }
+
+      setSizes(sizesData);
+
+      // Debug logging
+      console.log("Data loaded:", {
+        product: {
+          name: productData?.name,
+          category: productData?.category,
+        },
+        colors: colorsData?.length,
+        sizes: sizesData?.length,
+      });
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Không thể tải dữ liệu");
@@ -162,20 +239,6 @@ export default function VariantsPage() {
     );
   };
 
-  const debouncedSearch = debounce((value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  }, 300);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    debouncedSearch(e.target.value);
-  };
-
-  const handleProductFilter = (productId: string) => {
-    setSelectedProduct(productId);
-    setCurrentPage(1);
-  };
-
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   const getStatusBadge = (isActive: boolean, stockQuantity: number) => {
@@ -190,67 +253,375 @@ export default function VariantsPage() {
     }
     return <Badge variant="default">Còn hàng</Badge>;
   };
+  const handleCreateVariant = async () => {
+    if (!productId || !newVariant.colorId || !newVariant.sizeId) {
+      toast.error("Vui lòng chọn màu sắc và kích thước");
+      return;
+    }
 
+    try {
+      setCreating(true);
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("productId", productId);
+      formData.append("colorId", newVariant.colorId);
+      formData.append("sizeId", newVariant.sizeId);
+      formData.append("stockQuantity", newVariant.stockQuantity.toString());
+      formData.append("isActive", newVariant.isActive.toString());
+
+      // Add images
+      newVariant.images.forEach((file, index) => {
+        formData.append(`images`, file);
+      });
+
+      const createdVariant = await adminVariantsApi.createVariant(formData);
+
+      setVariants((prev) => [createdVariant, ...prev]);
+      setCreateDialogOpen(false);
+      resetNewVariantForm();
+      toast.success("Đã tạo biến thể thành công");
+    } catch (error) {
+      console.error("Error creating variant:", error);
+      toast.error("Không thể tạo biến thể");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleEditVariant = (variant: ProductVariant) => {
+    setSelectedVariantForEdit(variant);
+    setEditVariant({
+      colorId: variant.color.id,
+      sizeId: variant.size.id,
+      stockQuantity: variant.stockQuantity,
+      isActive: variant.isActive,
+      images: [],
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateVariant = async () => {
+    if (!selectedVariantForEdit) return;
+
+    try {
+      setUpdating(true);
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("colorId", editVariant.colorId);
+      formData.append("sizeId", editVariant.sizeId);
+      formData.append("stockQuantity", editVariant.stockQuantity.toString());
+      formData.append("isActive", editVariant.isActive.toString());
+
+      // Add new images
+      editVariant.images.forEach((file) => {
+        formData.append(`images`, file);
+      });
+
+      const updatedVariant = await adminVariantsApi.updateVariant(
+        selectedVariantForEdit.id,
+        formData
+      );
+
+      setVariants((prev) =>
+        prev.map((v) =>
+          v.id === selectedVariantForEdit.id ? updatedVariant : v
+        )
+      );
+      setEditDialogOpen(false);
+      setSelectedVariantForEdit(null);
+      resetEditVariantForm();
+      toast.success("Đã cập nhật biến thể thành công");
+    } catch (error) {
+      console.error("Error updating variant:", error);
+      toast.error("Không thể cập nhật biến thể");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const resetNewVariantForm = () => {
+    setNewVariant({
+      colorId: "",
+      sizeId: "",
+      stockQuantity: 0,
+      isActive: true,
+      images: [],
+    });
+  };
+
+  const resetEditVariantForm = () => {
+    setEditVariant({
+      colorId: "",
+      sizeId: "",
+      stockQuantity: 0,
+      isActive: true,
+      images: [],
+    });
+  };
+
+  const handleImageUpload = (files: FileList | null, isEdit = false) => {
+    if (!files) return;
+
+    const newFiles = Array.from(files).filter((file) =>
+      file.type.startsWith("image/")
+    );
+
+    if (isEdit) {
+      setEditVariant((prev) => ({
+        ...prev,
+        images: [...prev.images, ...newFiles],
+      }));
+    } else {
+      setNewVariant((prev) => ({
+        ...prev,
+        images: [...prev.images, ...newFiles],
+      }));
+    }
+  };
+
+  const removeImage = (index: number, isEdit = false) => {
+    if (isEdit) {
+      setEditVariant((prev) => ({
+        ...prev,
+        images: prev.images.filter((_, i) => i !== index),
+      }));
+    } else {
+      setNewVariant((prev) => ({
+        ...prev,
+        images: prev.images.filter((_, i) => i !== index),
+      }));
+    }
+  }; // Since sizes are now loaded based on category from backend,
+  // we just need to return active sizes
+  const getFilteredSizes = () => {
+    const activeSizes = sizes.filter((size) => size.isActive !== false);
+    console.log(
+      `Returning ${activeSizes.length} active sizes (already filtered by category from backend)`
+    );
+    return activeSizes;
+  };
+
+  if (!productId) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-muted-foreground mb-4">
+                Không tìm thấy ID sản phẩm
+              </p>
+              <Button asChild>
+                <Link href="/admin/products">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Quay lại danh sách sản phẩm
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Biến thể sản phẩm
-          </h1>
-          <p className="text-muted-foreground">
-            Quản lý các biến thể của sản phẩm (màu sắc, kích thước)
-          </p>
-        </div>
+      {/* Header with Back Button */}
+      <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <Button onClick={loadData} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Làm mới
-          </Button>
-          <Button asChild>
+          <Button asChild variant="outline" size="sm">
             <Link href="/admin/products">
-              <Package className="h-4 w-4 mr-2" />
-              Quản lý sản phẩm
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Quay lại danh sách sản phẩm
             </Link>
           </Button>
         </div>
-      </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Bộ lọc</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Tìm kiếm theo SKU, tên sản phẩm..."
-                  className="pl-8"
-                  onChange={handleSearchChange}
-                />
-              </div>
-            </div>
-            <Select value={selectedProduct} onValueChange={handleProductFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Chọn sản phẩm" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Tất cả sản phẩm</SelectItem>
-                {products.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Biến thể sản phẩm
+            </h1>
+            <p className="text-muted-foreground">
+              {currentProduct
+                ? `Quản lý biến thể của sản phẩm: ${currentProduct.name}`
+                : "Đang tải thông tin sản phẩm..."}
+            </p>
+          </div>{" "}
+          <div className="flex items-center gap-2">
+            <Dialog
+              open={createDialogOpen}
+              onOpenChange={(open) => {
+                setCreateDialogOpen(open);
+                if (!open) {
+                  resetNewVariantForm();
+                }
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Thêm biến thể
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Thêm biến thể mới</DialogTitle>
+                  <DialogDescription>
+                    Tạo một biến thể mới cho sản phẩm {currentProduct?.name}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="color">Màu sắc</Label>
+                      <Select
+                        value={newVariant.colorId}
+                        onValueChange={(value) =>
+                          setNewVariant((prev) => ({ ...prev, colorId: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn màu sắc" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {" "}
+                          {colors.map((color) => (
+                            <SelectItem key={color.id} value={color.id}>
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-4 h-4 rounded border border-gray-300"
+                                  style={{
+                                    backgroundColor: color.hexCode || "#ccc",
+                                  }}
+                                />
+                                {color.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="size">Kích thước</Label>
+                      <Select
+                        value={newVariant.sizeId}
+                        onValueChange={(value) =>
+                          setNewVariant((prev) => ({ ...prev, sizeId: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn kích thước" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getFilteredSizes().map((size) => (
+                            <SelectItem key={size.id} value={size.id}>
+                              {size.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>{" "}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="stock">Số lượng tồn kho</Label>
+                      <Input
+                        id="stock"
+                        type="number"
+                        min="0"
+                        value={newVariant.stockQuantity}
+                        onChange={(e) =>
+                          setNewVariant((prev) => ({
+                            ...prev,
+                            stockQuantity: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        placeholder="0"
+                      />
+                    </div>{" "}
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="active"
+                          checked={newVariant.isActive}
+                          onCheckedChange={(checked) =>
+                            setNewVariant((prev) => ({
+                              ...prev,
+                              isActive: checked,
+                            }))
+                          }
+                        />
+                        <Label htmlFor="active">Hoạt động</Label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="images">Hình ảnh</Label>
+                    <Input
+                      id="images"
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e.target.files)}
+                      className="cursor-pointer"
+                    />
+                    {newVariant.images.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        {newVariant.images.map((file, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-20 object-cover rounded border"
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-1 right-1 h-6 w-6 p-0"
+                              onClick={() => removeImage(index)}
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setCreateDialogOpen(false)}
+                  >
+                    Hủy
+                  </Button>{" "}
+                  <Button
+                    type="button"
+                    onClick={handleCreateVariant}
+                    disabled={
+                      creating || !newVariant.colorId || !newVariant.sizeId
+                    }
+                  >
+                    {creating && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Tạo biến thể
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Button onClick={loadData} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Làm mới
+            </Button>
           </div>
-        </CardContent>
-      </Card>
-
+        </div>
+      </div>
       {/* Bulk Actions */}
       {selectedVariants.length > 0 && (
         <Card>
@@ -299,14 +670,13 @@ export default function VariantsPage() {
                         }
                         onCheckedChange={toggleSelectAll}
                       />
-                    </TableHead>
+                    </TableHead>{" "}
                     <TableHead>Hình ảnh</TableHead>
                     <TableHead>Sản phẩm</TableHead>
                     <TableHead>SKU</TableHead>
                     <TableHead>Màu sắc</TableHead>
                     <TableHead>Kích thước</TableHead>
                     <TableHead>Số lượng</TableHead>
-                    <TableHead>Giá</TableHead>
                     <TableHead>Trạng thái</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
@@ -323,10 +693,15 @@ export default function VariantsPage() {
                         />
                       </TableCell>
                       <TableCell>
+                        {" "}
                         <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
                           {variant.images && variant.images.length > 0 ? (
                             <Image
-                              src={variant.images[0].url}
+                              src={
+                                typeof variant.images[0] === "string"
+                                  ? variant.images[0]
+                                  : variant.images[0].imageUrl
+                              }
                               alt={variant.sku}
                               width={48}
                               height={48}
@@ -336,7 +711,7 @@ export default function VariantsPage() {
                             <ImageIcon className="h-6 w-6 text-muted-foreground" />
                           )}
                         </div>
-                      </TableCell>
+                      </TableCell>{" "}
                       <TableCell>
                         <div>
                           <Link
@@ -345,9 +720,6 @@ export default function VariantsPage() {
                           >
                             {variant.product.name}
                           </Link>
-                          <p className="text-sm text-muted-foreground">
-                            {variant.product.category?.name}
-                          </p>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -374,11 +746,8 @@ export default function VariantsPage() {
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
-                      </TableCell>
+                      </TableCell>{" "}
                       <TableCell>{variant.stockQuantity}</TableCell>
-                      <TableCell>
-                        {formatCurrency(variant.product.basePrice)}
-                      </TableCell>
                       <TableCell>
                         {getStatusBadge(
                           variant.isActive,
@@ -391,15 +760,13 @@ export default function VariantsPage() {
                             <Button variant="ghost" size="sm">
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                          </DropdownMenuTrigger>
+                          </DropdownMenuTrigger>{" "}
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link
-                                href={`/admin/products/${variant.product.id}/variants/${variant.id}/edit`}
-                              >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Chỉnh sửa
-                              </Link>
+                            <DropdownMenuItem
+                              onClick={() => handleEditVariant(variant)}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Chỉnh sửa
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -496,6 +863,163 @@ export default function VariantsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Variant Dialog */}
+      <Dialog
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) {
+            resetEditVariantForm();
+            setSelectedVariantForEdit(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa biến thể</DialogTitle>
+            <DialogDescription>
+              Cập nhật thông tin biến thể {selectedVariantForEdit?.sku}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-color">Màu sắc</Label>
+                <Select
+                  value={editVariant.colorId}
+                  onValueChange={(value) =>
+                    setEditVariant((prev) => ({ ...prev, colorId: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn màu sắc" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {colors.map((color) => (
+                      <SelectItem key={color.id} value={color.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-4 h-4 rounded border border-gray-300"
+                            style={{ backgroundColor: color.hexCode || "#ccc" }}
+                          />
+                          {color.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-size">Kích thước</Label>
+                <Select
+                  value={editVariant.sizeId}
+                  onValueChange={(value) =>
+                    setEditVariant((prev) => ({ ...prev, sizeId: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn kích thước" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getFilteredSizes().map((size) => (
+                      <SelectItem key={size.id} value={size.id}>
+                        {size.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-stock">Số lượng tồn kho</Label>
+                <Input
+                  id="edit-stock"
+                  type="number"
+                  min="0"
+                  value={editVariant.stockQuantity}
+                  onChange={(e) =>
+                    setEditVariant((prev) => ({
+                      ...prev,
+                      stockQuantity: parseInt(e.target.value) || 0,
+                    }))
+                  }
+                  placeholder="0"
+                />
+              </div>{" "}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="edit-active"
+                    checked={editVariant.isActive}
+                    onCheckedChange={(checked) =>
+                      setEditVariant((prev) => ({
+                        ...prev,
+                        isActive: checked,
+                      }))
+                    }
+                  />
+                  <Label htmlFor="edit-active">Hoạt động</Label>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-images">Hình ảnh mới</Label>
+              <Input
+                id="edit-images"
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => handleImageUpload(e.target.files, true)}
+                className="cursor-pointer"
+              />
+              {editVariant.images.length > 0 && (
+                <div className="grid grid-cols-4 gap-2 mt-2">
+                  {editVariant.images.map((file, index) => (
+                    <div key={index} className="relative">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-20 object-cover rounded border"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                        onClick={() => removeImage(index, true)}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Chọn hình ảnh mới để thêm vào biến thể (không thay thế hình cũ)
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditDialogOpen(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              onClick={handleUpdateVariant}
+              disabled={updating || !editVariant.colorId || !editVariant.sizeId}
+            >
+              {updating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Cập nhật biến thể
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

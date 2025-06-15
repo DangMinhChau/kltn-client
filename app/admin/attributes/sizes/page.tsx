@@ -56,11 +56,12 @@ import { Size, Category } from "@/types";
 import { toast } from "sonner";
 
 export default function SizesPage() {
+  const [mounted, setMounted] = useState(false);
   const [sizes, setSizes] = useState<Size[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
@@ -71,17 +72,100 @@ export default function SizesPage() {
   });
 
   useEffect(() => {
+    setMounted(true);
     loadData();
   }, []);
+  // Helper function to build category tree
+  const buildCategoryTree = (categories: Category[]): Category[] => {
+    const categoryMap = new Map<string, Category>();
+    const rootCategories: Category[] = [];
+
+    // First pass: create all category objects with empty children array
+    categories.forEach((category) => {
+      categoryMap.set(category.id, { ...category, children: [] });
+    }); // Second pass: build the tree structure
+    categories.forEach((category) => {
+      const categoryWithChildren = categoryMap.get(category.id)!;
+      if (category.parent?.id && categoryMap.has(category.parent.id)) {
+        const parent = categoryMap.get(category.parent.id)!;
+        if (!parent.children) parent.children = [];
+        parent.children.push(categoryWithChildren);
+      } else {
+        rootCategories.push(categoryWithChildren);
+      }
+    });
+
+    return rootCategories;
+  };
+
+  // Helper function to get leaf categories (categories without children)
+  const getLeafCategories = (categoryTree: Category[]): Category[] => {
+    const leafCategories: Category[] = [];
+
+    const traverse = (categories: Category[]) => {
+      categories.forEach((category) => {
+        if (!category.children || category.children.length === 0) {
+          leafCategories.push(category);
+        } else {
+          traverse(category.children);
+        }
+      });
+    };
+
+    traverse(categoryTree);
+    return leafCategories;
+  };
+
+  // Helper function to render category options with indentation
+  const renderCategoryOptions = (
+    categories: Category[],
+    level = 0
+  ): React.ReactNode[] => {
+    const options: React.ReactNode[] = [];
+
+    categories.forEach((category) => {
+      const indent = "  ".repeat(level);
+      const isLeaf = !category.children || category.children.length === 0;
+
+      options.push(
+        <SelectItem
+          key={category.id}
+          value={category.id}
+          disabled={!isLeaf}
+          className={!isLeaf ? "text-muted-foreground font-semibold" : ""}
+        >
+          {indent}
+          {category.name} {!isLeaf && "(folder)"}
+        </SelectItem>
+      );
+
+      if (category.children && category.children.length > 0) {
+        options.push(...renderCategoryOptions(category.children, level + 1));
+      }
+    });
+
+    return options;
+  };
+
+  const categoryTree = buildCategoryTree(categories);
+  const leafCategories = getLeafCategories(categoryTree);
   const loadData = async () => {
     try {
       setLoading(true);
+      console.log("Loading sizes and categories...");
+
       const [sizesResponse, categoriesResponse] = await Promise.all([
         adminApi.attributes.getSizes(),
         adminApi.categories.getCategories(),
       ]);
+
+      console.log("Sizes response:", sizesResponse);
+      console.log("Categories response:", categoriesResponse);
+
       setSizes(sizesResponse);
       setCategories(categoriesResponse);
+
+      console.log("Data loaded successfully");
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Failed to load data");
@@ -93,11 +177,17 @@ export default function SizesPage() {
     try {
       const newSize = await adminApi.attributes.createSize({
         name: formData.name,
-        sortOrder: 0,
+        description: formData.description,
+        categoryId: formData.categoryId,
+        isActive: true,
       });
       setSizes([...sizes, newSize]);
       setShowCreateDialog(false);
-      setFormData({ name: "", description: "", categoryId: "" });
+      setFormData({
+        name: "",
+        description: "",
+        categoryId: "",
+      });
       toast.success("Size created successfully");
     } catch (error) {
       console.error("Error creating size:", error);
@@ -112,6 +202,8 @@ export default function SizesPage() {
         selectedSize.id,
         {
           name: formData.name,
+          description: formData.description,
+          categoryId: formData.categoryId,
         }
       );
       setSizes(
@@ -119,7 +211,11 @@ export default function SizesPage() {
       );
       setShowEditDialog(false);
       setSelectedSize(null);
-      setFormData({ name: "", description: "", categoryId: "" });
+      setFormData({
+        name: "",
+        description: "",
+        categoryId: "",
+      });
       toast.success("Size updated successfully");
     } catch (error) {
       console.error("Error updating size:", error);
@@ -143,7 +239,7 @@ export default function SizesPage() {
     setFormData({
       name: size.name,
       description: size.description || "",
-      categoryId: "",
+      categoryId: size.category?.id || "",
     });
     setShowEditDialog(true);
   };
@@ -151,8 +247,22 @@ export default function SizesPage() {
     const matchesSearch =
       size.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       size.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+
+    const matchesCategory =
+      selectedCategory === "all" || size.category?.id === selectedCategory;
+
+    return matchesSearch && matchesCategory;
   });
+
+  console.log("Sizes state:", sizes);
+  console.log("Filtered sizes:", filteredSizes);
+  console.log("Categories state:", categories);
+  console.log("Loading:", loading);
+  console.log("Mounted:", mounted);
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
@@ -186,7 +296,7 @@ export default function SizesPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8"
               />
-            </div>
+            </div>{" "}
             <Select
               value={selectedCategory}
               onValueChange={setSelectedCategory}
@@ -195,7 +305,7 @@ export default function SizesPage() {
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All categories</SelectItem>
+                <SelectItem value="all">All categories</SelectItem>
                 {categories.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
                     {category.name}
@@ -207,10 +317,34 @@ export default function SizesPage() {
               <Filter className="mr-2 h-4 w-4" />
               Filter
             </Button>
-          </div>
-
+          </div>{" "}
           {loading ? (
-            <div className="text-center py-4">Loading sizes...</div>
+            <div className="text-center py-8">
+              <div className="flex flex-col items-center space-y-2">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                <p className="text-muted-foreground">Loading sizes...</p>
+              </div>
+            </div>
+          ) : filteredSizes.length === 0 ? (
+            <div className="text-center py-8">
+              <Ruler className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-2 text-sm font-semibold text-gray-900">
+                No sizes found
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {sizes.length === 0
+                  ? "Get started by creating a new size."
+                  : "Try adjusting your search or filters."}
+              </p>
+              {sizes.length === 0 && (
+                <div className="mt-6">
+                  <Button onClick={() => setShowCreateDialog(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Size
+                  </Button>
+                </div>
+              )}
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -218,7 +352,6 @@ export default function SizesPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Products</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -236,10 +369,9 @@ export default function SizesPage() {
                       {size.description || "-"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{size.type || "General"}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">0</Badge>
+                      <Badge variant="outline">
+                        {size.category?.name || "No Category"}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant={size.isActive ? "default" : "secondary"}>
@@ -322,11 +454,7 @@ export default function SizesPage() {
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
+                  {renderCategoryOptions(categoryTree)}
                 </SelectContent>
               </Select>
             </div>
@@ -390,23 +518,16 @@ export default function SizesPage() {
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
+                  {renderCategoryOptions(categoryTree)}
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          </div>{" "}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleUpdate}
-              disabled={!formData.name || !formData.categoryId}
-            >
+            <Button onClick={handleUpdate} disabled={!formData.name}>
               Update Size
             </Button>
           </DialogFooter>

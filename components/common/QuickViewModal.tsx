@@ -54,10 +54,9 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
       initializedRef.current = true;
     }
   }, [product]);
-
   if (!product) return null;
   const basePrice = parseFloat(product.basePrice);
-  const discountPercent = product.discount || 0;
+  const discountPercent = product.discountPercent || 0;
   const discountedPrice = calculateDiscountedPrice(basePrice, discountPercent);
 
   const currentStock = selectedVariant
