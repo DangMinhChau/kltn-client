@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { orderApi } from "@/lib/api";
 import { Order } from "@/types/order";
 import { formatPrice } from "@/lib/utils";
@@ -30,23 +30,17 @@ import Link from "next/link";
 import Image from "next/image";
 import confetti from "canvas-confetti";
 
-interface OrderSuccessPageProps {
-  params: {
-    orderNumber: string;
-  };
-}
-
-export default function OrderSuccessPage({ params }: OrderSuccessPageProps) {
+export default function OrderSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams();
   const isSuccess = searchParams.get("success") === "true";
 
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
-    if (params.orderNumber) {
+    if (params.orderNumber && typeof params.orderNumber === "string") {
       fetchOrder();
     }
   }, [params.orderNumber]);
@@ -66,13 +60,14 @@ export default function OrderSuccessPage({ params }: OrderSuccessPageProps) {
       return () => clearTimeout(timer);
     }
   }, [isSuccess, order]);
-
   const fetchOrder = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const orderData = await orderApi.getOrderByNumber(params.orderNumber);
-      setOrder(orderData);
+      const orderData = await orderApi.getOrderByNumber(
+        params.orderNumber as string
+      );
+      setOrder(orderData.data); // Extract data from BaseResponseDto
     } catch (err) {
       console.error("Failed to fetch order:", err);
       setError("Không thể tải thông tin đơn hàng");
@@ -212,9 +207,9 @@ export default function OrderSuccessPage({ params }: OrderSuccessPageProps) {
                   <div className="flex flex-col gap-2">
                     <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
                       {order.status}
-                    </Badge>
+                    </Badge>{" "}
                     <Badge variant="outline" className="bg-blue-50">
-                      {order.paymentStatus}
+                      {order.payment?.status || "N/A"}
                     </Badge>
                   </div>
                 </div>
@@ -239,24 +234,24 @@ export default function OrderSuccessPage({ params }: OrderSuccessPageProps) {
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">
                           Phương thức thanh toán:
-                        </span>
+                        </span>{" "}
                         <span className="font-medium">
-                          {order.paymentMethod === "cod" &&
+                          {order.payment?.method === "cod" &&
                             "Thanh toán khi nhận hàng"}
-                          {order.paymentMethod === "bank_transfer" &&
+                          {order.payment?.method === "bank_transfer" &&
                             "Chuyển khoản"}
-                          {order.paymentMethod === "momo" && "Ví MoMo"}
-                          {order.paymentMethod === "vnpay" && "VNPay"}
+                          {order.payment?.method === "momo" && "Ví MoMo"}
+                          {order.payment?.method === "vnpay" && "VNPay"}
                         </span>
-                      </div>
-                      {order.estimatedDelivery && (
+                      </div>{" "}
+                      {order.shipping?.expectedDeliveryDate && (
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">
                             Dự kiến giao hàng:
                           </span>
                           <span className="font-medium text-primary">
                             {new Date(
-                              order.estimatedDelivery
+                              order.shipping.expectedDeliveryDate
                             ).toLocaleDateString("vi-VN")}
                           </span>
                         </div>
@@ -269,27 +264,20 @@ export default function OrderSuccessPage({ params }: OrderSuccessPageProps) {
                     <h3 className="font-semibold mb-4 flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
                       Thông tin giao hàng
-                    </h3>
+                    </h3>{" "}
                     <div className="space-y-2 text-sm">
-                      <p className="font-medium">
-                        {order.shippingInfo.fullName}
-                      </p>
+                      <p className="font-medium">{order.customerName}</p>
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Phone className="h-3 w-3" />
-                        <span>{order.shippingInfo.phone}</span>
+                        <span>{order.customerPhone}</span>
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Mail className="h-3 w-3" />
-                        <span>{order.shippingInfo.email}</span>
+                        <span>{order.customerEmail}</span>
                       </div>
                       <div className="flex items-start gap-2 text-muted-foreground">
                         <MapPin className="h-3 w-3 mt-0.5" />
-                        <span>
-                          {order.shippingInfo.address},{" "}
-                          {order.shippingInfo.ward},{" "}
-                          {order.shippingInfo.district},{" "}
-                          {order.shippingInfo.province}
-                        </span>
+                        <span>{order.shippingAddress}</span>
                       </div>
                     </div>
                   </div>
@@ -314,20 +302,21 @@ export default function OrderSuccessPage({ params }: OrderSuccessPageProps) {
                         index !== order.items.length - 1 ? "border-b" : ""
                       } hover:bg-gray-50/50 rounded-lg transition-colors px-2`}
                     >
+                      {" "}
                       <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border shadow-sm">
                         <Image
-                          src={item.product.mainImageUrl}
-                          alt={item.product.name}
+                          src="/placeholder-image.jpg"
+                          alt={item.productName}
                           fill
                           className="object-cover"
                         />
                       </div>
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900 mb-1">
-                          {item.product.name}
+                          {item.productName}
                         </h4>
                         <p className="text-sm text-muted-foreground mb-1">
-                          {item.variant.color.name} • {item.variant.size.name}
+                          {item.colorName} • {item.sizeName}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           Số lượng: {item.quantity}
@@ -335,7 +324,7 @@ export default function OrderSuccessPage({ params }: OrderSuccessPageProps) {
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-lg text-primary">
-                          {formatPrice(item.totalPrice)}
+                          {formatPrice(item.totalPrice || 0)}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {formatPrice(item.unitPrice)} x {item.quantity}
@@ -356,10 +345,11 @@ export default function OrderSuccessPage({ params }: OrderSuccessPageProps) {
                 <CardTitle className="text-lg">Tổng thanh toán</CardTitle>
               </CardHeader>
               <CardContent>
+                {" "}
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Tạm tính:</span>
-                    <span>{formatPrice(order.subtotal)}</span>
+                    <span>{formatPrice(order.subTotal)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
@@ -371,17 +361,17 @@ export default function OrderSuccessPage({ params }: OrderSuccessPageProps) {
                         : "Miễn phí"}
                     </span>
                   </div>
-                  {order.discountAmount > 0 && (
+                  {order.discount > 0 && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>Giảm giá:</span>
-                      <span>-{formatPrice(order.discountAmount)}</span>
+                      <span>-{formatPrice(order.discount)}</span>
                     </div>
                   )}
                   <div className="border-t pt-3">
                     <div className="flex justify-between text-xl font-bold">
                       <span>Tổng cộng:</span>
                       <span className="text-primary">
-                        {formatPrice(order.totalAmount)}
+                        {formatPrice(order.totalPrice)}
                       </span>
                     </div>
                   </div>
