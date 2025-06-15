@@ -1,15 +1,16 @@
 "use client";
 
-import React from "react";
+import React, { useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, X, ArrowLeft, ShoppingBag } from "lucide-react";
 import { useCart } from "@/lib/context/UnifiedCartContext";
-import { CartState, CartItem } from "@/types";
+import { CartState, CartItem, VoucherValidationResult } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import VoucherInput from "@/components/cart/VoucherInput";
 
 interface CartContentProps {
   items: CartItem[];
@@ -24,6 +25,9 @@ interface CartContentProps {
   totalAmount: number;
   loading: boolean;
   error: string | null;
+  appliedVoucher: VoucherValidationResult | null;
+  onVoucherApplied: (voucher: VoucherValidationResult) => void;
+  onVoucherRemoved: () => void;
 }
 
 export default function CartPage() {
@@ -37,6 +41,10 @@ export default function CartPage() {
     loading,
     error,
   } = useCart();
+
+  // Voucher state
+  const [appliedVoucher, setAppliedVoucher] =
+    useState<VoucherValidationResult | null>(null);
 
   // Debug logging
   React.useEffect(() => {
@@ -66,6 +74,10 @@ export default function CartPage() {
       } else {
         await updateItemQuantity(variantId, newQuantity);
       }
+      // Reset voucher when cart changes
+      if (appliedVoucher) {
+        setAppliedVoucher(null);
+      }
     } catch (error) {
       console.error("Failed to update cart:", error);
     }
@@ -74,10 +86,22 @@ export default function CartPage() {
   const handleClearCart = async () => {
     try {
       await clearCart();
+      setAppliedVoucher(null);
     } catch (error) {
       console.error("Failed to clear cart:", error);
     }
   };
+
+  const handleVoucherApplied = useCallback(
+    (voucher: VoucherValidationResult) => {
+      setAppliedVoucher(voucher);
+    },
+    []
+  );
+
+  const handleVoucherRemoved = useCallback(() => {
+    setAppliedVoucher(null);
+  }, []);
 
   return (
     <CartContent
@@ -90,6 +114,9 @@ export default function CartPage() {
       totalAmount={totalAmount}
       loading={loading}
       error={error}
+      appliedVoucher={appliedVoucher}
+      onVoucherApplied={handleVoucherApplied}
+      onVoucherRemoved={handleVoucherRemoved}
     />
   );
 }
@@ -104,7 +131,13 @@ function CartContent({
   totalAmount,
   loading,
   error,
+  appliedVoucher,
+  onVoucherApplied,
+  onVoucherRemoved,
 }: CartContentProps) {
+  // Calculate final amounts
+  const discountAmount = appliedVoucher?.discountAmount || 0;
+  const finalAmount = totalAmount - discountAmount;
   // Show error if any
   if (error) {
     return (
@@ -328,70 +361,115 @@ function CartContent({
                 ))}
               </ul>
             </div>
-          </div>
-
+          </div>{" "}
           {/* Order Summary */}
           <div className="mt-16 lg:col-span-5 lg:mt-0">
-            <Card className="sticky top-8">
-              <CardContent className="p-6">
-                <h2 className="text-lg font-medium text-gray-900">
-                  Tóm tắt đơn hàng
-                </h2>
-                <div className="mt-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <dt className="text-sm text-gray-600">Số lượng sản phẩm</dt>
-                    <dd className="text-sm font-medium text-gray-900">
-                      {totalItems} sản phẩm
-                    </dd>
-                  </div>{" "}
-                  <div className="flex items-center justify-between">
-                    <dt className="text-sm text-gray-600">Tạm tính</dt>
-                    <dd className="text-sm font-medium text-gray-900">
-                      {formatPrice(totalAmount)}
-                    </dd>
+            <div className="space-y-6">
+              {/* Voucher Input */}
+              <VoucherInput
+                cartTotal={totalAmount}
+                onVoucherApplied={onVoucherApplied}
+                onVoucherRemoved={onVoucherRemoved}
+                appliedVoucher={appliedVoucher}
+                disabled={loading}
+              />
+
+              {/* Order Summary Card */}
+              <Card className="sticky top-8">
+                <CardContent className="p-6">
+                  <h2 className="text-lg font-medium text-gray-900">
+                    Tóm tắt đơn hàng
+                  </h2>
+                  <div className="mt-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <dt className="text-sm text-gray-600">
+                        Số lượng sản phẩm
+                      </dt>
+                      <dd className="text-sm font-medium text-gray-900">
+                        {totalItems} sản phẩm
+                      </dd>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <dt className="text-sm text-gray-600">Tạm tính</dt>
+                      <dd className="text-sm font-medium text-gray-900">
+                        {formatPrice(totalAmount)}
+                      </dd>
+                    </div>
+
+                    {/* Voucher Discount */}
+                    {appliedVoucher && discountAmount > 0 && (
+                      <div className="flex items-center justify-between text-green-600">
+                        <dt className="text-sm">
+                          Giảm giá ({appliedVoucher.voucher?.code})
+                        </dt>
+                        <dd className="text-sm font-medium">
+                          -{formatPrice(discountAmount)}
+                        </dd>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                      <dt className="text-sm text-gray-600">Phí vận chuyển</dt>
+                      <dd className="text-sm font-medium text-gray-900">
+                        Tính khi thanh toán
+                      </dd>
+                    </div>
+
+                    <Separator />
+
+                    <div className="flex items-center justify-between">
+                      <dt className="text-base font-medium text-gray-900">
+                        Tổng cộng
+                      </dt>
+                      <dd className="text-base font-medium text-gray-900">
+                        {formatPrice(finalAmount)}
+                      </dd>
+                    </div>
+
+                    {/* Savings display */}
+                    {appliedVoucher && discountAmount > 0 && (
+                      <div className="text-center text-sm text-green-600 bg-green-50 rounded-lg p-2">
+                        🎉 Bạn đã tiết kiệm được {formatPrice(discountAmount)}!
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-sm text-gray-600">Phí vận chuyển</dt>
-                    <dd className="text-sm font-medium text-gray-900">
-                      Tính khi thanh toán
-                    </dd>
-                  </div>
-                  <Separator />{" "}
-                  <div className="flex items-center justify-between">
-                    <dt className="text-base font-medium text-gray-900">
-                      Tổng cộng
-                    </dt>
-                    <dd className="text-base font-medium text-gray-900">
-                      {formatPrice(totalAmount)}
-                    </dd>
-                  </div>
-                </div>{" "}
-                <div className="mt-6">
-                  <Button
-                    asChild
-                    className="w-full"
-                    size="lg"
-                    disabled={loading}
-                  >
-                    <Link href="/checkout">
-                      {loading ? "Đang cập nhật..." : "Tiến hành thanh toán"}
-                    </Link>
-                  </Button>
-                </div>
-                <div className="mt-6 text-center text-sm text-gray-500">
-                  <p>
-                    hoặc{" "}
-                    <Link
-                      href="/products"
-                      className="font-medium text-primary hover:text-primary/80"
+
+                  <div className="mt-6">
+                    <Button
+                      asChild
+                      className="w-full"
+                      size="lg"
+                      disabled={loading}
                     >
-                      Tiếp tục mua sắm
-                      <span aria-hidden="true"> &rarr;</span>
-                    </Link>
-                  </p>
-                </div>{" "}
-              </CardContent>
-            </Card>
+                      <Link
+                        href={{
+                          pathname: "/checkout",
+                          query: appliedVoucher
+                            ? { voucherCode: appliedVoucher.voucher?.code }
+                            : {},
+                        }}
+                      >
+                        {loading ? "Đang cập nhật..." : "Tiến hành thanh toán"}
+                      </Link>
+                    </Button>
+                  </div>
+
+                  <div className="mt-6 text-center text-sm text-gray-500">
+                    <p>
+                      hoặc{" "}
+                      <Link
+                        href="/products"
+                        className="font-medium text-primary hover:text-primary/80"
+                      >
+                        Tiếp tục mua sắm
+                        <span aria-hidden="true"> &rarr;</span>
+                      </Link>
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>

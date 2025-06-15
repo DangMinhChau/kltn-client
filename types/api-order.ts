@@ -316,13 +316,13 @@ export interface OrderPreviewResponse
     }>;
   }> {}
 
-export interface VoucherValidationResponse
-  extends BaseResponseDto<{
-    isValid: boolean;
-    voucher?: any;
-    discountAmount: number;
-    message?: string;
-  }> {}
+export interface VoucherValidationResponse {
+  isValid: boolean;
+  voucher?: any;
+  discountAmount?: number;
+  finalAmount?: number;
+  reason?: string;
+}
 
 export interface PaymentCreationResponse
   extends BaseResponseDto<{

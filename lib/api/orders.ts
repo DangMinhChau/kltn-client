@@ -77,16 +77,16 @@ export const orderApi = {
 
 // Voucher API
 export const voucherApi = {
-  // Validate voucher code
+  // Validate voucher code (GET endpoint with query params)
   validateVoucher: (
     code: string,
     orderAmount: number
   ): Promise<VoucherValidationResponse> =>
-    api.post("/vouchers/validate", { code, orderAmount }),
+    api.get(`/vouchers/validate/${code}?orderTotal=${orderAmount}`),
 
-  // Get available vouchers for user
+  // Get available vouchers for user (active vouchers)
   getAvailableVouchers: (): Promise<{ data: Voucher[] }> =>
-    api.get("/vouchers/available"),
+    api.get("/vouchers/active"),
 
   // Apply voucher to cart
   applyVoucher: (
@@ -98,7 +98,7 @@ export const voucherApi = {
       discountAmount: number;
       newTotal: number;
     };
-  }> => api.post("/vouchers/apply", { code, cartTotal }),
+  }> => api.post("/vouchers/apply", { code, orderTotal: cartTotal }),
 };
 
 // Shipping API
