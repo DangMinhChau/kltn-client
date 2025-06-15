@@ -22,56 +22,77 @@ import { api } from "@/lib/api";
 const convertCartItemResponseToCartItem = (
   item: CartItemResponse
 ): CartItem => {
-  const basePrice = item.variant.product.basePrice || 0;
-  const discountPercent = item.variant.product.discountPercent || 0;
+  console.log("Raw cart item data:", item);
+  console.log("Variant data:", item.variant);
+  console.log("Product data:", item.variant?.product);
+
+  // Safely extract product data with fallbacks
+  const product = item.variant?.product;
+  const basePrice = product?.basePrice || 0;
+  const discountPercent = product?.discountPercent || 0;
+  const productName = product?.name || "Unknown Product";
+  const productSlug = product?.slug || "";
+
   const discountPrice =
     discountPercent > 0 ? basePrice * (1 - discountPercent / 100) : undefined;
+  // Get images from product first, then variant, then fallback
+  const productImages = product?.images || [];
+  const variantImages = item.variant?.images || [];
+
+  console.log("Image data:", {
+    productImages,
+    variantImages,
+    productImagesLength: productImages.length,
+    variantImagesLength: variantImages.length,
+    firstProductImageUrl: productImages[0]?.url,
+    firstVariantImageUrl: variantImages[0]?.url,
+  });
+
   const mainImage =
-    item.variant.product.images?.[0]?.url ||
-    item.variant.images?.[0]?.url ||
-    "/placeholder-image.jpg";
+    productImages[0]?.url || variantImages[0]?.url || "/placeholder-image.jpg";
 
   console.log("Converting cart item:", {
     itemId: item.id,
     basePrice,
     discountPercent,
     discountPrice,
-    productName: item.variant.product.name,
+    productName,
     mainImage,
+    hasProduct: !!product,
+    hasVariant: !!item.variant,
   });
-
   return {
     id: item.id,
     quantity: item.quantity,
-    maxQuantity: item.variant.stockQuantity,
-    name: item.variant.product.name,
+    maxQuantity: item.variant?.stockQuantity || 0,
+    name: productName,
     price: basePrice,
     discountPrice: discountPrice,
     imageUrl: mainImage,
     image: mainImage,
-    slug: item.variant.product.slug,
+    slug: productSlug,
     variant: {
-      id: item.variant.id,
-      sku: item.variant.sku,
-      stockQuantity: item.variant.stockQuantity,
-      isActive: item.variant.isActive,
+      id: item.variant?.id || "",
+      sku: item.variant?.sku || "",
+      stockQuantity: item.variant?.stockQuantity || 0,
+      isActive: item.variant?.isActive || false,
       product: {
-        id: item.variant.product.id,
-        name: item.variant.product.name,
-        basePrice: item.variant.product.basePrice,
+        id: product?.id || "",
+        name: productName,
+        basePrice: basePrice,
       },
       color: {
-        id: item.variant.color.id,
-        name: item.variant.color.name,
-        code: item.variant.color.hexCode,
-        hexCode: item.variant.color.hexCode,
+        id: item.variant?.color?.id || "",
+        name: item.variant?.color?.name || "Unknown Color",
+        code: item.variant?.color?.hexCode || "#000000",
+        hexCode: item.variant?.color?.hexCode || "#000000",
         isActive: true,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
       },
       size: {
-        id: item.variant.size.id,
-        name: item.variant.size.name,
+        id: item.variant?.size?.id || "",
+        name: item.variant?.size?.name || "Unknown Size",
         isActive: true,
         category: {
           id: "default",
@@ -87,9 +108,9 @@ const convertCartItemResponseToCartItem = (
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     },
-    color: item.variant.color.name,
-    size: item.variant.size.name,
-    sku: item.variant.sku,
+    color: item.variant?.color?.name || "Unknown Color",
+    size: item.variant?.size?.name || "Unknown Size",
+    sku: item.variant?.sku || "",
   };
 };
 
@@ -179,34 +200,67 @@ export function UnifiedCartProvider({
   ): Promise<CartItem> => {
     try {
       // Get variant data from public API
+      console.log(`Fetching variant data for: ${variantId}`);
       const variantResponse = await api.get(`/variants/${variantId}`);
-      const variantData = variantResponse.data.data;
+      console.log("Raw variant response:", variantResponse);
 
+      const variantData = variantResponse.data?.data || variantResponse.data;
       console.log("createLocalCartItem - variantData:", variantData);
+
+      if (!variantData) {
+        throw new Error("No variant data received from API");
+      }
+
+      // Check if we have product data
+      if (!variantData.product) {
+        console.error("No product data in variant:", variantData);
+        throw new Error("Variant does not contain product data");
+      }
 
       const basePrice = variantData.product.basePrice || 0;
       const discountPercent = variantData.product.discountPercent || 0;
       const discountPrice =
         discountPercent > 0
           ? basePrice * (1 - discountPercent / 100)
-          : undefined;
+          : undefined; // Debug image data
+      console.log("=== IMAGE DEBUG ===");
+      console.log("variantData.product.images:", variantData.product.images);
+      console.log(
+        "variantData.product.mainImageUrl:",
+        variantData.product.mainImageUrl
+      );
+      console.log("variantData.images:", variantData.images);
+      console.log("variantData.image:", variantData.image);
+
+      // Fixed image extraction logic - prioritize variant images since they're more specific
       const imageUrl =
-        variantData.product.images?.[0]?.url ||
-        variantData.images?.[0]?.url ||
+        variantData.images?.[0]?.imageUrl || // Variant images (most specific)
+        variantData.images?.[0]?.url || // Alternative field name
+        variantData.product.images?.[0]?.imageUrl || // Product images
+        variantData.product.images?.[0]?.url || // Alternative field name
+        variantData.product.mainImageUrl || // Product main image
+        variantData.image || // Direct image field
         "/placeholder-image.jpg";
 
+      console.log("Final selected imageUrl:", imageUrl);
+      console.log("=== END IMAGE DEBUG ===");
+
       console.log("createLocalCartItem - calculated values:", {
+        productName: variantData.product.name,
         basePrice,
         discountPercent,
         discountPrice,
         imageUrl,
+        variantSku: variantData.sku,
+        colorName: variantData.color?.name,
+        sizeName: variantData.size?.name,
       });
 
-      return {
+      const cartItem = {
         id: `local-${variantId}`,
         quantity,
         maxQuantity: variantData.stockQuantity || 100,
-        name: variantData.product.name,
+        name: variantData.product.name || "Unnamed Product",
         price: basePrice,
         discountPrice: discountPrice,
         imageUrl: imageUrl,
@@ -217,6 +271,9 @@ export function UnifiedCartProvider({
         size: variantData.size?.name || "",
         sku: variantData.sku || "",
       };
+
+      console.log("Final cart item created:", cartItem);
+      return cartItem;
     } catch (err) {
       console.error("Failed to fetch variant data for local cart:", err);
       throw new Error("Could not fetch product details");

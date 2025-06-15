@@ -281,13 +281,17 @@ const transformCartItemResponse = (
       (1 - itemResponse.variant.product.discountPercent / 100)
     : undefined,
   imageUrl:
-    itemResponse.variant.product.images?.[0]?.url ||
-    itemResponse.variant.images?.[0]?.url ||
-    "",
+    (itemResponse.variant.images?.[0] as any)?.imageUrl || // Variant images (most specific)
+    itemResponse.variant.images?.[0]?.url || // Alternative field name
+    (itemResponse.variant.product.images?.[0] as any)?.imageUrl || // Product images
+    itemResponse.variant.product.images?.[0]?.url || // Alternative field name
+    "/placeholder-image.jpg",
   image:
-    itemResponse.variant.product.images?.[0]?.url ||
-    itemResponse.variant.images?.[0]?.url ||
-    "",
+    (itemResponse.variant.images?.[0] as any)?.imageUrl || // Variant images (most specific)
+    itemResponse.variant.images?.[0]?.url || // Alternative field name
+    (itemResponse.variant.product.images?.[0] as any)?.imageUrl || // Product images
+    itemResponse.variant.product.images?.[0]?.url || // Alternative field name
+    "/placeholder-image.jpg",
   slug: itemResponse.variant.product.slug,
   variant: {
     id: itemResponse.variant.id,
