@@ -284,13 +284,11 @@ export function UnifiedCartProvider({
     if (!isAuthenticated || localItems.length === 0) return;
 
     try {
-      setLoading(true);
-
-      // Convert local items to merge format
-      const guestCartItems = localItems.map((item) => ({
-        variantId: item.variant.id,
+      setLoading(true);      // Convert local items to merge format
+      const guestCartItems = (localItems || []).map((item) => ({
+        variantId: typeof item.variant === 'string' ? item.variant : item.variant?.id || '',
         quantity: item.quantity,
-      })); // Merge with API
+      }));// Merge with API
       const request: MergeGuestCartRequest = { items: guestCartItems };
       await cartApi.mergeGuestCart(request);
 
@@ -307,10 +305,9 @@ export function UnifiedCartProvider({
       setLoading(false);
     }
   }, [isAuthenticated, localItems]); // Removed fetchApiCart from dependencies
-
   // Handle logout - optionally preserve cart items in localStorage
   const handleLogout = useCallback(async () => {
-    if (cart && cart.items.length > 0) {
+    if (cart && cart.items && cart.items.length > 0) {
       // Convert API cart items to local format before logout
       const localCartItems: CartItem[] = cart.items.map(
         convertCartItemResponseToCartItem
@@ -319,16 +316,19 @@ export function UnifiedCartProvider({
     }
 
     setCart(null);
-  }, [cart, saveLocalCart]); // Initialize cart based on auth status
+  }, [cart, saveLocalCart]); // Initialize cart based on auth status  // Main effect for auth changes and cart management
   useEffect(() => {
+    console.log("Auth effect triggered:", { isAuthenticated, localItemsCount: localItems.length });
+    
     if (isAuthenticated) {
-      // User is logged in - fetch API cart
-      fetchApiCart();
-
-      // If has local items, merge them
-      if (localItems.length > 0) {
-        mergeLocalToApiCart();
-      }
+      // User is logged in - fetch API cart first
+      fetchApiCart().then(() => {
+        // After fetching API cart, merge local items if any
+        if (localItems.length > 0) {
+          console.log("User logged in with local items, merging...");
+          mergeLocalToApiCart();
+        }
+      });
     } else {
       // Guest user - load local cart
       loadLocalCart();
@@ -413,11 +413,10 @@ export function UnifiedCartProvider({
             }
             await fetchApiCart();
           }
-        } else {
-          // Update local cart
-          const updatedItems = localItems
+        } else {          // Update local cart
+          const updatedItems = (localItems || [])
             .map((item) =>
-              item.variant.id === variantId
+              item.variant?.id === variantId
                 ? { ...item, quantity: Math.max(0, quantity) }
                 : item
             )
@@ -489,16 +488,15 @@ export function UnifiedCartProvider({
   // Cart UI actions
   const openCart = useCallback(() => setIsCartOpen(true), []);
   const closeCart = useCallback(() => setIsCartOpen(false), []);
-  const toggleCart = useCallback(() => setIsCartOpen((prev) => !prev), []);
-  // Computed values
+  const toggleCart = useCallback(() => setIsCartOpen((prev) => !prev), []);  // Computed values
   const items = isAuthenticated
-    ? cart?.items.map(convertCartItemResponseToCartItem) || []
-    : localItems;
-  const totalItems = items.reduce(
+    ? (cart?.items || []).map(convertCartItemResponseToCartItem)
+    : (localItems || []);
+  const totalItems = (items || []).reduce(
     (sum: number, item: CartItem) => sum + item.quantity,
     0
   );
-  const totalAmount = items.reduce((sum: number, item: CartItem) => {
+  const totalAmount = (items || []).reduce((sum: number, item: CartItem) => {
     const price =
       item.discountPrice && item.discountPrice > 0
         ? item.discountPrice
