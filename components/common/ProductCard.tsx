@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Product } from "@/types";
+import { Product, Image as ImageType } from "@/types";
 import {
   Heart,
   ShoppingCart,
@@ -16,25 +16,32 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+// Helper function to parse price safely
+const parsePrice = (price: number | string): number => {
+  if (typeof price === "number") return price;
+  return parseFloat(price) || 0;
+};
+
 interface ProductCardProps {
   product: Product;
   showQuickView?: boolean;
   className?: string;
+  variant?: "card" | "list";
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({
   product,
   showQuickView = false,
   className = "",
+  variant = "card",
 }) => {
   // Simple log to check if component loads
   console.log("ProductCard component loaded!");
 
   const [isWishlisted, setIsWishlisted] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  // Calculate discounted price
+  const [currentImageIndex, setCurrentImageIndex] = useState(0); // Calculate discounted price
   const hasDiscount = product.discountPercent && product.discountPercent > 0;
-  const basePrice = parseFloat(product.basePrice);
+  const basePrice = parsePrice(product.basePrice);
   const discountedPrice = hasDiscount
     ? basePrice * (1 - (product.discountPercent || 0) / 100)
     : basePrice;
@@ -72,8 +79,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
     productMainImage,
     hasProductImage: !!product.image,
     hasVariants: !!product.variants?.length,
-    firstVariantImages: firstVariantWithImages?.images?.length || 0,
-    // More detailed debugging
+    firstVariantImages: firstVariantWithImages?.images?.length || 0, // More detailed debugging
     productImageUrl: product.image?.imageUrl,
     allVariants: product.variants?.map((v) => ({
       id: v.id,

@@ -8,14 +8,6 @@ export interface ProductCardProps {
   variant?: "card" | "list";
 }
 
-export interface ProductImageProps {
-  product: Product;
-  imageLoading: boolean;
-  onImageLoad: () => void;
-  variant?: "card" | "list";
-  className?: string;
-}
-
 export interface ProductBadgesProps {
   product: Product;
   stockStatus: {

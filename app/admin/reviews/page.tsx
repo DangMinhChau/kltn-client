@@ -164,12 +164,11 @@ export default function ReviewsPage() {
       setLoading(false);
     }
   };
-
   const handleFilterChange = (key: string, value: string | number) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value,
-      page: key !== "page" ? 1 : value,
+      page: key !== "page" ? 1 : Number(value),
     }));
   };
 

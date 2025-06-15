@@ -14,6 +14,9 @@ import type {
   ShippingEstimateResponse,
 } from "@/types/api-cart";
 
+// Re-export CartItem for backward compatibility
+export type { CartItem } from "@/types";
+
 // Legacy interfaces for backward compatibility
 export interface Cart {
   id: string;

@@ -97,8 +97,9 @@ export default function CollectionsPage() {
       const newCollection = await adminCollectionsApi.createCollection({
         name: formData.name,
         description: formData.description,
-        season: formData.season,
-        year: formData.year,
+        // season: formData.season, // Backend may not support these fields yet
+        // year: formData.year,
+        isActive: true,
       });
       setCollections([...collections, newCollection]);
       setShowCreateDialog(false);
@@ -124,8 +125,9 @@ export default function CollectionsPage() {
         {
           name: formData.name,
           description: formData.description,
-          season: formData.season,
-          year: formData.year,
+          // season: formData.season, // Backend may not support these fields yet
+          // year: formData.year,
+          isActive: selectedCollection.isActive,
         }
       );
       setCollections(
@@ -160,14 +162,13 @@ export default function CollectionsPage() {
       toast.error("Failed to delete collection");
     }
   };
-
   const openEditDialog = (collection: Collection) => {
     setSelectedCollection(collection);
     setFormData({
       name: collection.name,
       description: collection.description || "",
-      season: collection.season,
-      year: collection.year,
+      season: collection.season || "",
+      year: collection.year || new Date().getFullYear(),
     });
     setShowEditDialog(true);
   };
@@ -178,7 +179,8 @@ export default function CollectionsPage() {
       collection.description
         ?.toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      collection.season.toLowerCase().includes(searchTerm.toLowerCase())
+      (collection.season &&
+        collection.season.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (

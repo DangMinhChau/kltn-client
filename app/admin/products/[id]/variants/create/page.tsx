@@ -144,14 +144,27 @@ export default function CreateVariantPage() {
   const onSubmit = async (data: CreateVariantFormData) => {
     try {
       setIsSubmitting(true);
-
       const createData: CreateVariantData = {
         productId,
         ...data,
         images: selectedImages,
       };
 
-      await adminVariantsApi.createVariant(createData);
+      // Convert to FormData as expected by the API
+      const formData = new FormData();
+      formData.append("productId", productId);
+      formData.append("sku", createData.sku);
+      formData.append("colorId", createData.colorId);
+      formData.append("sizeId", createData.sizeId);
+      formData.append("stockQuantity", createData.stockQuantity.toString());
+      formData.append("isActive", (createData.isActive ?? true).toString());
+
+      // Add images
+      selectedImages.forEach((image, index) => {
+        formData.append(`images`, image);
+      });
+
+      await adminVariantsApi.createVariant(formData);
       toast.success("Tạo biến thể thành công!");
       router.push(`/admin/products/${productId}`);
     } catch (error: any) {

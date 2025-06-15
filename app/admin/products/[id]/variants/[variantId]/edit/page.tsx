@@ -34,7 +34,13 @@ import {
 import { toast } from "sonner";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { ProductVariant, Product, Color, Size } from "@/types";
+import {
+  ProductVariant,
+  Product,
+  Color,
+  Size,
+  Image as ImageType,
+} from "@/types";
 import {
   adminProductsApi,
   adminVariantsApi,
@@ -98,8 +104,8 @@ export default function EditVariantPage() {
       const variantData = variantRes;
       setVariant(variantData);
       setProduct(productRes);
-      setColors(colorsRes.data || []);
-      setSizes(sizesRes.data || []);
+      setColors(colorsRes || []);
+      setSizes(sizesRes || []);
 
       // Set form data
       form.reset({
@@ -108,9 +114,7 @@ export default function EditVariantPage() {
         sizeId: variantData.size?.id || "",
         stockQuantity: variantData.stockQuantity,
         isActive: variantData.isActive,
-      });
-
-      // Set current image previews
+      }); // Set current image previews
       if (variantData.images && variantData.images.length > 0) {
         setImagePreviews(variantData.images.map((img) => img.imageUrl));
       }
@@ -150,17 +154,26 @@ export default function EditVariantPage() {
   const onSubmit = async (data: UpdateVariantFormData) => {
     try {
       setIsSubmitting(true);
-
       const updateData: UpdateVariantData = {
         id: variantId,
         ...data,
       };
 
-      if (selectedImages.length > 0) {
-        updateData.images = selectedImages;
-      }
+      const formData = new FormData();
 
-      await adminVariantsApi.updateVariant(updateData);
+      // Add basic data
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value.toString());
+        }
+      });
+
+      // Add images if any
+      selectedImages.forEach((file) => {
+        formData.append("images", file);
+      });
+
+      await adminVariantsApi.updateVariant(variantId, formData);
       toast.success("Cập nhật biến thể thành công!");
       router.push(`/admin/products/${productId}`);
     } catch (error: any) {

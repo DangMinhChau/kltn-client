@@ -93,10 +93,23 @@ export function useVariantSelector(
     }
   }, [initialVariant, variants, selectedVariant]);
   const getCurrentImage = useCallback(() => {
-    return (
-      selectedVariant?.images?.[0]?.imageUrl || product?.mainImageUrl || ""
-    );
-  }, [selectedVariant, product?.mainImageUrl]);
+    // First try to get image from selected variant
+    if (selectedVariant?.images?.[0]) {
+      const variantImage = selectedVariant.images[0];
+      return typeof variantImage === "string"
+        ? variantImage
+        : variantImage.imageUrl;
+    }
+
+    // Then try to get image from product
+    if (product?.image) {
+      return typeof product.image === "string"
+        ? product.image
+        : product.image.imageUrl;
+    }
+
+    return "";
+  }, [selectedVariant, product?.image]);
 
   const getCurrentStock = useCallback(() => {
     return selectedVariant?.stockQuantity || 0;

@@ -6,6 +6,5 @@ export { ProductBadges } from "./ProductBadges";
 export { ProductInfo } from "./ProductInfo";
 export { ProductVariants } from "./ProductVariants";
 export { ProductActions } from "./ProductActions";
-export { ProductImage } from "./ProductImage";
 
 export type { ProductCardProps } from "./types";

@@ -9,13 +9,82 @@ import React, {
 } from "react";
 import { useAuth } from "./AuthContext";
 import { cartApi, cartItemsApi } from "@/lib/api/cart";
-import type { Cart, CartSummary, MergeGuestCartRequest } from "@/lib/api/cart";
+import type { CartSummary } from "@/lib/api/cart";
 import type { CartItem } from "@/types";
+import type {
+  CartResponse,
+  CartItemResponse,
+  MergeGuestCartRequest,
+} from "@/types/api-cart";
 import { api } from "@/lib/api";
+
+// Conversion utility function to convert CartItemResponse to CartItem
+const convertCartItemResponseToCartItem = (
+  item: CartItemResponse
+): CartItem => {
+  const basePrice = item.variant.product.basePrice;
+  const discountPercent = item.variant.product.discountPercent || 0;
+  const discountPrice =
+    discountPercent > 0 ? basePrice * (1 - discountPercent / 100) : basePrice;
+  const mainImage =
+    item.variant.product.images?.[0]?.url || "/placeholder-image.jpg";
+
+  return {
+    id: item.id,
+    quantity: item.quantity,
+    maxQuantity: item.variant.stockQuantity,
+    name: item.variant.product.name,
+    price: basePrice,
+    discountPrice: discountPrice,
+    imageUrl: mainImage,
+    image: mainImage,
+    slug: item.variant.product.slug,
+    variant: {
+      id: item.variant.id,
+      sku: item.variant.sku,
+      stockQuantity: item.variant.stockQuantity,
+      isActive: item.variant.isActive,
+      product: {
+        id: item.variant.product.id,
+        name: item.variant.product.name,
+        basePrice: item.variant.product.basePrice,
+      },
+      color: {
+        id: item.variant.color.id,
+        name: item.variant.color.name,
+        code: item.variant.color.hexCode,
+        hexCode: item.variant.color.hexCode,
+        isActive: true,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      },
+      size: {
+        id: item.variant.size.id,
+        name: item.variant.size.name,
+        isActive: true,
+        category: {
+          id: "default",
+          name: "Default Category",
+          slug: "default",
+          isActive: true,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        },
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      },
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    },
+    color: item.variant.color.name,
+    size: item.variant.size.name,
+    sku: item.variant.sku,
+  };
+};
 
 interface UnifiedCartContextType {
   // Cart state
-  cart: Cart | null;
+  cart: CartResponse | null;
   items: CartItem[];
   loading: boolean;
   error: string | null;
@@ -49,7 +118,7 @@ export function UnifiedCartProvider({
   const { isAuthenticated, user } = useAuth();
 
   // Shared state
-  const [cart, setCart] = useState<Cart | null>(null);
+  const [cart, setCart] = useState<CartResponse | null>(null);
   const [localItems, setLocalItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,10 +207,8 @@ export function UnifiedCartProvider({
       const guestCartItems = localItems.map((item) => ({
         variantId: item.variant.id,
         quantity: item.quantity,
-      }));
-
-      // Merge with API
-      const request: MergeGuestCartRequest = { guestCartItems };
+      })); // Merge with API
+      const request: MergeGuestCartRequest = { items: guestCartItems };
       await cartApi.mergeGuestCart(request);
 
       // Clear local cart after successful merge
@@ -157,26 +224,14 @@ export function UnifiedCartProvider({
       setLoading(false);
     }
   }, [isAuthenticated, localItems, fetchApiCart]);
+
   // Handle logout - optionally preserve cart items in localStorage
   const handleLogout = useCallback(async () => {
     if (cart && cart.items.length > 0) {
       // Convert API cart items to local format before logout
-      const localCartItems: CartItem[] = cart.items.map((item) => ({
-        id: `local-${item.variant.id}`,
-        quantity: item.quantity,
-        maxQuantity: item.variant.stockQuantity || 100,
-        name: item.name,
-        price: item.price,
-        discountPrice: item.discountPrice,
-        imageUrl: item.imageUrl || item.image,
-        image: item.image || item.imageUrl,
-        slug: item.slug,
-        variant: item.variant,
-        color: item.color,
-        size: item.size,
-        sku: item.sku,
-      }));
-
+      const localCartItems: CartItem[] = cart.items.map(
+        convertCartItemResponseToCartItem
+      );
       saveLocalCart(localCartItems);
     }
 
@@ -355,11 +410,15 @@ export function UnifiedCartProvider({
   const openCart = useCallback(() => setIsCartOpen(true), []);
   const closeCart = useCallback(() => setIsCartOpen(false), []);
   const toggleCart = useCallback(() => setIsCartOpen((prev) => !prev), []);
-
   // Computed values
-  const items = isAuthenticated ? cart?.items || [] : localItems;
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalAmount = items.reduce((sum, item) => {
+  const items = isAuthenticated
+    ? cart?.items.map(convertCartItemResponseToCartItem) || []
+    : localItems;
+  const totalItems = items.reduce(
+    (sum: number, item: CartItem) => sum + item.quantity,
+    0
+  );
+  const totalAmount = items.reduce((sum: number, item: CartItem) => {
     const price = item.discountPrice || item.price;
     return sum + price * item.quantity;
   }, 0);

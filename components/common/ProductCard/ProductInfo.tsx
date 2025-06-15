@@ -58,7 +58,11 @@ export const ProductInfo: React.FC<ProductInfoProps> = ({
               isCardView ? "text-sm" : "text-lg"
             }`}
           >
-            {formatPrice(product.basePrice)}
+            {formatPrice(
+              typeof product.basePrice === "string"
+                ? parseFloat(product.basePrice)
+                : product.basePrice
+            )}
           </span>
         )}
       </div>

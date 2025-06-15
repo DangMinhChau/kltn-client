@@ -32,10 +32,13 @@ export function CollectionFilter({
     productCountRange: [0, 100],
     hasImage: null,
   });
-
   // Get unique seasons from collections
   const uniqueSeasons = Array.from(
-    new Set(collections.map((c) => c.season).filter(Boolean))
+    new Set(
+      collections
+        .map((c) => c.season)
+        .filter((season): season is string => Boolean(season))
+    )
   );
 
   // Get product count range

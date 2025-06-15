@@ -56,7 +56,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { Product, ProductVariant } from "@/types";
+import { Product, ProductVariant, Image as ImageType } from "@/types";
 import { adminProductsApi, adminVariantsApi } from "@/lib/api/admin";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -581,6 +581,7 @@ export default function ProductDetailPage() {
               <CardTitle>Hình ảnh chính</CardTitle>
             </CardHeader>
             <CardContent>
+              {" "}
               {product.image ? (
                 <Image
                   src={product.image.imageUrl}

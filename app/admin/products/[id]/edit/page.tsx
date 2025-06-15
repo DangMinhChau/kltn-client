@@ -39,7 +39,15 @@ import { toast } from "sonner";
 import { ArrowLeft, Upload, X, Save, Loader2, Eye } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { Product, Category, Collection, Material, Style, Tag } from "@/types";
+import {
+  Product,
+  Category,
+  Collection,
+  Material,
+  Style,
+  Tag,
+  Image as ImageType,
+} from "@/types";
 import {
   adminProductsApi,
   adminCategoriesApi,
@@ -52,7 +60,7 @@ const updateProductSchema = z.object({
   name: z.string().min(1, "Tên sản phẩm là bắt buộc"),
   description: z.string().optional(),
   basePrice: z.number().min(0, "Giá phải lớn hơn 0"),
-  discount: z.number().min(0).max(1).optional(),
+  discountPercent: z.number().min(0).max(1).optional(),
   categoryId: z.string().min(1, "Danh mục là bắt buộc"),
   baseSku: z.string().min(1, "Mã SKU là bắt buộc"),
   isActive: z.boolean(),
@@ -61,6 +69,13 @@ const updateProductSchema = z.object({
   tagIds: z.array(z.string()),
   collectionIds: z.array(z.string()),
 });
+
+// Helper function to get image URL from ProductImageType
+const getImageUrl = (image: ImageType): string | undefined => {
+  if (!image) return undefined;
+  if (typeof image === "string") return image;
+  return image.imageUrl;
+};
 
 type UpdateProductFormData = z.infer<typeof updateProductSchema>;
 
@@ -88,7 +103,7 @@ export default function EditProductPage() {
       name: "",
       description: "",
       basePrice: 0,
-      discount: 0,
+      discountPercent: 0,
       categoryId: "",
       baseSku: "",
       isActive: true,
@@ -121,21 +136,20 @@ export default function EditProductPage() {
         adminApi.attributes.getStyles(),
         adminApi.attributes.getTags(),
       ]);
-
       const productData = productRes;
       setProduct(productData);
-      setCategories(categoriesRes.data || []);
-      setCollections(collectionsRes.data || []);
-      setMaterials(materialsRes.data || []);
-      setStyles(stylesRes.data || []);
-      setTags(tagsRes.data || []);
+      setCategories(categoriesRes || []);
+      setCollections(collectionsRes || []);
+      setMaterials(materialsRes || []);
+      setStyles(stylesRes || []);
+      setTags(tagsRes || []);
 
       // Set form data
       form.reset({
         name: productData.name,
         description: productData.description || "",
         basePrice: Number(productData.basePrice),
-        discount: productData.discount || 0,
+        discountPercent: productData.discountPercent || 0,
         categoryId: productData.category?.id || "",
         baseSku: productData.baseSku,
         isActive: productData.isActive,
@@ -143,11 +157,10 @@ export default function EditProductPage() {
         styleIds: productData.styles?.map((s) => s.id) || [],
         tagIds: productData.tags?.map((t) => t.id) || [],
         collectionIds: productData.collections?.map((c) => c.id) || [],
-      });
-
-      // Set current image preview
-      if (productData.image?.imageUrl) {
-        setImagePreview(productData.image.imageUrl);
+      }); // Set current image preview
+      const imageUrl = getImageUrl(productData.image);
+      if (imageUrl) {
+        setImagePreview(imageUrl);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -173,11 +186,11 @@ export default function EditProductPage() {
       }
     }
   };
-
   const removeImage = () => {
     setSelectedImage(null);
-    if (product?.image?.imageUrl) {
-      setImagePreview(product.image.imageUrl);
+    const imageUrl = product?.image?.imageUrl;
+    if (imageUrl) {
+      setImagePreview(imageUrl);
     } else {
       setImagePreview(null);
     }
@@ -192,15 +205,14 @@ export default function EditProductPage() {
       setIsSubmitting(true);
 
       const updateData: UpdateProductData = {
-        id: productId,
         ...data,
       };
 
-      if (selectedImage) {
-        updateData.image = selectedImage;
-      }
-
-      await adminProductsApi.updateProduct(updateData);
+      await adminProductsApi.updateProduct(
+        productId,
+        updateData,
+        selectedImage || undefined
+      );
       toast.success("Cập nhật sản phẩm thành công!");
       router.push("/admin/products");
     } catch (error: any) {
@@ -374,11 +386,10 @@ export default function EditProductPage() {
                           <FormMessage />
                         </FormItem>
                       )}
-                    />
-
+                    />{" "}
                     <FormField
                       control={form.control}
-                      name="discount"
+                      name="discountPercent"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Giảm giá (%)</FormLabel>

@@ -14,6 +14,8 @@ import type {
   CartSummary,
   CartValidationResult,
 } from "@/lib/api/cart";
+import { CartResponse, CartItemResponse } from "@/types/api-cart";
+import { Product, ProductVariant } from "@/types";
 
 interface ApiCartContextType {
   // Cart state
@@ -46,6 +48,65 @@ interface ApiCartContextType {
   getItemQuantity: (variantId: string) => number;
 }
 
+// Helper function to transform CartResponse to Cart
+const transformCartResponse = (cartResponse: CartResponse): Cart => {
+  const transformedItems = cartResponse.items.map(transformCartItemResponse);
+  return {
+    id: cartResponse.id,
+    user: cartResponse.user,
+    items: transformedItems,
+    itemCount: transformedItems.reduce((sum, item) => sum + item.quantity, 0),
+    subtotal: transformedItems.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    ),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+};
+
+// Helper function to transform CartItemResponse to CartItem
+const transformCartItemResponse = (item: CartItemResponse): CartItem => {
+  return {
+    id: item.id,
+    quantity: item.quantity,
+    maxQuantity: item.variant.stockQuantity,
+    name: item.variant.product.name,
+    price: item.variant.product.basePrice,
+    discountPrice:
+      item.variant.product.discountPercent &&
+      item.variant.product.discountPercent > 0
+        ? item.variant.product.basePrice *
+          (1 - item.variant.product.discountPercent / 100)
+        : undefined,
+    imageUrl: item.variant.product.images?.[0]?.url || "/placeholder-image.jpg",
+    image: item.variant.product.images?.[0]?.url || "/placeholder-image.jpg",
+    slug: item.variant.product.slug,
+    variant: {
+      id: item.variant.id,
+      sku: item.variant.sku,
+      stockQuantity: item.variant.stockQuantity,
+      isActive: item.variant.isActive,
+      color: item.variant.color,
+      size: item.variant.size,
+      images:
+        item.variant.product.images?.map((img) => ({
+          id: img.url, // Using URL as ID since we don't have ID
+          imageUrl: img.url,
+          altText: img.altText,
+          isPrimary: false,
+          sortOrder: 0,
+        })) || [],
+      product: item.variant.product as Product,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as unknown as ProductVariant,
+    color: item.variant.color.name,
+    size: item.variant.size.name,
+    sku: item.variant.sku,
+  };
+};
+
 const ApiCartContext = createContext<ApiCartContextType | undefined>(undefined);
 
 export function ApiCartProvider({ children }: { children: React.ReactNode }) {
@@ -73,7 +134,7 @@ export function ApiCartProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       setError(null);
       const cartData = await cartApi.getMyCart();
-      setCart(cartData);
+      setCart(transformCartResponse(cartData));
     } catch (err: any) {
       console.error("Failed to fetch cart:", err);
       setError(err.message || "Failed to fetch cart");

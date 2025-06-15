@@ -47,7 +47,7 @@ import {
   Package,
   ExternalLink,
 } from "lucide-react";
-import { Product } from "@/types";
+import { Product, Image as ImageType } from "@/types";
 
 interface ProductsTableProps {
   products: Product[];
@@ -170,7 +170,7 @@ export function ProductsTable({
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="relative h-12 w-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                          {product.image?.imageUrl ? (
+                          {product.image ? (
                             <Image
                               src={product.image.imageUrl}
                               alt={product.name}

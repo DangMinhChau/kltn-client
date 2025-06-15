@@ -36,8 +36,7 @@ export interface Product {
   materials?: Material[];
   styles?: Style[];
   collections?: Collection[];
-  images?: ProductImageType[];
-  image?: ProductImageType;
+  image: Image;
   category?: Category;
   variants?: ProductVariant[];
   createdAt: string;
@@ -55,17 +54,18 @@ export interface ProductVariant {
   isActive: boolean;
   color: Color;
   size: Size;
-  images?: ProductImageType[];
+  images?: Image[];
   product: {
     id: string;
     name: string;
     basePrice?: number;
+    discountPercent?: number;
   };
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ProductImage {
+export interface Image {
   id: string;
   imageUrl: string;
   altText?: string;
@@ -73,9 +73,6 @@ export interface ProductImage {
   sortOrder: number;
   publicId?: string;
 }
-
-// Helper type for flexible image handling
-export type ProductImageType = ProductImage | string;
 
 // Category Types
 export interface Category {
@@ -85,6 +82,7 @@ export interface Category {
   slug: string;
   isActive: boolean;
   parent?: Category;
+  parentId?: string; // Add parentId for backwards compatibility
   children?: Category[];
   createdAt: string;
   updatedAt: string;
@@ -95,12 +93,30 @@ export interface Collection {
   id: string;
   name: string;
   slug: string;
+  season?: string;
+  year?: number;
+  description?: string;
+  images?: Image[];
+  isActive: boolean;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  // Optional computed fields for client usage
+  imageUrl?: string; // Can be computed from images[0] or primary image
+  products?: Product[];
+}
+
+// Collection API Response - matches backend DTO exactly
+export interface CollectionResponse {
+  id: string;
+  name: string;
+  slug: string;
   season: string;
   year: number;
-  description?: string;
+  description?: string; // Should be optional since DB field is nullable
+  images?: Image[];
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Style Types
@@ -131,6 +147,8 @@ export interface Tag {
   id: string;
   name: string;
   slug: string;
+  description?: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }

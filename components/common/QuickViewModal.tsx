@@ -21,7 +21,7 @@ import {
 import { AddToCartButton } from "@/components/common/AddToCartButton";
 import { WishlistButton } from "@/components/common/WishlistButton";
 import { VariantSelector } from "@/components/common/VariantSelector";
-import { Product, ProductVariant, CartItem } from "@/types";
+import { Product, ProductVariant, CartItem, Image as ImageType } from "@/types";
 import {
   formatPrice,
   calculateDiscountedPrice,
@@ -55,7 +55,10 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
     }
   }, [product]);
   if (!product) return null;
-  const basePrice = parseFloat(product.basePrice);
+  const basePrice =
+    typeof product.basePrice === "string"
+      ? parseFloat(product.basePrice)
+      : product.basePrice;
   const discountPercent = product.discountPercent || 0;
   const discountedPrice = calculateDiscountedPrice(basePrice, discountPercent);
 
@@ -64,16 +67,8 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
     : product.variants?.reduce((sum, v) => sum + v.stockQuantity, 0) || 0;
 
   const stockStatus = getStockStatus(currentStock);
-  const stars = generateStarRating(product.averageRating || 0);
-
-  // Get product main image
-  const productMainImage =
-    product.image?.imageUrl ||
-    (product.images && product.images.length > 0
-      ? product.images[0].imageUrl
-      : "");
-
-  // Get current images with useMemo to prevent recalculation on every render
+  const stars = generateStarRating(product.averageRating || 0); // Get product main image
+  const productMainImage = product.image?.imageUrl || ""; // Get current images with useMemo to prevent recalculation on every render
   const currentImages = React.useMemo(() => {
     if (selectedVariant?.images && selectedVariant.images.length > 0) {
       return selectedVariant.images.map((img) => img.imageUrl);
@@ -83,14 +78,8 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
   const createCartItem = (): Omit<CartItem, "quantity"> => {
     const variant = selectedVariant || product.variants?.[0];
     const currentPrice = discountedPrice;
-    const imageUrl = currentImages[selectedImageIndex];
-
-    // Get primary image or first image from product if available
-    const productImage =
-      product.image?.imageUrl ||
-      (product.images && product.images.length > 0
-        ? product.images[0].imageUrl
-        : "");
+    const imageUrl = currentImages[selectedImageIndex]; // Get primary image or first image from product if available
+    const productImage = product.image?.imageUrl || "";
 
     return {
       id: variant?.id || product.id,
@@ -104,15 +93,20 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
       sku: variant?.sku || product.baseSku,
       maxQuantity: variant?.stockQuantity || 0,
       slug: product.slug,
-      variant: variant || {
-        id: product.id,
-        sku: product.baseSku,
-        stockQuantity: 0,
-        isActive: true,
-        color: undefined,
-        size: undefined,
-        images: product.images || [],
-      },
+      variant:
+        variant ||
+        ({
+          id: product.id,
+          sku: product.baseSku,
+          stockQuantity: 0,
+          isActive: true,
+          color: undefined,
+          size: undefined,
+          images: [],
+          product: product,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as unknown as ProductVariant),
     };
   }; // Use React.useCallback to memoize the function and prevent recreation on every render
   const handleVariantChange = React.useCallback(

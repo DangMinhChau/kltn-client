@@ -17,11 +17,11 @@ import {
   CreateShippingDto,
   UpdateOrderStatusDto,
   OrderApiResponse,
-  OrderListResponse,
+  OrderListApiResponse,
   OrderTrackingResponse,
   OrderPreviewResponse,
   VoucherValidationResponse,
-  ShippingCalculationResponse,
+  ShippingCalculationDto,
   PaymentCreationResponse,
   PaymentStatusResponse,
 } from "@/types/api-order";
@@ -45,7 +45,7 @@ export const orderApi = {
     page = 1,
     limit = 10,
     status?: OrderStatus
-  ): Promise<OrderListResponse> =>
+  ): Promise<OrderListApiResponse> =>
     api.get("/orders/history", { params: { page, limit, status } }),
 
   // Get order tracking information
@@ -111,7 +111,7 @@ export const shippingApi = {
       district: string;
       ward: string;
     }
-  ): Promise<ShippingCalculationResponse> =>
+  ): Promise<ShippingCalculationDto> =>
     api.post("/shipping/calculate", {
       items,
       destination,

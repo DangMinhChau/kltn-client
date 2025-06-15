@@ -18,7 +18,7 @@ import {
 } from "@/types";
 
 // ================================
-// TYPES & INTERFACES
+// TYPES & INTERFACES (Export for use in components)
 // ================================
 
 export interface AdminProductFilters {
@@ -46,6 +46,21 @@ export interface CreateProductData {
 }
 
 export interface UpdateProductData extends Partial<CreateProductData> {}
+
+export interface CreateVariantData {
+  productId: string;
+  colorId: string;
+  sizeId: string;
+  sku: string;
+  stockQuantity: number;
+  isActive?: boolean;
+  images?: File[];
+}
+
+export interface UpdateVariantData extends Partial<CreateVariantData> {
+  id?: string;
+  images?: File[];
+}
 
 export interface BackendResponse<T> {
   message: string;
@@ -244,10 +259,11 @@ export const adminCollectionsApi = {
     );
     return response.data.data || [];
   },
-
   createCollection: async (data: {
     name: string;
     description?: string;
+    season?: string;
+    year?: number;
     isActive?: boolean;
   }): Promise<Collection> => {
     const response = await api.post<BackendResponse<Collection>>(
@@ -262,6 +278,8 @@ export const adminCollectionsApi = {
     data: {
       name?: string;
       description?: string;
+      season?: string;
+      year?: number;
       isActive?: boolean;
     }
   ): Promise<Collection> => {
@@ -483,6 +501,12 @@ export const adminVariantsApi = {
       `/admin/products/${productId}/variants`
     );
     return response.data.data || [];
+  },
+  getVariant: async (id: string): Promise<ProductVariant> => {
+    const response = await api.get<BackendResponse<ProductVariant>>(
+      `/admin/variants/${id}`
+    );
+    return response.data.data;
   },
   createVariant: async (formData: FormData): Promise<ProductVariant> => {
     const response = await api.post<BackendResponse<ProductVariant>>(

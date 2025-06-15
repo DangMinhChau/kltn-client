@@ -25,7 +25,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import { Product, ProductVariant, ProductImage } from "@/types";
+import { Product, ProductVariant, Image as ImageType } from "@/types";
 import { productApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -161,7 +161,9 @@ export default function ProductDetailPage() {
         console.log(
           `Using images from selected variant: ${selectedVariant.id}`
         );
-        return selectedVariant.images.sort((a, b) => a.sortOrder - b.sortOrder);
+        return selectedVariant.images.sort(
+          (a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)
+        );
       } else {
         // Variant has no images, fallback to product main image
         console.log("Selected variant has no images, using product image");
@@ -173,7 +175,7 @@ export default function ProductDetailPage() {
 
     // If a color is selected (but not full variant), show all images of that color
     if (selectedColor && product.variants && product.variants.length > 0) {
-      const colorImages: ProductImage[] = [];
+      const colorImages: ImageType[] = [];
 
       // Find all variants with the selected color and collect their images
       const colorVariants = product.variants.filter(
@@ -205,22 +207,12 @@ export default function ProductDetailPage() {
         );
       }
     } // If no variant is selected, collect ALL images from product and variants
-    const allImages: ProductImage[] = [];
-
-    // Add main product image first (highest priority)
+    const allImages: ImageType[] = []; // Add main product image first (highest priority)
     if (product.image) {
       allImages.push(product.image);
     }
 
-    // Add product images array
-    if (product.images && product.images.length > 0) {
-      product.images.forEach((img) => {
-        // Avoid duplicates by checking imageUrl
-        if (!allImages.some((existing) => existing.imageUrl === img.imageUrl)) {
-          allImages.push(img);
-        }
-      });
-    } // Add images from ALL variants when no specific color/variant is selected
+    // Add images from ALL variants when no specific color/variant is selected
     if (
       !selectedColor &&
       !selectedVariant &&
@@ -292,7 +284,7 @@ export default function ProductDetailPage() {
     if (variant.images?.length) {
       console.log(
         "New variant image URLs:",
-        variant.images.map((img) => img.imageUrl.substring(0, 50) + "...")
+        variant.images.map((img) => img.imageUrl?.substring(0, 50) + "...")
       );
     }
 
@@ -354,9 +346,7 @@ export default function ProductDetailPage() {
     if (quantity > stockQuantity) {
       alert(`Chỉ còn ${stockQuantity} sản phẩm trong kho`);
       return;
-    }
-
-    // Get the image to display in cart
+    } // Get the image to display in cart
     const cartImage = displayImages[0]?.imageUrl || "/placeholder-image.jpg";
     addItem({
       id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id,
@@ -369,8 +359,12 @@ export default function ProductDetailPage() {
           ? priceInfo.originalPrice
           : undefined,
       imageUrl: cartImage,
+      image: cartImage,
       slug: product.slug,
       variant: variantToAdd,
+      color: variantToAdd.color?.name || "",
+      size: variantToAdd.size?.name || "",
+      sku: variantToAdd.sku,
     });
 
     // Show success message
@@ -501,6 +495,7 @@ export default function ProductDetailPage() {
             {" "}
             {/* Main Image */}
             <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-50">
+              {" "}
               <img
                 src={
                   displayImages[selectedImageIndex]?.imageUrl ||
@@ -555,8 +550,9 @@ export default function ProductDetailPage() {
                     )}
                     onClick={() => setSelectedImageIndex(index)}
                   >
+                    {" "}
                     <Image
-                      src={image.imageUrl}
+                      src={image.imageUrl || "/placeholder-image.jpg"}
                       alt={`${product.name} ${index + 1}`}
                       fill
                       className="object-cover"

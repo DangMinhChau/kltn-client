@@ -283,6 +283,10 @@ export interface OrderApiResponse extends BaseResponseDto<Order> {}
 
 export interface OrderListApiResponse extends PaginatedResponseDto<Order> {}
 
+// Export aliases for backwards compatibility
+export interface OrderListResponse extends OrderListApiResponse {}
+export interface ShippingCalculationResponse extends ShippingCalculationDto {}
+
 export interface OrderTrackingResponse
   extends BaseResponseDto<{
     order: Order;

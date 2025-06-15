@@ -1,9 +1,9 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
-import { ProductImage } from "./ProductImage";
 import { ProductBadges } from "./ProductBadges";
 import { ProductInfo } from "./ProductInfo";
 import { ProductVariants } from "./ProductVariants";
@@ -59,12 +59,21 @@ export const ProductCardGrid: React.FC<EnhancedProductCardProps> = ({
           {" "}
           {/* Image Container */}
           <div className="relative overflow-hidden rounded-t-xl">
-            <ProductImage
-              product={product}
-              imageLoading={imageLoading}
-              onImageLoad={() => setImageLoading(false)}
-              variant="card"
-            />
+            <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-100 to-gray-200">
+              <Image
+                src={product.image?.imageUrl || "/placeholder-image.jpg"}
+                alt={product.image?.altText || product.name}
+                fill
+                className={`
+                  object-cover transition-all duration-700 group-hover:scale-110
+                  ${imageLoading ? "blur-sm opacity-0" : "blur-0 opacity-100"}
+                `}
+                onLoad={() => setImageLoading(false)}
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+              />
+              {/* Gradient Overlay */}
+              <div className="absolute inset-0 transition-opacity duration-300 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100" />
+            </div>
             {/* Badges positioned on image */}
             <ProductBadges
               product={product}

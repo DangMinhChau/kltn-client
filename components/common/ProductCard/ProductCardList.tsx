@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
-import { ProductImage } from "./ProductImage";
 import { ProductBadges } from "./ProductBadges";
 import { ProductInfo } from "./ProductInfo";
 import { ProductVariants } from "./ProductVariants";
@@ -55,14 +55,24 @@ export const ProductCardList: React.FC<EnhancedProductCardProps> = ({
       <Link href={generateProductUrl(product.slug)}>
         <CardContent className="p-4 lg:p-6">
           <div className="flex gap-4 lg:gap-6">
+            {" "}
             {/* Product Image */}
             <div className="relative">
-              <ProductImage
-                product={product}
-                imageLoading={imageLoading}
-                onImageLoad={() => setImageLoading(false)}
-                variant="list"
-              />
+              <div className="relative w-24 h-32 md:w-28 md:h-36 flex-shrink-0 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                <Image
+                  src={product.image?.imageUrl || "/placeholder-image.jpg"}
+                  alt={product.image?.altText || product.name}
+                  fill
+                  className={`
+                    object-cover transition-all duration-700 group-hover:scale-110
+                    ${imageLoading ? "blur-sm opacity-0" : "blur-0 opacity-100"}
+                  `}
+                  onLoad={() => setImageLoading(false)}
+                  sizes="(max-width: 768px) 112px, 144px"
+                />
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 transition-opacity duration-300 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100" />
+              </div>
               {/* Badges positioned on image */}
               <ProductBadges
                 product={product}
@@ -70,7 +80,6 @@ export const ProductCardList: React.FC<EnhancedProductCardProps> = ({
                 className="absolute top-2 left-2"
               />
             </div>
-
             {/* Product Content */}
             <div className="flex-1 min-w-0">
               <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">

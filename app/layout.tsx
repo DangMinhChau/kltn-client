@@ -6,7 +6,6 @@ import { WishlistProvider } from "@/lib/context/WishlistContext";
 import { AuthProvider } from "@/lib/context/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
-import PerformanceMonitor from "@/components/common/PerformanceMonitor";
 import ScrollToTop from "@/components/common/ScrollToTop";
 import WebAnalytics from "@/components/common/WebAnalytics";
 
@@ -60,7 +59,6 @@ export default function RootLayout({
               <ConditionalLayout>{children}</ConditionalLayout>
               <ScrollToTop />
               <Toaster />
-              <PerformanceMonitor />
               <WebAnalytics
                 config={{
                   googleAnalyticsId: process.env.NEXT_PUBLIC_GA_ID,

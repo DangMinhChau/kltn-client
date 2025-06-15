@@ -20,7 +20,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const actualPrice = React.useMemo(() => {
     // Calculate actual price from basePrice and discountPercent
     const discountValue = product.discountPercent || 0;
-    return product.basePrice * (1 - discountValue / 100);
+    const basePrice =
+      typeof product.basePrice === "string"
+        ? parseFloat(product.basePrice)
+        : product.basePrice;
+    return basePrice * (1 - discountValue / 100);
   }, [product.basePrice, product.discountPercent]);
 
   const hasDiscount = React.useMemo(() => {
