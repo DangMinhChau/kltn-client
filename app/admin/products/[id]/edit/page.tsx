@@ -70,7 +70,7 @@ const updateProductSchema = z.object({
   collectionIds: z.array(z.string()),
 });
 
-// Helper function to get image URL from ProductImageType
+// Helper function to get image URL from Image type
 const getImageUrl = (image: ImageType): string | undefined => {
   if (!image) return undefined;
   if (typeof image === "string") return image;

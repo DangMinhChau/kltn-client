@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useCart } from "@/lib/context/CartContext";
+import { useCart } from "@/lib/context/UnifiedCartContext";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,9 +17,9 @@ export function CartSummary({
   showCheckoutButton = true,
   className = "",
 }: CartSummaryProps) {
-  const { state } = useCart();
+  const { items, totalItems, totalAmount } = useCart();
 
-  if (state.items.length === 0) {
+  if (items.length === 0) {
     return null;
   }
 
@@ -34,31 +34,25 @@ export function CartSummary({
             <span className="text-sm text-muted-foreground">
               Số lượng sản phẩm
             </span>
-            <span className="text-sm font-medium">
-              {state.totalItems} sản phẩm
-            </span>
-          </div>
-
+            <span className="text-sm font-medium">{totalItems} sản phẩm</span>
+          </div>{" "}
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Tạm tính</span>
             <span className="text-sm font-medium">
-              {formatPrice(state.totalAmount)}
+              {formatPrice(totalAmount)}
             </span>
           </div>
-
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
               Phí vận chuyển
             </span>
             <span className="text-sm font-medium">Miễn phí</span>
           </div>
-
           <Separator />
-
           <div className="flex items-center justify-between">
-            <span className="text-base font-semibold">Tổng cộng</span>
+            <span className="text-base font-semibold">Tổng cộng</span>{" "}
             <span className="text-base font-semibold">
-              {formatPrice(state.totalAmount)}
+              {formatPrice(totalAmount)}
             </span>
           </div>
         </div>

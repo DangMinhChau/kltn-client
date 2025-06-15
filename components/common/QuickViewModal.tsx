@@ -18,7 +18,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { AddToCartButton } from "@/components/common/AddToCartButton";
 import { WishlistButton } from "@/components/common/WishlistButton";
 import { VariantSelector } from "@/components/common/VariantSelector";
 import { Product, ProductVariant, CartItem, Image as ImageType } from "@/types";
@@ -28,6 +27,7 @@ import {
   generateStarRating,
   getStockStatus,
 } from "@/lib/utils";
+import { useCart } from "@/lib/context/UnifiedCartContext";
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -40,6 +40,7 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { addToCart } = useCart();
   // Use useRef for initialization to avoid re-initializing state on every render
   const initializedRef = React.useRef(false);
   const [selectedVariant, setSelectedVariant] = useState<
@@ -74,41 +75,9 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
       return selectedVariant.images.map((img) => img.imageUrl);
     }
     return [productMainImage];
-  }, [selectedVariant, productMainImage]); // Convert Product to CartItem format
-  const createCartItem = (): Omit<CartItem, "quantity"> => {
-    const variant = selectedVariant || product.variants?.[0];
-    const currentPrice = discountedPrice;
-    const imageUrl = currentImages[selectedImageIndex]; // Get primary image or first image from product if available
-    const productImage = product.image?.imageUrl || "";
+  }, [selectedVariant, productMainImage]);
 
-    return {
-      id: variant?.id || product.id,
-      name: product.name,
-      image: imageUrl || productImage,
-      imageUrl: imageUrl || productImage, // For backward compatibility
-      price: basePrice, // Already parsed to number
-      discountPrice: discountPercent > 0 ? currentPrice : undefined,
-      color: variant?.color?.name || "Mặc định",
-      size: variant?.size?.name || "Mặc định",
-      sku: variant?.sku || product.baseSku,
-      maxQuantity: variant?.stockQuantity || 0,
-      slug: product.slug,
-      variant:
-        variant ||
-        ({
-          id: product.id,
-          sku: product.baseSku,
-          stockQuantity: 0,
-          isActive: true,
-          color: undefined,
-          size: undefined,
-          images: [],
-          product: product,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        } as unknown as ProductVariant),
-    };
-  }; // Use React.useCallback to memoize the function and prevent recreation on every render
+  // Use React.useCallback to memoize the function and prevent recreation on every render
   const handleVariantChange = React.useCallback(
     (variant: ProductVariant) => {
       // Only update if the variant actually changed to prevent unnecessary re-renders
@@ -269,13 +238,20 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
                 selectedVariant={selectedVariant}
                 onVariantChange={handleVariantChange}
               />
-            )}
+            )}{" "}
             {/* Actions */}
             <div className="space-y-3 pt-4">
               {" "}
-              <AddToCartButton
-                item={createCartItem()}
-                quantity={1}
+              <Button
+                onClick={async () => {
+                  if (selectedVariant) {
+                    try {
+                      await addToCart(selectedVariant.id, 1);
+                    } catch (error) {
+                      console.error("Error adding to cart:", error);
+                    }
+                  }
+                }}
                 className="w-full h-12 text-base"
                 disabled={stockStatus.status === "out-of-stock"}
               >
@@ -283,7 +259,7 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
                 {stockStatus.status === "out-of-stock"
                   ? "Hết hàng"
                   : "Thêm vào giỏ hàng"}
-              </AddToCartButton>
+              </Button>
               <div className="flex gap-3">
                 <WishlistButton
                   product={product}

@@ -4,7 +4,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, X, ArrowLeft, ShoppingBag } from "lucide-react";
-import { useCart } from "@/lib/context/CartContext";
+import { useCart } from "@/lib/context/UnifiedCartContext";
 import { CartState, CartItem } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -13,45 +13,59 @@ import { Separator } from "@/components/ui/separator";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 interface CartContentProps {
-  state: CartState;
-  removeItem: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
+  items: CartItem[];
+  removeItem: (variantId: string) => void;
+  updateItemQuantity: (variantId: string, quantity: number) => void;
   clearCart: () => void;
   handleQuantityChange: (id: string, newQuantity: number) => void;
+  totalItems: number;
+  totalAmount: number;
 }
 
 export default function CartPage() {
-  const { state, removeItem, updateQuantity, clearCart } = useCart();
+  const {
+    items,
+    removeItem,
+    updateItemQuantity,
+    clearCart,
+    totalItems,
+    totalAmount,
+  } = useCart();
 
   const handleQuantityChange = (id: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeItem(id);
     } else {
-      updateQuantity(id, newQuantity);
+      updateItemQuantity(id, newQuantity);
     }
   };
 
   return (
     <ProtectedRoute>
+      {" "}
       <CartContent
-        state={state}
+        items={items}
         removeItem={removeItem}
-        updateQuantity={updateQuantity}
+        updateItemQuantity={updateItemQuantity}
         clearCart={clearCart}
         handleQuantityChange={handleQuantityChange}
+        totalItems={totalItems}
+        totalAmount={totalAmount}
       />
     </ProtectedRoute>
   );
 }
 
 function CartContent({
-  state,
+  items,
   removeItem,
-  updateQuantity,
+  updateItemQuantity,
   clearCart,
   handleQuantityChange,
+  totalItems,
+  totalAmount,
 }: CartContentProps) {
-  if (state.items.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 lg:px-8">
@@ -85,7 +99,7 @@ function CartContent({
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Giỏ hàng</h1>
           <p className="mt-2 text-gray-600">
-            Bạn có {state.totalItems} sản phẩm trong giỏ hàng
+            Bạn có {totalItems} sản phẩm trong giỏ hàng
           </p>
         </div>
 
@@ -108,7 +122,7 @@ function CartContent({
 
               {/* Items List */}
               <ul className="divide-y divide-gray-200">
-                {state.items.map((item: CartItem) => (
+                {items.map((item: CartItem) => (
                   <li key={item.id} className="py-6">
                     <div className="flex items-start space-x-4">
                       {/* Product Image */}
@@ -237,32 +251,28 @@ function CartContent({
                   <div className="flex items-center justify-between">
                     <dt className="text-sm text-gray-600">Số lượng sản phẩm</dt>
                     <dd className="text-sm font-medium text-gray-900">
-                      {state.totalItems} sản phẩm
+                      {totalItems} sản phẩm
                     </dd>
-                  </div>
-
+                  </div>{" "}
                   <div className="flex items-center justify-between">
                     <dt className="text-sm text-gray-600">Tạm tính</dt>
                     <dd className="text-sm font-medium text-gray-900">
-                      {formatPrice(state.totalAmount)}
+                      {formatPrice(totalAmount)}
                     </dd>
                   </div>
-
                   <div className="flex items-center justify-between">
                     <dt className="text-sm text-gray-600">Phí vận chuyển</dt>
                     <dd className="text-sm font-medium text-gray-900">
                       Tính khi thanh toán
                     </dd>
                   </div>
-
-                  <Separator />
-
+                  <Separator />{" "}
                   <div className="flex items-center justify-between">
                     <dt className="text-base font-medium text-gray-900">
                       Tổng cộng
                     </dt>
                     <dd className="text-base font-medium text-gray-900">
-                      {formatPrice(state.totalAmount)}
+                      {formatPrice(totalAmount)}
                     </dd>
                   </div>
                 </div>

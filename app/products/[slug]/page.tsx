@@ -37,7 +37,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VariantSelector } from "@/components/common/VariantSelector";
 import ProductCard from "@/components/common/ProductCard";
 import { WishlistButton } from "@/components/common/WishlistButton";
-import { useCart } from "@/lib/context/CartContext";
+import { useCart } from "@/lib/context/UnifiedCartContext";
 import { cn } from "@/lib/utils";
 import { PageLoading } from "@/components/common/Loading";
 
@@ -56,7 +56,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
 
-  const { addItem } = useCart();
+  const { addToCart } = useCart();
   useEffect(() => {
     async function fetchProduct() {
       try {
@@ -317,7 +317,7 @@ export default function ProductDetailPage() {
     setSelectedImageIndex(0);
     console.log("=== End Clear Selection ===");
   };
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     // For products without variants, create a default variant
     let variantToAdd: ProductVariant;
     if (!selectedVariant) {
@@ -346,37 +346,25 @@ export default function ProductDetailPage() {
     if (quantity > stockQuantity) {
       alert(`Chỉ còn ${stockQuantity} sản phẩm trong kho`);
       return;
-    } // Get the image to display in cart
-    const cartImage = displayImages[0]?.imageUrl || "/placeholder-image.jpg";
-    addItem({
-      id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id,
-      quantity,
-      maxQuantity: stockQuantity,
-      name: product.name,
-      price: priceInfo.price,
-      discountPrice:
-        priceInfo.hasDiscount && priceInfo.originalPrice
-          ? priceInfo.originalPrice
-          : undefined,
-      imageUrl: cartImage,
-      image: cartImage,
-      slug: product.slug,
-      variant: variantToAdd,
-      color: variantToAdd.color?.name || "",
-      size: variantToAdd.size?.name || "",
-      sku: variantToAdd.sku,
-    });
+    }
 
-    // Show success message
-    console.log(`✅ Đã thêm ${quantity} sản phẩm vào giỏ hàng:`, {
-      product: product.name,
-      variant: selectedVariant
-        ? `${selectedVariant.color?.name || ""} ${
-            selectedVariant.size?.name || ""
-          }`.trim()
-        : "Default",
-      quantity,
-    });
+    try {
+      await addToCart(variantToAdd.id, quantity);
+
+      // Show success message
+      console.log(`✅ Đã thêm ${quantity} sản phẩm vào giỏ hàng:`, {
+        product: product.name,
+        variant: selectedVariant
+          ? `${selectedVariant.color?.name || ""} ${
+              selectedVariant.size?.name || ""
+            }`.trim()
+          : "Default",
+        quantity,
+      });
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      alert("Có lỗi xảy ra khi thêm vào giỏ hàng");
+    }
   };
 
   const nextImage = () => {

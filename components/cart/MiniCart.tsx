@@ -4,14 +4,14 @@ import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ShoppingBag, X } from "lucide-react";
-import { useCart } from "@/lib/context/CartContext";
+import { useCart } from "@/lib/context/UnifiedCartContext";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
 export function MiniCart() {
-  const { state, removeItem, closeCart } = useCart();
+  const { items, removeItem, closeCart, totalItems, totalAmount } = useCart();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +29,7 @@ export function MiniCart() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (state.items.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="relative" ref={dropdownRef}>
         <Button
@@ -78,7 +78,7 @@ export function MiniCart() {
           variant="destructive"
           className="absolute -right-2 -top-2 h-5 w-5 rounded-full p-0 text-xs"
         >
-          {state.totalItems}
+          {totalItems}
         </Badge>
       </Button>
 
@@ -86,11 +86,11 @@ export function MiniCart() {
         <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-md border bg-popover p-4 text-popover-foreground shadow-md">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="font-semibold">Giỏ hàng</h3>
-            <Badge variant="secondary">{state.totalItems} sản phẩm</Badge>
+            <Badge variant="secondary">{totalItems} sản phẩm</Badge>
           </div>
 
           <div className="max-h-64 space-y-3 overflow-y-auto">
-            {state.items.slice(0, 3).map((item) => (
+            {items.slice(0, 3).map((item) => (
               <div key={item.id} className="flex gap-3">
                 <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded">
                   {" "}
@@ -128,9 +128,9 @@ export function MiniCart() {
             ))}
           </div>
 
-          {state.items.length > 3 && (
+          {items.length > 3 && (
             <p className="mt-2 text-center text-sm text-muted-foreground">
-              và {state.items.length - 3} sản phẩm khác...
+              và {items.length - 3} sản phẩm khác...
             </p>
           )}
 
@@ -139,7 +139,7 @@ export function MiniCart() {
           <div className="space-y-3">
             <div className="flex justify-between text-sm font-medium">
               <span>Tổng cộng:</span>
-              <span>{formatPrice(state.totalAmount)}</span>
+              <span>{formatPrice(totalAmount)}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2">

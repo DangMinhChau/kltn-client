@@ -3,7 +3,7 @@
 import React from "react";
 import { ShoppingBag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useCart } from "@/lib/context/CartContext";
+import { useCart } from "@/lib/context/UnifiedCartContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,7 @@ export function CartIcon({
   className,
   showLabel = false,
 }: CartIconProps) {
-  const { state, openCart } = useCart();
+  const { totalItems, openCart } = useCart();
 
   return (
     <Button
@@ -31,10 +31,9 @@ export function CartIcon({
       onClick={openCart}
     >
       <ShoppingBag className="h-5 w-5" />
-      {showLabel && <span className="ml-2">Giỏ hàng</span>}
-
+      {showLabel && <span className="ml-2">Giỏ hàng</span>}{" "}
       <AnimatePresence>
-        {state.totalItems > 0 && (
+        {totalItems > 0 && (
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -45,7 +44,7 @@ export function CartIcon({
               variant="destructive"
               className="h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
             >
-              {state.totalItems > 99 ? "99+" : state.totalItems}
+              {totalItems > 99 ? "99+" : totalItems}
             </Badge>
           </motion.div>
         )}

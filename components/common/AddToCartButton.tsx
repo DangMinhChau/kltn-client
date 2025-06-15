@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { ShoppingCart, Check } from "lucide-react";
-import { useCart } from "@/lib/context/CartContext";
+import { useCart } from "@/lib/context/UnifiedCartContext";
 import { CartItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -26,24 +26,28 @@ export function AddToCartButton({
   disabled = false,
   children,
 }: AddToCartButtonProps) {
-  const { addItem, openCart } = useCart();
+  const { addToCart, openCart } = useCart();
   const [isAdded, setIsAdded] = useState(false);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (disabled) return;
 
-    addItem({ ...item, quantity });
-    setIsAdded(true);
+    try {
+      await addToCart(item.variant.id, quantity);
+      setIsAdded(true);
 
-    // Show success state for 2 seconds
-    setTimeout(() => {
-      setIsAdded(false);
-    }, 2000);
+      // Show success state for 2 seconds
+      setTimeout(() => {
+        setIsAdded(false);
+      }, 2000);
 
-    // Open cart after a short delay
-    setTimeout(() => {
-      openCart();
-    }, 500);
+      // Open cart after a short delay
+      setTimeout(() => {
+        openCart();
+      }, 500);
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+    }
   };
 
   return (

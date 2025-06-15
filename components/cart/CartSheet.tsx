@@ -4,8 +4,9 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, X, ShoppingBag } from "lucide-react";
-import { useCart } from "@/lib/context/CartContext";
+import { useCart } from "@/lib/context/UnifiedCartContext";
 import { formatPrice } from "@/lib/utils";
+import { CartItem } from "@/types";
 import {
   Sheet,
   SheetContent,
@@ -18,19 +19,28 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
 export function CartSheet() {
-  const { state, removeItem, updateQuantity, clearCart, closeCart } = useCart();
+  const {
+    items,
+    totalItems,
+    totalAmount,
+    removeItem,
+    updateItemQuantity,
+    clearCart,
+    closeCart,
+    isCartOpen,
+  } = useCart();
 
   const handleQuantityChange = (id: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeItem(id);
     } else {
-      updateQuantity(id, newQuantity);
+      updateItemQuantity(id, newQuantity);
     }
   };
 
-  if (state.items.length === 0) {
+  if (items.length === 0) {
     return (
-      <Sheet open={state.isOpen} onOpenChange={(open) => !open && closeCart()}>
+      <Sheet open={isCartOpen} onOpenChange={(open) => !open && closeCart()}>
         <SheetContent className="w-full sm:max-w-lg">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
@@ -62,20 +72,20 @@ export function CartSheet() {
   }
 
   return (
-    <Sheet open={state.isOpen} onOpenChange={(open) => !open && closeCart()}>
+    <Sheet open={isCartOpen} onOpenChange={(open) => !open && closeCart()}>
       <SheetContent className="w-full sm:max-w-lg flex flex-col">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5" />
             Giỏ hàng
-            <Badge variant="secondary">{state.totalItems}</Badge>
+            <Badge variant="secondary">{totalItems}</Badge>
           </SheetTitle>
         </SheetHeader>
 
         {/* Cart Items */}
         <div className="flex-1 overflow-y-auto py-4">
           <div className="space-y-4">
-            {state.items.map((item) => (
+            {items.map((item: CartItem) => (
               <div key={item.id} className="flex gap-4 rounded-lg border p-4">
                 {/* Product Image */}
                 <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
@@ -177,7 +187,7 @@ export function CartSheet() {
           <div className="space-y-2">
             <div className="flex justify-between text-base font-medium">
               <span>Tổng cộng</span>
-              <span>{formatPrice(state.totalAmount)}</span>
+              <span>{formatPrice(totalAmount)}</span>
             </div>
             <p className="text-sm text-muted-foreground">
               Phí vận chuyển sẽ được tính khi thanh toán
@@ -204,17 +214,17 @@ export function CartSheet() {
 }
 
 export function CartButton() {
-  const { state, openCart } = useCart();
+  const { totalItems, openCart } = useCart();
 
   return (
     <Button variant="ghost" size="icon" className="relative" onClick={openCart}>
-      <ShoppingBag className="h-5 w-5" />
-      {state.totalItems > 0 && (
+      <ShoppingBag className="h-5 w-5" />{" "}
+      {totalItems > 0 && (
         <Badge
           variant="destructive"
           className="absolute -right-2 -top-2 h-5 w-5 rounded-full p-0 text-xs"
         >
-          {state.totalItems}
+          {totalItems}
         </Badge>
       )}
     </Button>
