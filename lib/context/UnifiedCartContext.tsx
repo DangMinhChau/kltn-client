@@ -22,12 +22,23 @@ import { api } from "@/lib/api";
 const convertCartItemResponseToCartItem = (
   item: CartItemResponse
 ): CartItem => {
-  const basePrice = item.variant.product.basePrice;
+  const basePrice = item.variant.product.basePrice || 0;
   const discountPercent = item.variant.product.discountPercent || 0;
   const discountPrice =
-    discountPercent > 0 ? basePrice * (1 - discountPercent / 100) : basePrice;
+    discountPercent > 0 ? basePrice * (1 - discountPercent / 100) : undefined;
   const mainImage =
-    item.variant.product.images?.[0]?.url || "/placeholder-image.jpg";
+    item.variant.product.images?.[0]?.url ||
+    item.variant.images?.[0]?.url ||
+    "/placeholder-image.jpg";
+
+  console.log("Converting cart item:", {
+    itemId: item.id,
+    basePrice,
+    discountPercent,
+    discountPrice,
+    productName: item.variant.product.name,
+    mainImage,
+  });
 
   return {
     id: item.id,
@@ -161,8 +172,7 @@ export function UnifiedCartProvider({
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
-  // Convert variant data to CartItem for local storage
+  }, [isAuthenticated]); // Convert variant data to CartItem for local storage
   const createLocalCartItem = async (
     variantId: string,
     quantity: number
@@ -172,18 +182,35 @@ export function UnifiedCartProvider({
       const variantResponse = await api.get(`/variants/${variantId}`);
       const variantData = variantResponse.data.data;
 
+      console.log("createLocalCartItem - variantData:", variantData);
+
+      const basePrice = variantData.product.basePrice || 0;
+      const discountPercent = variantData.product.discountPercent || 0;
+      const discountPrice =
+        discountPercent > 0
+          ? basePrice * (1 - discountPercent / 100)
+          : undefined;
+      const imageUrl =
+        variantData.product.images?.[0]?.url ||
+        variantData.images?.[0]?.url ||
+        "/placeholder-image.jpg";
+
+      console.log("createLocalCartItem - calculated values:", {
+        basePrice,
+        discountPercent,
+        discountPrice,
+        imageUrl,
+      });
+
       return {
         id: `local-${variantId}`,
         quantity,
         maxQuantity: variantData.stockQuantity || 100,
         name: variantData.product.name,
-        price: variantData.product.basePrice || 0,
-        discountPrice: variantData.product.discountPercent
-          ? (variantData.product.basePrice || 0) *
-            (1 - variantData.product.discountPercent / 100)
-          : undefined,
-        imageUrl: variantData.product.images?.[0] || "",
-        image: variantData.product.images?.[0] || "",
+        price: basePrice,
+        discountPrice: discountPrice,
+        imageUrl: imageUrl,
+        image: imageUrl,
         slug: variantData.product.slug || "",
         variant: variantData,
         color: variantData.color?.name || "",
@@ -415,7 +442,13 @@ export function UnifiedCartProvider({
     0
   );
   const totalAmount = items.reduce((sum: number, item: CartItem) => {
-    const price = item.discountPrice || item.price;
+    const price =
+      item.discountPrice && item.discountPrice > 0
+        ? item.discountPrice
+        : item.price || 0;
+    console.log(
+      `Calculating price for item ${item.id}: discountPrice=${item.discountPrice}, price=${item.price}, final=${price}`
+    );
     return sum + price * item.quantity;
   }, 0);
 

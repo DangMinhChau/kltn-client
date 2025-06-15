@@ -7,6 +7,14 @@ export function cn(...inputs: ClassValue[]) {
 
 // Format price in VND
 export function formatPrice(price: number): string {
+  console.log("formatPrice called with:", price, typeof price);
+  if (typeof price !== "number" || isNaN(price)) {
+    console.warn("formatPrice received invalid price:", price);
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(0);
+  }
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",

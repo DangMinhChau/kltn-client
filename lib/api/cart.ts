@@ -83,7 +83,10 @@ export const cartApi = {
     const response: BaseResponse<CartResponse> = await api.get(
       "/carts/my-cart"
     );
-    return extractData(response);
+    console.log("getMyCart API response:", response);
+    const extractedData = extractData(response);
+    console.log("getMyCart extracted data:", extractedData);
+    return extractedData;
   },
 
   // Get cart summary

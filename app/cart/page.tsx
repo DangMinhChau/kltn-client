@@ -37,6 +37,25 @@ export default function CartPage() {
     loading,
     error,
   } = useCart();
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log("CartPage - items:", items);
+    console.log("CartPage - totalItems:", totalItems);
+    console.log("CartPage - totalAmount:", totalAmount);
+    items.forEach((item, index) => {
+      console.log(`Item ${index}:`, {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        discountPrice: item.discountPrice,
+        imageUrl: item.imageUrl,
+        image: item.image,
+        variant: item.variant,
+      });
+    });
+  }, [items, totalItems, totalAmount]);
+
   const handleQuantityChange = async (
     variantId: string,
     newQuantity: number
@@ -173,17 +192,23 @@ function CartContent({
                 {items.map((item: CartItem) => (
                   <li key={item.id} className="py-6">
                     <div className="flex items-start space-x-4">
+                      {" "}
                       {/* Product Image */}
                       <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg border sm:h-32 sm:w-32">
-                        {" "}
                         <Image
-                          src={item.imageUrl || item.image}
+                          src={
+                            item.imageUrl ||
+                            item.image ||
+                            "/placeholder-image.jpg"
+                          }
                           alt={item.name}
                           fill
                           className="object-cover object-center"
+                          onError={(e) => {
+                            e.currentTarget.src = "/placeholder-image.jpg";
+                          }}
                         />
                       </div>
-
                       {/* Product Details */}
                       <div className="flex flex-1 flex-col justify-between">
                         <div className="pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
@@ -207,20 +232,21 @@ function CartContent({
                           </div>
 
                           <div className="mt-4 sm:mt-0 sm:pr-9">
+                            {" "}
                             {/* Price */}
                             <div className="text-right">
-                              {item.discountPrice ? (
+                              {item.discountPrice && item.discountPrice > 0 ? (
                                 <div>
                                   <p className="text-lg font-medium text-gray-900">
                                     {formatPrice(item.discountPrice)}
                                   </p>
                                   <p className="text-sm text-gray-500 line-through">
-                                    {formatPrice(item.price)}
+                                    {formatPrice(item.price || 0)}
                                   </p>
                                 </div>
                               ) : (
                                 <p className="text-lg font-medium text-gray-900">
-                                  {formatPrice(item.price)}
+                                  {formatPrice(item.price || 0)}
                                 </p>
                               )}
                             </div>{" "}
@@ -283,15 +309,15 @@ function CartContent({
                             >
                               <Plus className="h-3 w-3" />
                             </Button>
-                          </div>
-
+                          </div>{" "}
                           {/* Item Total */}
                           <div className="text-right">
                             <p className="text-sm text-gray-500">Tổng cộng</p>
                             <p className="text-lg font-medium text-gray-900">
                               {formatPrice(
-                                (item.discountPrice || item.price) *
-                                  item.quantity
+                                (item.discountPrice && item.discountPrice > 0
+                                  ? item.discountPrice
+                                  : item.price || 0) * item.quantity
                               )}
                             </p>
                           </div>

@@ -28,13 +28,29 @@ export function CartSheet() {
     clearCart,
     closeCart,
     isCartOpen,
+    loading,
+    error,
   } = useCart();
 
-  const handleQuantityChange = (id: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeItem(id);
-    } else {
-      updateItemQuantity(id, newQuantity);
+  // Debug logging
+  React.useEffect(() => {
+    console.log("CartSheet - items:", items);
+    console.log("CartSheet - totalItems:", totalItems);
+    console.log("CartSheet - totalAmount:", totalAmount);
+  }, [items, totalItems, totalAmount]);
+
+  const handleQuantityChange = async (
+    variantId: string,
+    newQuantity: number
+  ) => {
+    try {
+      if (newQuantity <= 0) {
+        await removeItem(variantId);
+      } else {
+        await updateItemQuantity(variantId, newQuantity);
+      }
+    } catch (error) {
+      console.error("Failed to update cart:", error);
     }
   };
 
@@ -87,28 +103,39 @@ export function CartSheet() {
           <div className="space-y-4">
             {items.map((item: CartItem) => (
               <div key={item.id} className="flex gap-4 rounded-lg border p-4">
+                {" "}
                 {/* Product Image */}
                 <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
-                  {" "}
                   <Image
-                    src={item.image || item.imageUrl}
+                    src={
+                      item.imageUrl || item.image || "/placeholder-image.jpg"
+                    }
                     alt={item.name}
                     fill
                     className="object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder-image.jpg";
+                    }}
                   />
                 </div>
-
                 {/* Product Details */}
                 <div className="flex flex-1 flex-col gap-2">
                   <div className="flex justify-between">
                     <h4 className="text-sm font-medium leading-none">
                       {item.name}
-                    </h4>
+                    </h4>{" "}
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                      onClick={() => removeItem(item.id)}
+                      onClick={async () => {
+                        try {
+                          await removeItem(item.variant.id);
+                        } catch (error) {
+                          console.error("Failed to remove item:", error);
+                        }
+                      }}
+                      disabled={loading}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -118,6 +145,7 @@ export function CartSheet() {
                     <p>Size: {item.size || item.variant?.size?.name || ""}</p>
                   </div>
                   <div className="flex items-center justify-between">
+                    {" "}
                     {/* Quantity Controls */}
                     <div className="flex items-center gap-2">
                       <Button
@@ -125,9 +153,12 @@ export function CartSheet() {
                         size="icon"
                         className="h-7 w-7"
                         onClick={() =>
-                          handleQuantityChange(item.id, item.quantity - 1)
+                          handleQuantityChange(
+                            item.variant.id,
+                            item.quantity - 1
+                          )
                         }
-                        disabled={item.quantity <= 1}
+                        disabled={item.quantity <= 1 || loading}
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
@@ -139,28 +170,32 @@ export function CartSheet() {
                         size="icon"
                         className="h-7 w-7"
                         onClick={() =>
-                          handleQuantityChange(item.id, item.quantity + 1)
+                          handleQuantityChange(
+                            item.variant.id,
+                            item.quantity + 1
+                          )
                         }
-                        disabled={item.quantity >= item.maxQuantity}
+                        disabled={item.quantity >= item.maxQuantity || loading}
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
-                    </div>
-
+                    </div>{" "}
                     {/* Price */}
                     <div className="text-right">
-                      {item.discountPrice ? (
+                      {item.discountPrice && item.discountPrice > 0 ? (
                         <div className="flex flex-col">
                           <span className="text-sm font-medium">
-                            {formatPrice(item.discountPrice * item.quantity)}
+                            {formatPrice(
+                              (item.discountPrice || 0) * item.quantity
+                            )}
                           </span>
                           <span className="text-xs text-muted-foreground line-through">
-                            {formatPrice(item.price * item.quantity)}
+                            {formatPrice((item.price || 0) * item.quantity)}
                           </span>
                         </div>
                       ) : (
                         <span className="text-sm font-medium">
-                          {formatPrice(item.price * item.quantity)}
+                          {formatPrice((item.price || 0) * item.quantity)}
                         </span>
                       )}
                     </div>
@@ -173,16 +208,23 @@ export function CartSheet() {
 
         {/* Cart Footer */}
         <div className="space-y-4 border-t pt-4">
+          {" "}
           {/* Clear Cart */}
           <Button
             variant="outline"
             size="sm"
-            onClick={clearCart}
+            onClick={async () => {
+              try {
+                await clearCart();
+              } catch (error) {
+                console.error("Failed to clear cart:", error);
+              }
+            }}
             className="w-full"
+            disabled={loading}
           >
-            Xóa tất cả
+            {loading ? "Đang xóa..." : "Xóa tất cả"}
           </Button>
-
           {/* Total */}
           <div className="space-y-2">
             <div className="flex justify-between text-base font-medium">
@@ -192,16 +234,20 @@ export function CartSheet() {
             <p className="text-sm text-muted-foreground">
               Phí vận chuyển sẽ được tính khi thanh toán
             </p>
-          </div>
-
+          </div>{" "}
           {/* Action Buttons */}
           <div className="flex gap-2">
-            <Button asChild variant="outline" className="flex-1">
+            <Button
+              asChild
+              variant="outline"
+              className="flex-1"
+              disabled={loading}
+            >
               <Link href="/cart" onClick={closeCart}>
                 Xem giỏ hàng
               </Link>
             </Button>
-            <Button asChild className="flex-1">
+            <Button asChild className="flex-1" disabled={loading}>
               <Link href="/checkout" onClick={closeCart}>
                 Thanh toán
               </Link>
