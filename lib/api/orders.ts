@@ -29,67 +29,97 @@ import {
 // Order API
 export const orderApi = {
   // Create a new order
-  createOrder: (orderData: CreateOrderDto): Promise<OrderApiResponse> =>
-    api.post("/orders", orderData),
+  createOrder: async (orderData: CreateOrderDto): Promise<OrderApiResponse> => {
+    const response = await api.post("/orders", orderData);
+    return response.data;
+  },
 
   // Get order by ID
-  getOrder: (orderId: string): Promise<OrderApiResponse> =>
-    api.get(`/orders/${orderId}`),
+  getOrder: async (orderId: string): Promise<OrderApiResponse> => {
+    const response = await api.get(`/orders/${orderId}`);
+    return response.data;
+  },
 
   // Get order by order number
-  getOrderByNumber: (orderNumber: string): Promise<OrderApiResponse> =>
-    api.get(`/orders/number/${orderNumber}`),
+  getOrderByNumber: async (orderNumber: string): Promise<OrderApiResponse> => {
+    const response = await api.get(`/orders/number/${orderNumber}`);
+    return response.data;
+  },
 
   // Get user's order history
-  getOrderHistory: (
+  getOrderHistory: async (
     page = 1,
     limit = 10,
     status?: OrderStatus
-  ): Promise<OrderListApiResponse> =>
-    api.get("/orders/history", { params: { page, limit, status } }),
+  ): Promise<OrderListApiResponse> => {
+    const response = await api.get("/orders/history", {
+      params: { page, limit, status },
+    });
+    return response.data;
+  },
 
   // Get order tracking information
-  getOrderTracking: (orderNumber: string): Promise<OrderTrackingResponse> =>
-    api.get(`/orders/${orderNumber}/tracking`),
+  getOrderTracking: async (
+    orderNumber: string
+  ): Promise<OrderTrackingResponse> => {
+    const response = await api.get(`/orders/${orderNumber}/tracking`);
+    return response.data;
+  },
 
   // Cancel order
-  cancelOrder: (orderId: string, reason?: string): Promise<OrderApiResponse> =>
-    api.patch(`/orders/${orderId}/cancel`, { reason }),
+  cancelOrder: async (
+    orderId: string,
+    reason?: string
+  ): Promise<OrderApiResponse> => {
+    const response = await api.patch(`/orders/${orderId}/cancel`, { reason });
+    return response.data;
+  },
 
   // Admin: Update order status
-  updateOrderStatus: (
+  updateOrderStatus: async (
     orderId: string,
     updateData: UpdateOrderStatusDto
-  ): Promise<OrderApiResponse> =>
-    api.patch(`/orders/${orderId}/status`, updateData),
+  ): Promise<OrderApiResponse> => {
+    const response = await api.patch(`/orders/${orderId}/status`, updateData);
+    return response.data;
+  },
+
   // Get order preview (calculate totals before creating order)
-  getOrderPreview: (
+  getOrderPreview: async (
     items: { productId: string; variantId: string; quantity: number }[],
     shippingInfo: CreateShippingDto,
     voucherCode?: string
-  ): Promise<OrderPreviewResponse> =>
-    api.post("/orders/preview", {
+  ): Promise<OrderPreviewResponse> => {
+    const response = await api.post("/orders/preview", {
       items,
       shippingInfo,
       voucherCode,
-    }),
+    });
+    return response.data;
+  },
 };
 
 // Voucher API
 export const voucherApi = {
   // Validate voucher code (GET endpoint with query params)
-  validateVoucher: (
+  validateVoucher: async (
     code: string,
     orderAmount: number
-  ): Promise<VoucherValidationResponse> =>
-    api.get(`/vouchers/validate/${code}?orderTotal=${orderAmount}`),
+  ): Promise<VoucherValidationResponse> => {
+    const response = await api.get(
+      `/vouchers/validate/${code}?orderTotal=${orderAmount}`
+    );
+    return response.data;
+  },
 
   // Get available vouchers for user (active vouchers)
-  getAvailableVouchers: (): Promise<{ data: Voucher[] }> =>
-    api.get("/vouchers/active"),
+  getAvailableVouchers: async (): Promise<{ data: Voucher[] }> => {
+    const response = await api.get("/vouchers/active");
+    return response.data;
+  },
 
   // Apply voucher to cart
-  applyVoucher: (
+  applyVoucher: async (
     code: string,
     cartTotal: number
   ): Promise<{
@@ -98,7 +128,13 @@ export const voucherApi = {
       discountAmount: number;
       newTotal: number;
     };
-  }> => api.post("/vouchers/apply", { code, orderTotal: cartTotal }),
+  }> => {
+    const response = await api.post("/vouchers/apply", {
+      code,
+      orderTotal: cartTotal,
+    });
+    return response.data;
+  },
 };
 
 // Shipping API

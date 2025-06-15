@@ -4,7 +4,7 @@ import { Voucher, VoucherValidationResult } from "@/types";
 export interface CreateVoucherData {
   code: string;
   description: string;
-  discountType: "amount" | "percent";
+  discountType: "AMOUNT" | "PERCENT";
   discountAmount?: number;
   discountPercent?: number;
   minOrderAmount?: number;
@@ -54,7 +54,9 @@ export interface VoucherStatistics {
 // Admin Voucher API
 export const adminVoucherApi = {
   // Get all vouchers with pagination and filters
-  getVouchers: (params?: VoucherQueryParams): Promise<VoucherListResponse> => {
+  getVouchers: async (
+    params?: VoucherQueryParams
+  ): Promise<VoucherListResponse> => {
     const queryString = new URLSearchParams();
 
     if (params?.page) queryString.set("page", params.page.toString());
@@ -66,53 +68,75 @@ export const adminVoucherApi = {
       queryString.set("discountType", params.discountType);
 
     const query = queryString.toString();
-    return api.get(`/vouchers${query ? `?${query}` : ""}`);
+    const response = await api.get(`/vouchers${query ? `?${query}` : ""}`);
+    return response.data;
+  },
+  // Get single voucher
+  getVoucher: async (id: string): Promise<VoucherResponse> => {
+    const response = await api.get(`/vouchers/${id}`);
+    return response.data;
   },
 
-  // Get single voucher
-  getVoucher: (id: string): Promise<VoucherResponse> =>
-    api.get(`/vouchers/${id}`),
-
   // Create new voucher
-  createVoucher: (data: CreateVoucherData): Promise<VoucherResponse> =>
-    api.post("/vouchers", data),
+  createVoucher: async (data: CreateVoucherData): Promise<VoucherResponse> => {
+    const response = await api.post("/vouchers", data);
+    return response.data;
+  },
 
   // Update voucher
-  updateVoucher: (
+  updateVoucher: async (
     id: string,
     data: UpdateVoucherData
-  ): Promise<VoucherResponse> => api.patch(`/vouchers/${id}`, data),
+  ): Promise<VoucherResponse> => {
+    const response = await api.patch(`/vouchers/${id}`, data);
+    return response.data;
+  },
 
   // Toggle voucher status
-  toggleVoucherStatus: (id: string): Promise<VoucherResponse> =>
-    api.patch(`/vouchers/${id}/toggle-status`),
+  toggleVoucherStatus: async (id: string): Promise<VoucherResponse> => {
+    const response = await api.patch(`/vouchers/${id}/toggle-status`);
+    return response.data;
+  },
 
   // Delete voucher
-  deleteVoucher: (id: string): Promise<void> => api.delete(`/vouchers/${id}`),
+  deleteVoucher: async (id: string): Promise<void> => {
+    await api.delete(`/vouchers/${id}`);
+  },
 
   // Get voucher statistics
-  getStatistics: (): Promise<VoucherStatistics> =>
-    api.get("/vouchers/statistics"),
+  getStatistics: async (): Promise<VoucherStatistics> => {
+    const response = await api.get("/vouchers/statistics");
+    return response.data;
+  },
 
   // Get active vouchers
-  getActiveVouchers: (): Promise<{ data: Voucher[] }> =>
-    api.get("/vouchers/active"),
+  getActiveVouchers: async (): Promise<{ data: Voucher[] }> => {
+    const response = await api.get("/vouchers/active");
+    return response.data;
+  },
 
   // Validate voucher
-  validateVoucher: (
+  validateVoucher: async (
     code: string,
     orderTotal: number
-  ): Promise<VoucherValidationResult> =>
-    api.get(`/vouchers/validate/${code}?orderTotal=${orderTotal}`),
+  ): Promise<VoucherValidationResult> => {
+    const response = await api.get(
+      `/vouchers/validate/${code}?orderTotal=${orderTotal}`
+    );
+    return response.data;
+  },
 
   // Apply voucher
-  applyVoucher: (
+  applyVoucher: async (
     code: string,
     orderTotal: number
   ): Promise<{
     voucher: Voucher;
     discountAmount: number;
-  }> => api.post("/vouchers/apply", { code, orderTotal }),
+  }> => {
+    const response = await api.post("/vouchers/apply", { code, orderTotal });
+    return response.data;
+  },
 };
 
 export default adminVoucherApi;

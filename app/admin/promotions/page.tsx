@@ -41,7 +41,6 @@ export default function PromotionsPage() {
   useEffect(() => {
     fetchVouchers();
   }, [page]);
-
   const fetchVouchers = async () => {
     try {
       setLoading(true);
@@ -50,12 +49,22 @@ export default function PromotionsPage() {
         limit: 10,
         search: searchTerm,
       });
-      setVouchers(response.data);
-      setTotalPages(
-        Math.ceil(response.meta.total / (response.meta.limit || 10))
-      );
+
+      console.log("Vouchers API response:", response);
+
+      // Handle both direct array and wrapped response
+      const vouchersData = Array.isArray(response) ? response : response.data;
+      const metaData = response.meta || {
+        total: vouchersData?.length || 0,
+        limit: 10,
+      };
+
+      setVouchers(vouchersData || []);
+      setTotalPages(Math.ceil((metaData.total || 0) / (metaData.limit || 10)));
     } catch (error) {
       console.error("Error fetching vouchers:", error);
+      setVouchers([]); // Set empty array on error
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
@@ -156,53 +165,64 @@ export default function PromotionsPage() {
                     <TableHead>Trạng thái</TableHead>
                     <TableHead>Hành động</TableHead>
                   </TableRow>
-                </TableHeader>
+                </TableHeader>{" "}
                 <TableBody>
-                  {vouchers.map((voucher) => (
-                    <TableRow key={voucher.id}>
-                      <TableCell className="font-medium">
-                        {voucher.code}
-                      </TableCell>
-                      <TableCell>{voucher.description}</TableCell>
-                      <TableCell>{getDiscountDisplay(voucher)}</TableCell>
-                      <TableCell>
-                        {voucher.minOrderAmount
-                          ? formatPrice(voucher.minOrderAmount)
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {voucher.usageCount}
-                        {voucher.usageLimit ? `/${voucher.usageLimit}` : ""}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(voucher)}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Xem chi tiết
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Chỉnh sửa
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDelete(voucher.id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Xóa
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                  {Array.isArray(vouchers) && vouchers.length > 0 ? (
+                    vouchers.map((voucher) => (
+                      <TableRow key={voucher.id}>
+                        <TableCell className="font-medium">
+                          {voucher.code}
+                        </TableCell>
+                        <TableCell>{voucher.description}</TableCell>
+                        <TableCell>{getDiscountDisplay(voucher)}</TableCell>
+                        <TableCell>
+                          {voucher.minOrderAmount
+                            ? formatPrice(voucher.minOrderAmount)
+                            : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {voucher.usageCount}
+                          {voucher.usageLimit ? `/${voucher.usageLimit}` : ""}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(voucher)}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Xem chi tiết
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Chỉnh sửa
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(voucher.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Xóa
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>{" "}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={7}
+                        className="text-center py-8 text-gray-500"
+                      >
+                        {loading ? "Đang tải..." : "Không có voucher nào"}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             )}

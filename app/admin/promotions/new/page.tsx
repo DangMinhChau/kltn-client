@@ -28,8 +28,8 @@ import {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import adminVoucherApi, { CreateVoucherData } from "@/lib/api/admin-vouchers";
 import Link from "next/link";
-import { adminVoucherApi, CreateVoucherData } from "@/lib/api/admin-vouchers";
 
 const voucherSchema = z
   .object({
@@ -45,21 +45,28 @@ const voucherSchema = z
       required_error: "Please select a discount type",
     }),
     discountAmount: z
-      .number()
-      .min(0.01, "Discount amount must be greater than 0")
+      .union([z.number(), z.nan(), z.undefined()])
+      .transform((val) =>
+        typeof val === "number" && !isNaN(val) ? val : undefined
+      )
       .optional(),
     discountPercent: z
-      .number()
-      .min(0.01, "Discount percent must be greater than 0")
-      .max(100, "Discount percent cannot exceed 100")
+      .union([z.number(), z.nan(), z.undefined()])
+      .transform((val) =>
+        typeof val === "number" && !isNaN(val) ? val : undefined
+      )
       .optional(),
     minOrderAmount: z
-      .number()
-      .min(0, "Minimum order amount cannot be negative")
+      .union([z.number(), z.nan(), z.undefined()])
+      .transform((val) =>
+        typeof val === "number" && !isNaN(val) ? val : undefined
+      )
       .optional(),
     maxDiscountAmount: z
-      .number()
-      .min(0, "Maximum discount amount cannot be negative")
+      .union([z.number(), z.nan(), z.undefined()])
+      .transform((val) =>
+        typeof val === "number" && !isNaN(val) ? val : undefined
+      )
       .optional(),
     startAt: z.date({
       required_error: "Start date is required",
@@ -67,23 +74,37 @@ const voucherSchema = z
     expireAt: z.date({
       required_error: "Expire date is required",
     }),
-    usageLimit: z.number().min(1, "Usage limit must be at least 1").optional(),
+    usageLimit: z
+      .union([z.number(), z.nan(), z.undefined()])
+      .transform((val) =>
+        typeof val === "number" && !isNaN(val) ? val : undefined
+      )
+      .optional(),
     isActive: z.boolean(),
   })
   .refine(
     (data) => {
-      if (data.discountType === "amount" && !data.discountAmount) {
-        return false;
+      if (data.discountType === "amount") {
+        return data.discountAmount !== undefined && data.discountAmount > 0;
       }
-      if (data.discountType === "percent" && !data.discountPercent) {
-        return false;
+      if (data.discountType === "percent") {
+        return (
+          data.discountPercent !== undefined &&
+          data.discountPercent > 0 &&
+          data.discountPercent <= 100
+        );
       }
       return true;
     },
-    {
-      message: "Discount value is required based on selected type",
-      path: ["discountAmount", "discountPercent"],
-    }
+    (data) => ({
+      message:
+        data.discountType === "amount"
+          ? "Discount amount is required and must be greater than 0"
+          : "Discount percentage is required and must be between 0 and 100",
+      path: [
+        data.discountType === "amount" ? "discountAmount" : "discountPercent",
+      ],
+    })
   )
   .refine(
     (data) => {
@@ -114,19 +135,27 @@ export default function NewPromotionPage() {
     },
     mode: "onChange",
   });
-
   const discountType = watch("discountType");
   const startAt = watch("startAt");
   const expireAt = watch("expireAt");
 
+  // Clear opposite field when discount type changes
+  const handleDiscountTypeChange = (value: "amount" | "percent") => {
+    setValue("discountType", value);
+    // Clear the opposite field to avoid validation conflicts
+    if (value === "amount") {
+      setValue("discountPercent", undefined);
+    } else {
+      setValue("discountAmount", undefined);
+    }
+  };
   const onSubmit = async (data: VoucherFormData) => {
     try {
       setLoading(true);
-
       const createData: CreateVoucherData = {
         code: data.code.toUpperCase(),
         description: data.description,
-        discountType: data.discountType,
+        discountType: data.discountType === "amount" ? "AMOUNT" : "PERCENT",
         discountAmount:
           data.discountType === "amount" ? data.discountAmount : undefined,
         discountPercent:
@@ -143,7 +172,6 @@ export default function NewPromotionPage() {
       toast.success("Voucher created successfully!");
       router.push("/admin/promotions");
     } catch (error: any) {
-      console.error("Error creating voucher:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -171,8 +199,7 @@ export default function NewPromotionPage() {
             Create a new discount code or voucher for your customers
           </p>
         </div>
-      </div>
-
+      </div>{" "}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Basic Information */}
@@ -232,12 +259,10 @@ export default function NewPromotionPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="discountType">Discount Type *</Label>
+                <Label htmlFor="discountType">Discount Type *</Label>{" "}
                 <Select
                   value={discountType}
-                  onValueChange={(value: "amount" | "percent") =>
-                    setValue("discountType", value)
-                  }
+                  onValueChange={handleDiscountTypeChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select discount type" />
@@ -441,8 +466,15 @@ export default function NewPromotionPage() {
             <Button variant="outline" type="button" disabled={loading}>
               Cancel
             </Button>
-          </Link>
-          <Button type="submit" disabled={loading}>
+          </Link>{" "}
+          <Button
+            type="submit"
+            disabled={loading}
+            onClick={() => {
+              console.log("Submit button clicked");
+              console.log("Current errors:", errors);
+            }}
+          >
             {loading ? "Creating..." : "Create Voucher"}
           </Button>
         </div>
