@@ -339,11 +339,10 @@ export function UnifiedCartProvider({
   }, [isAuthenticated, localItems]); // Removed fetchApiCart from dependencies
   // Handle logout - optionally preserve cart items in localStorage
   const handleLogout = useCallback(async () => {
-    if (cart && cart.items && cart.items.length > 0) {
-      // Convert API cart items to local format before logout
-      const localCartItems: CartItem[] = cart.items.map(
-        convertCartItemResponseToCartItem
-      );
+    if (cart && cart.items && cart.items.length > 0) {      // Convert API cart items to local format before logout
+      const localCartItems: CartItem[] = cart.items
+        .map(convertCartItemResponseToCartItem)
+        .filter((item): item is CartItem => item !== null);
       saveLocalCart(localCartItems);
     }
 
@@ -528,7 +527,7 @@ export function UnifiedCartProvider({
   const items = isAuthenticated
     ? ((cart?.items || [])
         .map(convertCartItemResponseToCartItem)
-        .filter(Boolean) as CartItem[])
+        .filter((item): item is CartItem => item !== null))
     : localItems || [];
   const totalItems = (items || []).reduce(
     (sum: number, item: CartItem) => sum + item.quantity,
