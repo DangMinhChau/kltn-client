@@ -76,10 +76,9 @@ export function AddProductsToCollectionDialog({
   const fetchProducts = async () => {
     try {
       setLoading(true);
-
       const filters: ProductFilters = {
         search: debouncedSearch || undefined,
-        categoryId: categoryFilter || undefined,
+        category: categoryFilter || undefined,
         isActive: true,
         page,
         limit: pagination.limit,
