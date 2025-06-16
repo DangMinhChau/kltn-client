@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { AdminBreadcrumb } from "@/components/admin/AdminBreadcrumb";
 import {
   Search,
   Plus,
@@ -202,6 +203,14 @@ export default function AdminCollectionsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <AdminBreadcrumb
+        items={[
+          { label: "Products", href: "/admin/products" },
+          { label: "Collections", current: true },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

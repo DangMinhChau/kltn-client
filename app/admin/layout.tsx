@@ -47,12 +47,14 @@ const navigation = [
     href: "/admin",
     icon: Home,
     description: "Overview and analytics",
-  },
-  {
+  },  {
     name: "Products",
-    href: "/admin/products",
     icon: Package,
     description: "Manage products and inventory",
+    children: [
+      { name: "All Products", href: "/admin/products" },
+      { name: "Collections", href: "/admin/products/collections" },
+    ],
   },
   {
     name: "Categories",
@@ -117,6 +119,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [attributesOpen, setAttributesOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -136,7 +139,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const isAnyChildActive = (children: any[] = []) => {
     return children?.some((child) => pathname.startsWith(child.href));
   };
-
   // Auto-open collapsibles if any child is active (only after mounted)
   const isAttributesChildActive = mounted
     ? isAnyChildActive(
@@ -146,6 +148,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const isOrdersChildActive = mounted
     ? isAnyChildActive(
         navigation.find((item) => item.name === "Orders")?.children
+      )
+    : false;
+  const isProductsChildActive = mounted
+    ? isAnyChildActive(
+        navigation.find((item) => item.name === "Products")?.children
       )
     : false;
 

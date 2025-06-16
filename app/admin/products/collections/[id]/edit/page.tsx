@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
 import { use } from "react";
+import { AdminBreadcrumb } from "@/components/admin/AdminBreadcrumb";
 import { ArrowLeft, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -119,7 +120,14 @@ export default function CollectionEditPage({
             </p>
           </div>
         </div>
-      </div>
+      </div>      <AdminBreadcrumb
+        items={[
+          { label: "Products", href: "/admin/products" },
+          { label: "Collections", href: "/admin/products/collections" },
+          { label: collection?.name || "Edit Collection", href: `/admin/products/collections/${id}` },
+          { label: "Edit", current: true },
+        ]}
+      />
 
       {/* Edit Form */}
       <Card>

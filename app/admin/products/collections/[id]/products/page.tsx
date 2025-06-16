@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
+import { AdminBreadcrumb } from "@/components/admin/AdminBreadcrumb";
 import {
   ArrowLeft,
   Search,
@@ -303,6 +304,16 @@ export default function CollectionProductsPage({
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <AdminBreadcrumb
+        items={[
+          { label: "Products", href: "/admin/products" },
+          { label: "Collections", href: "/admin/products/collections" },
+          { label: collection?.name || "Collection", href: `/admin/products/collections/${id}` },
+          { label: "Manage Products", current: true },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
@@ -358,6 +369,14 @@ export default function CollectionProductsPage({
           </div>
         )}
       </div>
+
+      {/* Breadcrumb */}
+      <AdminBreadcrumb
+        items={[
+          { label: "Collections", href: "/admin/collections" },
+          { label: collection.name, href: "#" },
+        ]}
+      />
 
       {/* Filters */}
       <Card>
