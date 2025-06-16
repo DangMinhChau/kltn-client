@@ -55,9 +55,7 @@ export default function CollectionDetailPage({
     try {
       setLoading(true);
       setError(null);
-      const result = await adminCollectionApi.getCollection(
-        parseInt(params.id)
-      );
+      const result = await adminCollectionApi.getCollection(parseInt(id));
       setCollection(result);
     } catch (err: any) {
       if (err.response?.status === 404) {
@@ -71,15 +69,15 @@ export default function CollectionDetailPage({
   };
 
   const handleEdit = () => {
-    router.push(`/admin/products/collections/${params.id}/edit`);
+    router.push(`/admin/products/collections/${id}/edit`);
   };
 
   const handleManageProducts = () => {
-    router.push(`/admin/products/collections/${params.id}/products`);
+    router.push(`/admin/products/collections/${id}/products`);
   };
 
   const handleUploadImages = () => {
-    router.push(`/admin/products/collections/${params.id}/images`);
+    router.push(`/admin/products/collections/${id}/images`);
   };
 
   const toggleStatus = async () => {
@@ -87,7 +85,7 @@ export default function CollectionDetailPage({
 
     try {
       const updatedCollection = await adminCollectionApi.updateCollection(
-        parseInt(params.id),
+        parseInt(id),
         { isActive: !collection.isActive }
       );
       setCollection(updatedCollection);

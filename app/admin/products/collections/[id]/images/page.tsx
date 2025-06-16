@@ -65,18 +65,15 @@ export default function CollectionImagesPage({
     open: boolean;
     image: Image | null;
   }>({ open: false, image: null });
-
   useEffect(() => {
     fetchCollection();
-  }, [params.id]);
+  }, [id]);
 
   const fetchCollection = async () => {
     try {
       setLoading(true);
       setError(null);
-      const result = await adminCollectionApi.getCollection(
-        parseInt(params.id)
-      );
+      const result = await adminCollectionApi.getCollection(parseInt(id));
       setCollection(result);
       setImages(result.images || []);
     } catch (err: any) {
@@ -125,7 +122,7 @@ export default function CollectionImagesPage({
     try {
       setUploading(true);
 
-      await adminCollectionApi.uploadImages(parseInt(params.id), selectedFiles);
+      await adminCollectionApi.uploadImages(parseInt(id), selectedFiles);
 
       toast.success(`Uploaded ${selectedFiles.length} image(s) successfully`);
       setSelectedFiles([]);
@@ -139,10 +136,7 @@ export default function CollectionImagesPage({
 
   const handleDeleteImage = async (imageId: string) => {
     try {
-      await adminCollectionApi.removeImage(
-        parseInt(params.id),
-        parseInt(imageId)
-      );
+      await adminCollectionApi.removeImage(parseInt(id), parseInt(imageId));
       toast.success("Image deleted successfully");
       setImages((prev) => prev.filter((img) => img.id !== imageId));
       setDeleteDialog({ open: false, image: null });
