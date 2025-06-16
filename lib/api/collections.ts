@@ -185,4 +185,22 @@ export const adminCollectionApi = {
     const responseBody = response.data;
     return responseBody.data;
   },
+
+  // Import products by SKU
+  importProductsBySku: async (
+    id: number,
+    data: { skus: string[] }
+  ): Promise<{ imported: number; skipped: string[] }> => {
+    const response = await api.post(`/admin/collections/${id}/import`, data);
+    const responseBody = response.data;
+    return responseBody.data;
+  },
+
+  // Export products to CSV
+  exportProducts: async (id: number): Promise<string> => {
+    const response = await api.get(`/admin/collections/${id}/export`, {
+      responseType: "text",
+    });
+    return response.data;
+  },
 };

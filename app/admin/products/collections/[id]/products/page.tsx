@@ -42,6 +42,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AddProductsToCollectionDialog } from "@/components/collections/AddProductsToCollectionDialog";
 import { adminCollectionApi, productApi } from "@/lib/api";
 import { Collection, Product, ProductFilters } from "@/types";
 import { formatPrice } from "@/lib/utils";
@@ -101,6 +102,10 @@ export default function CollectionProductsPage({
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(
     new Set()
   );
+
+  // Add products dialog state
+  const [showAddDialog, setShowAddDialog] = useState(false);
+
   useEffect(() => {
     fetchCollection();
   }, [id]);
@@ -247,6 +252,27 @@ export default function CollectionProductsPage({
     }
   };
 
+  const handleAddProductsFromDialog = async (products: Product[]) => {
+    try {
+      setUpdating(true);
+
+      const newProductIds = products.map((p) => parseInt(p.id));
+      const existingProductIds = collectionProducts.map((p) => parseInt(p.id));
+      const allProductIds = [...existingProductIds, ...newProductIds];
+
+      await adminCollectionApi.assignProducts(parseInt(id), {
+        productIds: allProductIds,
+      });
+
+      setCollectionProducts((prev) => [...prev, ...products]);
+      toast.success(`Added ${products.length} product(s) to collection`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to add products to collection");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleSelectProduct = (productId: string, checked: boolean) => {
     const newSelected = new Set(selectedProducts);
     if (checked) {
@@ -333,44 +359,53 @@ export default function CollectionProductsPage({
           </div>
         </div>
 
-        {selectedProducts.size > 0 && (
-          <div className="flex items-center space-x-2">
-            <Badge variant="secondary">{selectedProducts.size} selected</Badge>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleBulkAdd}
-              disabled={updating}
-            >
-              {updating ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Plus className="h-4 w-4 mr-2" />
-              )}
-              Add to Collection
+        <div className="flex items-center space-x-2">
+          {selectedProducts.size > 0 ? (
+            <>
+              <Badge variant="secondary">
+                {selectedProducts.size} selected
+              </Badge>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleBulkAdd}
+                disabled={updating}
+              >
+                {updating ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                Add to Collection
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleBulkRemove}
+                disabled={updating}
+              >
+                {updating ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Minus className="h-4 w-4 mr-2" />
+                )}
+                Remove from Collection
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedProducts(new Set())}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </>
+          ) : (
+            <Button onClick={() => setShowAddDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Products
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleBulkRemove}
-              disabled={updating}
-            >
-              {updating ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Minus className="h-4 w-4 mr-2" />
-              )}
-              Remove from Collection
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setSelectedProducts(new Set())}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Breadcrumb */}
@@ -639,6 +674,15 @@ export default function CollectionProductsPage({
           )}
         </CardContent>
       </Card>
+
+      {/* Add Products Dialog */}
+      <AddProductsToCollectionDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        collectionId={parseInt(id)}
+        existingProductIds={collectionProducts.map((p) => p.id)}
+        onProductsAdded={handleAddProductsFromDialog}
+      />
     </div>
   );
 }
