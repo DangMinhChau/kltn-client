@@ -142,21 +142,13 @@ export function SaleProductsSection({
                   <Skeleton className="h-6 w-1/2" />
                 </CardContent>
               </Card>
-            ))
-          ) : saleProducts.length > 0 ? (
+            ))          ) : saleProducts.length > 0 ? (
             saleProducts.map((product) => (
-              <div key={product.id} className="relative group">
-                {/* Sale Badge */}
-                <div className="absolute top-2 left-2 z-10">
-                  <Badge className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 flex items-center gap-1">
-                    <Percent className="h-3 w-3" />-{product.discountPercent}%
-                  </Badge>
-                </div>
-                <ProductCard
-                  product={product}
-                  className="h-full transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1"
-                />
-              </div>
+              <ProductCard
+                key={product.id}
+                product={product}
+                className="h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+              />
             ))
           ) : (
             <div className="col-span-full text-center py-12">

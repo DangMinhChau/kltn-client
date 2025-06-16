@@ -384,7 +384,8 @@ export default function EditProductPage() {
                           </FormControl>
                           <FormMessage />
                         </FormItem>
-                      )}                    />
+                      )}
+                    />
                     <FormField
                       control={form.control}
                       name="discountPercent"

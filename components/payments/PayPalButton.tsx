@@ -19,18 +19,25 @@ export default function PayPalButton({
   onError,
 }: PayPalButtonProps) {
   const [{ isResolved, isPending }] = usePayPalScriptReducer();
-
   const createOrder = async () => {
     try {
+      // Prepare headers
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      // Only add Authorization if token exists
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       // Create PayPal order on backend
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/payments/paypal/create-order`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
+          headers,
           body: JSON.stringify({
             orderId: orderId,
             amount: amount,
@@ -40,10 +47,13 @@ export default function PayPalButton({
       );
 
       if (!response.ok) {
-        throw new Error("Failed to create PayPal order");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("PayPal order creation failed:", errorData);
+        throw new Error(errorData.message || "Failed to create PayPal order");
       }
 
       const data = await response.json();
+      console.log("PayPal order created:", data);
       return data.data.paypalOrderId || data.paypalOrderId;
     } catch (error) {
       console.error("PayPal order creation error:", error);
@@ -51,18 +61,25 @@ export default function PayPalButton({
       throw error;
     }
   };
-
   const onApprove = async (data: any) => {
     try {
+      // Prepare headers
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      // Only add Authorization if token exists
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       // Capture payment on backend
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/payments/paypal/capture-order`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
+          headers,
           body: JSON.stringify({
             paypalOrderId: data.orderID,
             orderId: orderId,
@@ -71,10 +88,15 @@ export default function PayPalButton({
       );
 
       if (!response.ok) {
-        throw new Error("Failed to capture PayPal payment");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("PayPal capture failed:", errorData);
+        throw new Error(
+          errorData.message || "Failed to capture PayPal payment"
+        );
       }
 
       const result = await response.json();
+      console.log("PayPal payment captured:", result);
 
       if (
         result.data?.status === "COMPLETED" ||

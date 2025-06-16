@@ -123,6 +123,25 @@ function CheckoutContent() {
   const handlePlaceOrder = async () => {
     if (!validateForm()) return;
 
+    console.log("Creating order with payment method:", paymentMethod);
+    console.log("Order data:", {
+      customerName: shippingForm.customerName,
+      customerEmail: shippingForm.customerEmail,
+      customerPhone: shippingForm.customerPhone,
+      shippingAddress: shippingForm.shippingAddress,
+      items: items.map((item) => ({
+        variantId: item.variant.id,
+        quantity: item.quantity,
+        unitPrice: item.discountPrice || item.price,
+      })),
+      voucherId: appliedVoucher?.voucher?.id,
+      subTotal: subtotal,
+      shippingFee,
+      discount,
+      totalPrice: finalTotal,
+      note: shippingForm.note,
+    });
+
     setLoading(true);
     try {
       const orderData: any = {
@@ -150,6 +169,7 @@ function CheckoutContent() {
 
       const response = await orderApi.createOrder(orderData);
       const order = response.data || response;
+      console.log("Order created successfully:", order);
 
       setOrderCreated(order); // Handle payment based on selected method
       if (paymentMethod === "cash") {
@@ -603,7 +623,9 @@ function CheckoutContent() {
                 <Button
                   onClick={handlePlaceOrder}
                   disabled={
-                    loading || items.length === 0 || paymentMethod === "paypal"
+                    loading ||
+                    items.length === 0 ||
+                    (paymentMethod === "paypal" && orderCreated)
                   }
                   className="w-full"
                   size="lg"
@@ -616,7 +638,11 @@ function CheckoutContent() {
                         : "Đang xử lý..."}
                     </div>
                   ) : paymentMethod === "paypal" ? (
-                    "Tạo đơn hàng"
+                    orderCreated ? (
+                      "Đơn hàng đã tạo"
+                    ) : (
+                      "Tạo đơn hàng"
+                    )
                   ) : (
                     "Đặt hàng"
                   )}
