@@ -40,6 +40,7 @@ export default function VoucherInput({
       toast.error("Giỏ hàng trống, không thể áp dụng voucher");
       return;
     }
+
     setIsValidating(true);
     try {
       const response = await voucherApi.validateVoucher(
@@ -47,19 +48,27 @@ export default function VoucherInput({
         cartTotal
       );
 
-      if (response.isValid) {
+      console.log("VoucherInput - Validation response:", response);
+      const validationResult = response;
+
+      if (validationResult.isValid) {
         const voucherResult: VoucherValidationResult = {
           isValid: true,
-          voucher: response.voucher!,
-          discountAmount: response.discountAmount || 0,
+          voucher: validationResult.voucher!,
+          discountAmount:
+            typeof validationResult.discountAmount === "string"
+              ? parseFloat(validationResult.discountAmount)
+              : validationResult.discountAmount || 0,
           message: "Voucher áp dụng thành công!",
         };
+
+        console.log("VoucherInput - Created voucher result:", voucherResult);
 
         onVoucherApplied(voucherResult);
         toast.success("Áp dụng voucher thành công!");
         setVoucherCode("");
       } else {
-        toast.error(response.reason || "Mã voucher không hợp lệ");
+        toast.error(validationResult.error || "Mã voucher không hợp lệ");
       }
     } catch (error: any) {
       console.error("Error validating voucher:", error);
@@ -143,24 +152,24 @@ export default function VoucherInput({
                 </div>
               </div>
               <Button
+                onClick={removeVoucher}
                 variant="ghost"
                 size="sm"
-                onClick={removeVoucher}
+                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-100"
                 disabled={disabled}
-                className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-100"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3 w-3" />
               </Button>
-            </div>{" "}
-            {appliedVoucher.voucher?.minOrderAmount && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <AlertCircle className="h-3 w-3" />
-                <span>
-                  Áp dụng cho đơn hàng từ{" "}
-                  {formatPrice(appliedVoucher.voucher.minOrderAmount)}
-                </span>
-              </div>
-            )}
+            </div>
+
+            <Separator />
+
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Tiết kiệm:</span>
+              <span className="font-medium text-green-600">
+                -{formatPrice(appliedVoucher.discountAmount)}
+              </span>
+            </div>
           </div>
         )}
       </CardContent>

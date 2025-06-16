@@ -4,7 +4,7 @@ import { Voucher, VoucherValidationResult } from "@/types";
 export interface CreateVoucherData {
   code: string;
   description: string;
-  discountType: "AMOUNT" | "PERCENT";
+  discountType: "amount" | "percent";
   discountAmount?: number;
   discountPercent?: number;
   minOrderAmount?: number;

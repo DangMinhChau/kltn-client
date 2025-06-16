@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,10 +29,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { toast } from "sonner";
 import adminVoucherApi, { VoucherListResponse } from "@/lib/api/admin-vouchers";
 import { Voucher } from "@/types";
 
 export default function PromotionsPage() {
+  const router = useRouter();
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,6 +44,7 @@ export default function PromotionsPage() {
   useEffect(() => {
     fetchVouchers();
   }, [page]);
+
   const fetchVouchers = async () => {
     try {
       setLoading(true);
@@ -49,7 +53,6 @@ export default function PromotionsPage() {
         limit: 10,
         search: searchTerm,
       });
-
       console.log("Vouchers API response:", response);
 
       // Handle both direct array and wrapped response
@@ -58,6 +61,9 @@ export default function PromotionsPage() {
         total: vouchersData?.length || 0,
         limit: 10,
       };
+
+      console.log("Processed vouchers data:", vouchersData);
+      console.log("First voucher example:", vouchersData?.[0]);
 
       setVouchers(vouchersData || []);
       setTotalPages(Math.ceil((metaData.total || 0) / (metaData.limit || 10)));
@@ -79,17 +85,34 @@ export default function PromotionsPage() {
     if (confirm("Bạn có chắc chắn muốn xóa voucher này?")) {
       try {
         await adminVoucherApi.deleteVoucher(id);
+        toast.success("Xóa voucher thành công!");
         fetchVouchers();
       } catch (error) {
         console.error("Error deleting voucher:", error);
+        toast.error("Có lỗi xảy ra khi xóa voucher");
       }
+    }
+  };
+
+  const handleEdit = (id: string) => {
+    router.push(`/admin/promotions/edit/${id}`);
+  };
+
+  const handleToggleStatus = async (id: string) => {
+    try {
+      await adminVoucherApi.toggleVoucherStatus(id);
+      toast.success("Cập nhật trạng thái thành công!");
+      fetchVouchers();
+    } catch (error) {
+      console.error("Error toggling voucher status:", error);
+      toast.error("Có lỗi xảy ra khi cập nhật trạng thái");
     }
   };
 
   const getStatusBadge = (voucher: Voucher) => {
     const now = new Date();
-    const startDate = new Date(voucher.startAt);
-    const endDate = new Date(voucher.expireAt);
+    const startDate = new Date(voucher.startDate);
+    const endDate = new Date(voucher.endDate);
 
     if (!voucher.isActive) {
       return <Badge variant="secondary">Tạm dừng</Badge>;
@@ -102,13 +125,29 @@ export default function PromotionsPage() {
     }
     return <Badge variant="default">Đang hoạt động</Badge>;
   };
-
   const getDiscountDisplay = (voucher: Voucher) => {
-    if (voucher.discountType === "amount") {
-      return formatPrice(voucher.discountAmount || 0);
-    } else {
-      return `${voucher.discountPercent}%`;
+    console.log("Voucher discount data:", {
+      discountType: voucher.discountType,
+      discountValue: voucher.discountValue,
+      voucherObject: voucher,
+    });
+
+    if (
+      !voucher.discountType ||
+      voucher.discountValue === undefined ||
+      voucher.discountValue === null
+    ) {
+      return "N/A";
     }
+
+    if (voucher.discountType === "amount") {
+      return formatPrice(Number(voucher.discountValue) || 0);
+    } else if (voucher.discountType === "percent") {
+      return `${Number(voucher.discountValue) || 0}%`;
+    }
+
+    console.warn("Unknown discount type:", voucher.discountType);
+    return "N/A";
   };
 
   return (
@@ -165,7 +204,7 @@ export default function PromotionsPage() {
                     <TableHead>Trạng thái</TableHead>
                     <TableHead>Hành động</TableHead>
                   </TableRow>
-                </TableHeader>{" "}
+                </TableHeader>
                 <TableBody>
                   {Array.isArray(vouchers) && vouchers.length > 0 ? (
                     vouchers.map((voucher) => (
@@ -176,12 +215,12 @@ export default function PromotionsPage() {
                         <TableCell>{voucher.description}</TableCell>
                         <TableCell>{getDiscountDisplay(voucher)}</TableCell>
                         <TableCell>
-                          {voucher.minOrderAmount
-                            ? formatPrice(voucher.minOrderAmount)
+                          {voucher.minOrderValue
+                            ? formatPrice(voucher.minOrderValue)
                             : "-"}
                         </TableCell>
                         <TableCell>
-                          {voucher.usageCount}
+                          {voucher.usedCount}
                           {voucher.usageLimit ? `/${voucher.usageLimit}` : ""}
                         </TableCell>
                         <TableCell>{getStatusBadge(voucher)}</TableCell>
@@ -193,13 +232,17 @@ export default function PromotionsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Xem chi tiết
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleEdit(voucher.id)}
+                              >
                                 <Edit className="mr-2 h-4 w-4" />
                                 Chỉnh sửa
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleToggleStatus(voucher.id)}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                {voucher.isActive ? "Tạm dừng" : "Kích hoạt"}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDelete(voucher.id)}
@@ -210,7 +253,7 @@ export default function PromotionsPage() {
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
-                        </TableCell>{" "}
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (

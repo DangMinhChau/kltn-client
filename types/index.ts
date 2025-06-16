@@ -244,15 +244,14 @@ export interface CartItem {
   name: string;
   price: number;
   discountPrice?: number;
-  imageUrl: string; // Used in page.tsx
-  image: string; // Used in components
+  imageUrl: string;
+  image: string;
   slug: string;
   variant: ProductVariant;
-  color: string; // For convenience access to variant.color.name
-  size: string; // For convenience access to variant.size.name
-  sku: string; // For convenience access to variant.sku
+  color: string;
+  size: string;
+  sku: string;
 }
-
 // Cart Context Types
 export interface CartState {
   items: CartItem[];
@@ -296,8 +295,6 @@ export interface UnifiedCartContextType {
   totalItems: number;
   totalAmount: number;
 }
-
-// Order Types are now exported from ./order.ts to avoid duplication
 
 // API Response Types
 export interface ApiResponse<T> {
@@ -424,14 +421,13 @@ export interface Voucher {
   code: string;
   description: string;
   discountType: "amount" | "percent";
-  discountAmount?: number;
-  discountPercent?: number;
-  minOrderAmount?: number;
+  discountValue: number; // Combined field for both amount and percent
+  minOrderValue?: number;
   maxDiscountAmount?: number;
-  startAt: string; // Backend uses startAt
-  expireAt: string; // Backend uses expireAt
+  startDate: string; // Backend DTO uses startDate
+  endDate: string; // Backend DTO uses endDate
   usageLimit?: number;
-  usageCount: number;
+  usedCount: number; // Backend DTO uses usedCount
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -460,10 +456,6 @@ export interface Payment {
   updatedAt: string;
 }
 
-// Shipping Types are now exported from ./order.ts to avoid duplication
-
-// Notification Types
-// Đồng bộ với NotificationType từ backend
 export enum NotificationType {
   ORDER_CREATED = "order_created",
   ORDER_UPDATED = "order_updated",
@@ -479,13 +471,13 @@ export enum NotificationType {
 
 export interface Notification {
   id: string;
-  userId: string; // Reference to user.id
+  userId: string;
   title: string;
-  message: string; // Maps to content in backend
+  message: string;
   type: NotificationType;
   isRead: boolean;
-  relatedId?: string; // Maps to metadata in backend
-  readAt?: string; // Added from backend
+  relatedId?: string;
+  readAt?: string;
   createdAt: string;
   updatedAt: string;
 }

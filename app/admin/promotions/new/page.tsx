@@ -155,7 +155,7 @@ export default function NewPromotionPage() {
       const createData: CreateVoucherData = {
         code: data.code.toUpperCase(),
         description: data.description,
-        discountType: data.discountType === "amount" ? "AMOUNT" : "PERCENT",
+        discountType: data.discountType,
         discountAmount:
           data.discountType === "amount" ? data.discountAmount : undefined,
         discountPercent:

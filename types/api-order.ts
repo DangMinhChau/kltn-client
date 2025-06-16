@@ -319,9 +319,9 @@ export interface OrderPreviewResponse
 export interface VoucherValidationResponse {
   isValid: boolean;
   voucher?: any;
-  discountAmount?: number;
+  discountAmount?: number | string;
   finalAmount?: number;
-  reason?: string;
+  error?: string;
 }
 
 export interface PaymentCreationResponse
