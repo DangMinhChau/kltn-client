@@ -103,8 +103,7 @@ export default function CheckoutPage() {
 
     setLoading(true);
     try {
-      const orderData = {
-        userId: user?.id || null, // Allow null for guest orders
+      const orderData: any = {
         customerName: shippingForm.customerName,
         customerEmail: shippingForm.customerEmail,
         customerPhone: shippingForm.customerPhone,
@@ -121,6 +120,11 @@ export default function CheckoutPage() {
         totalPrice: finalTotal,
         note: shippingForm.note,
       };
+
+      // Only include userId if user is authenticated
+      if (user?.id) {
+        orderData.userId = user.id;
+      }
       console.log("Creating order with data:", orderData);
 
       const response = await orderApi.createOrder(orderData);
