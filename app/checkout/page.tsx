@@ -1,9 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, CreditCard, Truck, MapPin, Tag } from "lucide-react";
+import {
+  ArrowLeft,
+  CreditCard,
+  Truck,
+  MapPin,
+  Tag,
+  Loader2,
+} from "lucide-react";
 import { useCart } from "@/lib/context/UnifiedCartContext";
 import { useAuth } from "@/lib/context/AuthContext";
 import { VoucherValidationResult } from "@/types";
@@ -16,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import VoucherInput from "@/components/cart/VoucherInput";
-import { orderApi } from "@/lib/api/orders";
+import { orderApi, voucherApi } from "@/lib/api/orders";
 import { toast } from "sonner";
 
 interface ShippingForm {
@@ -28,14 +35,32 @@ interface ShippingForm {
 }
 
 export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p>Đang tải trang thanh toán...</p>
+          </div>
+        </div>
+      }
+    >
+      <CheckoutContent />
+    </Suspense>
+  );
+}
+
+function CheckoutContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { items, totalAmount, clearCart } = useCart();
   const { user, isAuthenticated } = useAuth();
-
   const [appliedVoucher, setAppliedVoucher] =
     useState<VoucherValidationResult | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [loading, setLoading] = useState(false);
+  const [autoApplyingVoucher, setAutoApplyingVoucher] = useState(false);
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
     customerName: user?.fullName || "",
     customerEmail: user?.email || "",
@@ -133,9 +158,7 @@ export default function CheckoutPage() {
       // Handle both wrapped and direct response formats
       const order = response.data || response;
       const orderId = order.id;
-      const orderNumber = order.orderNumber;
-
-      // Handle payment based on selected method
+      const orderNumber = order.orderNumber; // Handle payment based on selected method
       if (paymentMethod === "vnpay") {
         // Create VNPay payment
         const paymentHeaders: Record<string, string> = {
@@ -149,32 +172,54 @@ export default function CheckoutPage() {
           )}`;
         }
 
-        const paymentResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/payments`,
-          {
-            method: "POST",
-            headers: paymentHeaders,
-            body: JSON.stringify({
-              orderId: orderId,
-              method: "VNPAY",
-              amount: finalTotal,
-              returnUrl: `${window.location.origin}/checkout/payment/result/vnpay`,
-              clientIp: "127.0.0.1", // In production, get real IP
-            }),
+        try {
+          const paymentResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/payments`,
+            {
+              method: "POST",
+              headers: paymentHeaders,
+              body: JSON.stringify({
+                orderId: orderId,
+                method: "VNPAY",
+                amount: finalTotal,
+                returnUrl: `${window.location.origin}/checkout/payment/result/vnpay`,
+                clientIp: "127.0.0.1", // In production, get real IP
+              }),
+            }
+          );
+
+          if (paymentResponse.ok) {
+            const paymentData = await paymentResponse.json();
+
+            if (!paymentData.paymentUrl) {
+              throw new Error("Payment URL not received from server");
+            }
+
+            // Clear cart before redirect
+            await clearCart();
+
+            // Show success message before redirect
+            toast.success("Đang chuyển hướng đến trang thanh toán VNPay...");
+
+            // Small delay to show the toast
+            setTimeout(() => {
+              window.location.href = paymentData.paymentUrl;
+            }, 1000);
+
+            return;
+          } else {
+            const errorData = await paymentResponse.json();
+            throw new Error(
+              errorData.message || "Failed to create VNPay payment"
+            );
           }
-        );
-
-        if (paymentResponse.ok) {
-          const paymentData = await paymentResponse.json();
-
-          // Clear cart before redirect
-          await clearCart();
-
-          // Redirect to VNPay payment page
-          window.location.href = paymentData.paymentUrl;
-          return;
-        } else {
-          throw new Error("Failed to create VNPay payment");
+        } catch (error) {
+          console.error("VNPay payment error:", error);
+          throw new Error(
+            error instanceof Error
+              ? error.message
+              : "Không thể tạo thanh toán VNPay. Vui lòng thử lại."
+          );
         }
       } else if (paymentMethod === "cash") {
         // Create COD payment record
@@ -232,7 +277,52 @@ export default function CheckoutPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }; // Auto-load voucher from URL params (from cart)
+  useEffect(() => {
+    const voucherCode = searchParams.get("voucherCode");
+    if (voucherCode && !appliedVoucher && !autoApplyingVoucher) {
+      const autoApplyVoucher = async () => {
+        setAutoApplyingVoucher(true);
+        try {
+          const validation = await voucherApi.validateVoucher(
+            voucherCode,
+            subtotal
+          );
+          if (validation.isValid && validation.voucher) {
+            setAppliedVoucher({
+              isValid: true,
+              voucher: validation.voucher,
+              discountAmount:
+                typeof validation.discountAmount === "number"
+                  ? validation.discountAmount
+                  : parseFloat(validation.discountAmount?.toString() || "0"),
+              message: "Voucher applied successfully",
+            });
+            toast.success(
+              `Voucher ${voucherCode} đã được áp dụng từ giỏ hàng!`
+            );
+
+            // Clear voucher code from URL after successful application
+            const url = new URL(window.location.href);
+            url.searchParams.delete("voucherCode");
+            window.history.replaceState({}, "", url.toString());
+          } else {
+            toast.error(
+              validation.error ||
+                `Voucher ${voucherCode} không hợp lệ hoặc đã hết hạn`
+            );
+          }
+        } catch (error) {
+          console.error("Failed to auto-apply voucher:", error);
+          toast.error(`Không thể áp dụng voucher ${voucherCode}`);
+        } finally {
+          setAutoApplyingVoucher(false);
+        }
+      };
+
+      autoApplyVoucher();
+    }
+  }, [searchParams, subtotal, appliedVoucher, autoApplyingVoucher]);
 
   if (items.length === 0) {
     return null; // Will redirect
@@ -346,17 +436,79 @@ export default function CheckoutPage() {
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="cash" id="cash" />
                     <Label htmlFor="cash">Thanh toán khi nhận hàng (COD)</Label>
-                  </div>
+                  </div>{" "}
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="vnpay" id="vnpay" />
-                    <Label htmlFor="vnpay" className="flex items-center">
-                      <span>Thanh toán qua VNPay</span>
-                      <div className="ml-2 text-xs text-blue-600">
-                        (ATM, Visa, MasterCard, QR Code)
+                    <Label
+                      htmlFor="vnpay"
+                      className="flex items-center cursor-pointer"
+                    >
+                      <div className="flex items-center">
+                        <div className="flex items-center space-x-2">
+                          <svg
+                            className="w-8 h-5"
+                            viewBox="0 0 32 20"
+                            fill="none"
+                          >
+                            <rect
+                              width="32"
+                              height="20"
+                              rx="4"
+                              fill="#1E40AF"
+                            />
+                            <text
+                              x="16"
+                              y="12"
+                              textAnchor="middle"
+                              fill="white"
+                              fontSize="8"
+                              fontWeight="bold"
+                            >
+                              VNPay
+                            </text>
+                          </svg>
+                          <span>Thanh toán qua VNPay</span>
+                        </div>
+                        <div className="ml-2 text-xs text-blue-600">
+                          (ATM, Visa, MasterCard, QR Code)
+                        </div>
                       </div>
                     </Label>
                   </div>
                 </RadioGroup>
+                {/* VNPay Security Notice */}
+                {paymentMethod === "vnpay" && (
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start space-x-2">
+                      <div className="w-5 h-5 text-blue-600 mt-0.5">
+                        <svg
+                          className="w-full h-full"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium">
+                          Thanh toán an toàn với VNPay
+                        </p>
+                        <p className="mt-1">
+                          • Bạn sẽ được chuyển hướng đến cổng thanh toán VNPay
+                          an toàn
+                          <br />
+                          • Hỗ trợ thẻ ATM nội địa, Visa, MasterCard, JCB và QR
+                          Code
+                          <br />• Giao dịch được mã hóa 256-bit SSL
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
             {/* Voucher */}
@@ -366,13 +518,24 @@ export default function CheckoutPage() {
                   <Tag className="mr-2 h-5 w-5" />
                   Mã giảm giá
                 </CardTitle>
-              </CardHeader>
+              </CardHeader>{" "}
               <CardContent>
+                {autoApplyingVoucher && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                      <span className="text-sm text-blue-800">
+                        Đang áp dụng voucher từ giỏ hàng...
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <VoucherInput
                   cartTotal={subtotal}
                   onVoucherApplied={handleVoucherApplied}
                   onVoucherRemoved={handleVoucherRemoved}
                   appliedVoucher={appliedVoucher}
+                  disabled={autoApplyingVoucher}
                 />
               </CardContent>
             </Card>
@@ -414,9 +577,7 @@ export default function CheckoutPage() {
                     </div>
                   ))}
                 </div>
-
                 <Separator />
-
                 {/* Calculations */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
@@ -438,15 +599,25 @@ export default function CheckoutPage() {
                     <span>Tổng cộng</span>
                     <span>{formatPrice(finalTotal)}</span>
                   </div>
-                </div>
-
+                </div>{" "}
                 <Button
                   onClick={handlePlaceOrder}
                   disabled={loading || items.length === 0}
                   className="w-full"
                   size="lg"
                 >
-                  {loading ? "Đang xử lý..." : "Đặt hàng"}
+                  {loading ? (
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      {paymentMethod === "vnpay"
+                        ? "Đang tạo thanh toán VNPay..."
+                        : "Đang xử lý..."}
+                    </div>
+                  ) : paymentMethod === "vnpay" ? (
+                    "Thanh toán với VNPay"
+                  ) : (
+                    "Đặt hàng"
+                  )}
                 </Button>
               </CardContent>
             </Card>

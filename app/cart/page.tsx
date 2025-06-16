@@ -389,14 +389,12 @@ function CartContent({
                         {totalItems} sản phẩm
                       </dd>
                     </div>
-
                     <div className="flex items-center justify-between">
                       <dt className="text-sm text-gray-600">Tạm tính</dt>
                       <dd className="text-sm font-medium text-gray-900">
                         {formatPrice(totalAmount)}
                       </dd>
                     </div>
-
                     {/* Voucher Discount */}
                     {appliedVoucher && discountAmount > 0 && (
                       <div className="flex items-center justify-between text-green-600">
@@ -408,16 +406,13 @@ function CartContent({
                         </dd>
                       </div>
                     )}
-
                     <div className="flex items-center justify-between">
                       <dt className="text-sm text-gray-600">Phí vận chuyển</dt>
                       <dd className="text-sm font-medium text-gray-900">
                         Tính khi thanh toán
                       </dd>
                     </div>
-
                     <Separator />
-
                     <div className="flex items-center justify-between">
                       <dt className="text-base font-medium text-gray-900">
                         Tổng cộng
@@ -425,12 +420,17 @@ function CartContent({
                       <dd className="text-base font-medium text-gray-900">
                         {formatPrice(finalAmount)}
                       </dd>
-                    </div>
-
+                    </div>{" "}
                     {/* Savings display */}
                     {appliedVoucher && discountAmount > 0 && (
-                      <div className="text-center text-sm text-green-600 bg-green-50 rounded-lg p-2">
-                        🎉 Bạn đã tiết kiệm được {formatPrice(discountAmount)}!
+                      <div className="space-y-2">
+                        <div className="text-center text-sm text-green-600 bg-green-50 rounded-lg p-2">
+                          🎉 Bạn đã tiết kiệm được {formatPrice(discountAmount)}
+                          !
+                        </div>
+                        <div className="text-center text-xs text-blue-600 bg-blue-50 rounded-lg p-2">
+                          💡 Voucher sẽ được tự động áp dụng khi thanh toán
+                        </div>
                       </div>
                     )}
                   </div>
