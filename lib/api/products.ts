@@ -69,7 +69,7 @@ export const getSaleProducts = async (params?: {
 
   const response = await api.get(`/products/sale?${searchParams.toString()}`);
   const responseBody = response.data;
-  
+
   return {
     data: responseBody.data || [],
     meta: {
@@ -84,10 +84,12 @@ export const getSaleProducts = async (params?: {
 export const getSaleStatistics = async () => {
   const response = await api.get("/products/sale/statistics");
   const responseBody = response.data;
-  return responseBody.data || {
-    totalSaleProducts: 0,
-    maxDiscountPercent: 0,
-    averageDiscountPercent: 0,
-    totalDiscountValue: 0,
-  };
+  return (
+    responseBody.data || {
+      totalSaleProducts: 0,
+      maxDiscountPercent: 0,
+      averageDiscountPercent: 0,
+      totalDiscountValue: 0,
+    }
+  );
 };

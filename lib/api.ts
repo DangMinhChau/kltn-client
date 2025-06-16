@@ -140,12 +140,15 @@ export const productApi = {
     const responseBody = response.data;
 
     return responseBody.data || [];
-  }, // Get products on sale
+  },
+  // Get products on sale
   getSaleProducts: async (params?: {
     page?: number;
     limit?: number;
     sort?: "newest" | "price_asc" | "price_desc" | "discount_desc";
   }): Promise<PaginationResult<Product>> => {
+    console.log("getSaleProducts called with params:", params);
+
     const response = await api.get("/products/sale", {
       params: {
         page: 1,
@@ -154,9 +157,11 @@ export const productApi = {
         ...params,
       },
     });
+
+    console.log("getSaleProducts raw response:", response.data);
     const responseBody = response.data;
 
-    return {
+    const result = {
       data: responseBody.data || [],
       meta: {
         total: responseBody.meta?.total || 0,
@@ -165,6 +170,9 @@ export const productApi = {
         limit: responseBody.meta?.limit || 20,
       },
     };
+
+    console.log("getSaleProducts processed result:", result);
+    return result;
   },
 
   // Get products by category

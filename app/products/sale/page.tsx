@@ -39,17 +39,26 @@ function SalePageContent() {
 
   // Get initial values from URL params
   const page = parseInt(searchParams.get("page") || "1");
-  const sort = searchParams.get("sort") || "discount_desc";
-  // Fetch sale products
+  const sort = searchParams.get("sort") || "discount_desc"; // Fetch sale products
   const fetchSaleProducts = async () => {
     try {
       setLoading(true);
       setError(null);
+      console.log("Fetching sale products with params:", {
+        page,
+        limit: 20,
+        sort,
+      });
+
       const result = await productApi.getSaleProducts({
         page,
         limit: 20,
         sort: sort as any,
       });
+
+      console.log("Sale products API response:", result);
+      console.log("Products data:", result.data);
+      console.log("Meta data:", result.meta);
 
       setProducts(result.data);
       setPagination({
