@@ -970,8 +970,7 @@ export const adminApi = {
       );
       return response.data.data;
     },
-  },
-  // Users
+  }, // Users
   users: adminUsersApi,
 
   // Variants
@@ -979,6 +978,22 @@ export const adminApi = {
 
   // Orders
   orders: adminOrdersApi,
+
+  // Colors
+  colors: {
+    getAll: async (): Promise<Color[]> => {
+      const response = await api.get<BackendResponse<Color[]>>("/colors");
+      return response.data.data || [];
+    },
+  },
+
+  // Sizes
+  sizes: {
+    getAll: async (): Promise<Size[]> => {
+      const response = await api.get<BackendResponse<Size[]>>("/sizes");
+      return response.data.data || [];
+    },
+  },
 };
 
 // ================================
