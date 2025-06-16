@@ -120,15 +120,18 @@ export default function CollectionEditPage({
             </p>
           </div>
         </div>
-      </div>      <AdminBreadcrumb
+      </div>{" "}
+      <AdminBreadcrumb
         items={[
           { label: "Products", href: "/admin/products" },
           { label: "Collections", href: "/admin/products/collections" },
-          { label: collection?.name || "Edit Collection", href: `/admin/products/collections/${id}` },
+          {
+            label: collection?.name || "Edit Collection",
+            href: `/admin/products/collections/${id}`,
+          },
           { label: "Edit", current: true },
         ]}
       />
-
       {/* Edit Form */}
       <Card>
         <CardHeader>

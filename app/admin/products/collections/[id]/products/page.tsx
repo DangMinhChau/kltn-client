@@ -309,7 +309,10 @@ export default function CollectionProductsPage({
         items={[
           { label: "Products", href: "/admin/products" },
           { label: "Collections", href: "/admin/products/collections" },
-          { label: collection?.name || "Collection", href: `/admin/products/collections/${id}` },
+          {
+            label: collection?.name || "Collection",
+            href: `/admin/products/collections/${id}`,
+          },
           { label: "Manage Products", current: true },
         ]}
       />

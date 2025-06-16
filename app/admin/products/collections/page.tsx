@@ -210,7 +210,6 @@ export default function AdminCollectionsPage() {
           { label: "Collections", current: true },
         ]}
       />
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

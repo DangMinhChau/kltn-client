@@ -47,7 +47,8 @@ const navigation = [
     href: "/admin",
     icon: Home,
     description: "Overview and analytics",
-  },  {
+  },
+  {
     name: "Products",
     icon: Package,
     description: "Manage products and inventory",
