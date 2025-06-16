@@ -23,6 +23,8 @@ import {
   Plus,
 } from "lucide-react";
 import Link from "next/link";
+import { InventoryStats } from "@/components/admin/InventoryStats";
+import { LowStockAlert } from "@/components/admin/LowStockAlert";
 
 interface DashboardStats {
   totalProducts: number;
@@ -348,89 +350,167 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Orders */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Đơn hàng gần đây</CardTitle>
-            <CardDescription>
-              5 đơn hàng mới nhất trong hệ thống
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-medium">{order.orderNumber}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {order.customerName}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">{formatCurrency(order.total)}</p>
-                    <div className="flex items-center gap-2">
-                      {getStatusBadge(order.status)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <Button variant="outline" className="w-full" asChild>
-                <Link href="/admin/orders">Xem tất cả đơn hàng</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Detailed Analytics Tabs */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Tổng quan</TabsTrigger>
+          <TabsTrigger value="inventory">Kho hàng</TabsTrigger>
+          <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
+          <TabsTrigger value="customers">Khách hàng</TabsTrigger>
+        </TabsList>
 
-        {/* Recent Products */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Sản phẩm mới</CardTitle>
-            <CardDescription>5 sản phẩm được thêm gần đây</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-medium">{product.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {product.category}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">
-                      {formatCurrency(product.price)}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-xs ${
-                          product.stock < 10
-                            ? "text-red-600"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        SL: {product.stock}
-                      </span>
-                      {getStatusBadge(product.status)}
+        <TabsContent value="overview" className="space-y-4">
+          {/* Recent Activity */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Recent Orders */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Đơn hàng gần đây</CardTitle>
+                <CardDescription>
+                  5 đơn hàng mới nhất trong hệ thống
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {recentOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="font-medium">{order.orderNumber}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {order.customerName}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{formatCurrency(order.total)}</p>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(order.status)}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link href="/admin/orders">Xem tất cả đơn hàng</Link>
+                  </Button>
                 </div>
-              ))}
-              <Button variant="outline" className="w-full" asChild>
-                <Link href="/admin/products">Xem tất cả sản phẩm</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </CardContent>
+            </Card>
+
+            {/* Low Stock Alert */}
+            <LowStockAlert />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="inventory" className="space-y-4">
+          <InventoryStats />
+        </TabsContent>
+
+        <TabsContent value="orders" className="space-y-4">
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Recent Orders Table */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Đơn hàng gần đây</CardTitle>
+                <CardDescription>
+                  Quản lý và theo dõi các đơn hàng mới nhất
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {recentOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
+                      <div>
+                        <p className="font-medium">{order.orderNumber}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {order.customerName} • {formatDate(order.createdAt)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{formatCurrency(order.total)}</p>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(order.status)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link href="/admin/orders">Xem tất cả đơn hàng</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="customers" className="space-y-4">
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Customer Stats */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Thống kê khách hàng</CardTitle>
+                <CardDescription>Tổng quan về khách hàng</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Tổng khách hàng</span>
+                  <span className="font-medium">{stats.totalUsers}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Khách hàng mới tháng này</span>
+                  <span className="font-medium text-green-600">+24</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Khách hàng hoạt động</span>
+                  <span className="font-medium">{Math.floor(stats.totalUsers * 0.7)}</span>
+                </div>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href="/admin/users">Quản lý khách hàng</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Recent Products */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Sản phẩm mới</CardTitle>
+                <CardDescription>5 sản phẩm được thêm gần đây</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {recentProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      className="flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="font-medium">{product.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {product.category}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{formatCurrency(product.price)}</p>
+                        {getStatusBadge(product.status)}
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link href="/admin/products">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Thêm sản phẩm mới
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

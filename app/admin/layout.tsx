@@ -64,6 +64,12 @@ const navigation = [
     description: "Product categories",
   },
   {
+    name: "Inventory",
+    href: "/admin/inventory",
+    icon: Archive,
+    description: "Stock management",
+  },
+  {
     name: "Attributes",
     icon: Settings,
     description: "Product attributes",

@@ -539,6 +539,18 @@ export const adminVariantsApi = {
   deleteVariant: async (id: string): Promise<void> => {
     await api.delete(`/admin/variants/${id}`);
   },
+
+  // Update variant stock quantity
+  updateStock: async (
+    id: string,
+    data: { stockQuantity: number }
+  ): Promise<ProductVariant> => {
+    const response = await api.patch<BackendResponse<ProductVariant>>(
+      `/admin/variants/${id}/stock`,
+      data
+    );
+    return response.data.data;
+  },
 };
 
 // ================================
