@@ -60,6 +60,7 @@ export interface ProductVariant {
     name: string;
     basePrice?: number;
     discountPercent?: number;
+    category?: Category;
   };
   createdAt: string;
   updatedAt: string;

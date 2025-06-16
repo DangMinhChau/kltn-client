@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import VoucherInput from "@/components/cart/VoucherInput";
+import PayPalButton from "@/components/payments/PayPalButton";
 import { orderApi, voucherApi } from "@/lib/api/orders";
 import { toast } from "sonner";
 
@@ -60,6 +61,7 @@ function CheckoutContent() {
     useState<VoucherValidationResult | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [loading, setLoading] = useState(false);
+  const [orderCreated, setOrderCreated] = useState<any>(null);
   const [autoApplyingVoucher, setAutoApplyingVoucher] = useState(false);
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
     customerName: user?.fullName || "",
@@ -118,7 +120,6 @@ function CheckoutContent() {
     }
     return true;
   };
-
   const handlePlaceOrder = async () => {
     if (!validateForm()) return;
 
@@ -149,170 +150,11 @@ function CheckoutContent() {
 
       const response = await orderApi.createOrder(orderData);
       const order = response.data || response;
-      const orderId = order.id;
-      const orderNumber = order.orderNumber || order.id;
+
+      setOrderCreated(order);
 
       // Handle payment based on selected method
-      if (paymentMethod === "vnpay") {
-        // Create VNPay payment
-        try {
-          const apiUrl =
-            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-          // Test API connection before proceeding
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-            const testResponse = await fetch(`${apiUrl}/health`, {
-              method: "GET",
-              headers: { "Content-Type": "application/json" },
-              signal: controller.signal,
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!testResponse.ok) {
-              throw new Error(
-                `API không khả dụng (status: ${testResponse.status})`
-              );
-            }
-          } catch (testError) {
-            throw new Error(
-              "Không thể kết nối đến server thanh toán. Vui lòng thử lại sau."
-            );
-          }
-
-          const paymentHeaders: Record<string, string> = {
-            "Content-Type": "application/json",
-          };
-
-          // Add auth token only if user is authenticated
-          if (isAuthenticated) {
-            const token = localStorage.getItem("accessToken");
-            if (token) {
-              paymentHeaders.Authorization = `Bearer ${token}`;
-            }
-          }
-
-          const paymentBody = {
-            orderId: orderId,
-            method: "VNPAY",
-            amount: finalTotal,
-            returnUrl: `${window.location.origin}/checkout/payment/result/vnpay`,
-            clientIp: "127.0.0.1", // In production, get real IP
-          };
-
-          const paymentController = new AbortController();
-          const paymentTimeoutId = setTimeout(
-            () => paymentController.abort(),
-            30000
-          );
-
-          const paymentResponse = await fetch(`${apiUrl}/payments`, {
-            method: "POST",
-            headers: paymentHeaders,
-            body: JSON.stringify(paymentBody),
-            signal: paymentController.signal,
-          });
-
-          clearTimeout(paymentTimeoutId);
-
-          if (!paymentResponse.ok) {
-            let errorText = "";
-            try {
-              errorText = await paymentResponse.text();
-            } catch (readError) {
-              errorText = `HTTP ${paymentResponse.status}: ${paymentResponse.statusText}`;
-            }
-
-            let errorMessage = "Failed to create VNPay payment";
-            try {
-              const errorData = JSON.parse(errorText);
-              errorMessage =
-                errorData.message || errorData.error || errorMessage;
-            } catch (e) {
-              errorMessage =
-                errorText ||
-                `HTTP ${paymentResponse.status}: ${paymentResponse.statusText}`;
-            }
-
-            throw new Error(errorMessage);
-          }
-
-          const paymentData = await paymentResponse.json();
-
-          if (!paymentData.data?.paymentUrl && !paymentData.paymentUrl) {
-            throw new Error("Payment URL not received from server");
-          }
-
-          const paymentUrl =
-            paymentData.data?.paymentUrl || paymentData.paymentUrl;
-
-          // Clear cart before redirect
-          await clearCart();
-
-          // Show success message before redirect
-          toast.success("Đang chuyển hướng đến trang thanh toán VNPay...");
-
-          // Small delay to show the toast
-          setTimeout(() => {
-            window.location.href = paymentUrl;
-          }, 1000);
-
-          return;
-        } catch (error: any) {
-          // Enhanced error messages
-          let errorMessage =
-            "Không thể tạo thanh toán VNPay. Vui lòng thử lại.";
-          if (error instanceof TypeError) {
-            if (error.message.includes("fetch")) {
-              errorMessage =
-                "Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet và thử lại.";
-            }
-          } else if (
-            error instanceof DOMException &&
-            error.name === "AbortError"
-          ) {
-            errorMessage =
-              "Yêu cầu thanh toán quá thời gian. Vui lòng thử lại.";
-          } else if (error instanceof Error) {
-            if (
-              error.message.includes("401") ||
-              error.message.includes("Unauthorized")
-            ) {
-              errorMessage =
-                "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
-            } else if (
-              error.message.includes("400") ||
-              error.message.includes("Bad Request")
-            ) {
-              errorMessage =
-                "Thông tin thanh toán không hợp lệ. Vui lòng kiểm tra lại.";
-            } else if (
-              error.message.includes("500") ||
-              error.message.includes("Internal Server Error")
-            ) {
-              errorMessage = "Lỗi server. Vui lòng thử lại sau ít phút.";
-            } else if (
-              error.message.includes("timeout") ||
-              error.message.includes("TIMEOUT")
-            ) {
-              errorMessage =
-                "Yêu cầu thanh toán quá thời gian. Vui lòng thử lại.";
-            } else if (
-              error.message.includes("không khả dụng") ||
-              error.message.includes("kết nối")
-            ) {
-              errorMessage = error.message;
-            } else {
-              errorMessage = error.message;
-            }
-          }
-
-          throw new Error(errorMessage);
-        }
-      } else if (paymentMethod === "cash") {
+      if (paymentMethod === "cash") {
         // Create COD payment record
         const paymentHeaders: Record<string, string> = {
           "Content-Type": "application/json",
@@ -330,7 +172,7 @@ function CheckoutContent() {
             method: "POST",
             headers: paymentHeaders,
             body: JSON.stringify({
-              orderId: orderId,
+              orderId: order.id,
               method: "COD",
               amount: finalTotal,
               note: "Cash on Delivery",
@@ -342,24 +184,36 @@ function CheckoutContent() {
 
         toast.success("Đặt hàng thành công!");
         await clearCart();
-        router.push(`/checkout/success?orderNumber=${orderNumber}`);
-        return;
-      } else {
-        // Fallback for other payment methods
-        toast.success("Đặt hàng thành công!");
-        await clearCart();
-        router.push(`/checkout/success?orderNumber=${orderNumber}`);
-        return;
+        router.push(
+          `/checkout/success?orderNumber=${order.orderNumber || order.id}`
+        );
       }
+      // PayPal payment will be handled by PayPalButton component
     } catch (error: any) {
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
         "Có lỗi xảy ra khi đặt hàng";
       toast.error(errorMessage);
-    } finally {
       setLoading(false);
     }
+  };
+
+  const handlePayPalSuccess = async () => {
+    toast.success("Thanh toán PayPal thành công!");
+    await clearCart();
+    router.push(
+      `/checkout/success?orderNumber=${
+        orderCreated?.orderNumber || orderCreated?.id
+      }`
+    );
+    setLoading(false);
+  };
+
+  const handlePayPalError = (error: any) => {
+    console.error("PayPal payment error:", error);
+    toast.error("Lỗi thanh toán PayPal. Vui lòng thử lại.");
+    setLoading(false);
   };
 
   // Auto-load voucher from URL params (from cart)
@@ -434,7 +288,6 @@ function CheckoutContent() {
       return false;
     }
   };
-
   // Test API connection on component mount
   useEffect(() => {
     testApiConnection().then((connected) => {
@@ -446,23 +299,17 @@ function CheckoutContent() {
     });
   }, []);
 
-  // Debug function for testing VNPay connection
-  const testVNPayConnection = async () => {
+  // Debug function for testing PayPal connection
+  const testPayPalConnection = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-      const testResponse = await fetch(`${apiUrl}/health`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (testResponse.ok) {
-        toast.success("Kết nối server thành công!");
+      const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+      if (clientId) {
+        toast.success("PayPal Client ID đã được cấu hình!");
       } else {
-        toast.error(`Lỗi kết nối server: ${testResponse.status}`);
+        toast.error("Chưa cấu hình PayPal Client ID");
       }
     } catch (error) {
-      toast.error("Không thể kết nối đến server thanh toán");
+      toast.error("Lỗi kết nối PayPal");
     }
   };
 
@@ -571,6 +418,7 @@ function CheckoutContent() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {" "}
                 <RadioGroup
                   value={paymentMethod}
                   onValueChange={setPaymentMethod}
@@ -581,9 +429,9 @@ function CheckoutContent() {
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="vnpay" id="vnpay" />
+                    <RadioGroupItem value="paypal" id="paypal" />
                     <Label
-                      htmlFor="vnpay"
+                      htmlFor="paypal"
                       className="flex items-center cursor-pointer"
                     >
                       <div className="flex items-center">
@@ -597,31 +445,30 @@ function CheckoutContent() {
                               width="32"
                               height="20"
                               rx="4"
-                              fill="#1E40AF"
+                              fill="#0070BA"
                             />
                             <text
                               x="16"
                               y="12"
                               textAnchor="middle"
                               fill="white"
-                              fontSize="8"
+                              fontSize="7"
                               fontWeight="bold"
                             >
-                              VNPay
+                              PayPal
                             </text>
                           </svg>
-                          <span>Thanh toán qua VNPay</span>
+                          <span>Thanh toán qua PayPal</span>
                         </div>
                         <div className="ml-2 text-xs text-blue-600">
-                          (ATM, Visa, MasterCard, QR Code)
+                          (PayPal Balance, Credit Card, Debit Card)
                         </div>
                       </div>
                     </Label>
                   </div>
                 </RadioGroup>
-
-                {/* VNPay Security Notice */}
-                {paymentMethod === "vnpay" && (
+                {/* PayPal Security Notice */}
+                {paymentMethod === "paypal" && (
                   <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-start space-x-2">
                       <div className="w-5 h-5 text-blue-600 mt-0.5">
@@ -639,24 +486,22 @@ function CheckoutContent() {
                       </div>
                       <div className="text-sm text-blue-800">
                         <p className="font-medium">
-                          Thanh toán an toàn với VNPay
+                          Thanh toán an toàn với PayPal
                         </p>
                         <p className="mt-1">
-                          • Bạn sẽ được chuyển hướng đến cổng thanh toán VNPay
-                          an toàn
+                          • Bảo vệ người mua với PayPal Purchase Protection
                           <br />
-                          • Hỗ trợ thẻ ATM nội địa, Visa, MasterCard, JCB và QR
-                          Code
-                          <br />• Giao dịch được mã hóa 256-bit SSL
+                          • Hỗ trợ thẻ tín dụng, thẻ ghi nợ và tài khoản PayPal
+                          <br />• Giao dịch được mã hóa SSL 256-bit
                         </p>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={testVNPayConnection}
+                          onClick={testPayPalConnection}
                           className="mt-2 text-xs"
                         >
-                          Kiểm tra kết nối VNPay
+                          Kiểm tra cấu hình PayPal
                         </Button>
                       </div>
                     </div>
@@ -732,7 +577,6 @@ function CheckoutContent() {
                   ))}
                 </div>
                 <Separator />
-
                 {/* Calculations */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
@@ -754,27 +598,39 @@ function CheckoutContent() {
                     <span>Tổng cộng</span>
                     <span>{formatPrice(finalTotal)}</span>
                   </div>
-                </div>
-
+                </div>{" "}
                 <Button
                   onClick={handlePlaceOrder}
-                  disabled={loading || items.length === 0}
+                  disabled={
+                    loading || items.length === 0 || paymentMethod === "paypal"
+                  }
                   className="w-full"
                   size="lg"
                 >
                   {loading ? (
                     <div className="flex items-center">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      {paymentMethod === "vnpay"
-                        ? "Đang tạo thanh toán VNPay..."
+                      {paymentMethod === "paypal"
+                        ? "Đang tạo đơn hàng..."
                         : "Đang xử lý..."}
                     </div>
-                  ) : paymentMethod === "vnpay" ? (
-                    "Thanh toán với VNPay"
+                  ) : paymentMethod === "paypal" ? (
+                    "Tạo đơn hàng"
                   ) : (
                     "Đặt hàng"
                   )}
                 </Button>
+                {/* PayPal Button - Show after order is created and PayPal is selected */}
+                {orderCreated && paymentMethod === "paypal" && (
+                  <div className="mt-4">
+                    <PayPalButton
+                      amount={finalTotal}
+                      orderId={orderCreated.id}
+                      onSuccess={handlePayPalSuccess}
+                      onError={handlePayPalError}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

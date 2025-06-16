@@ -7,6 +7,7 @@ import { AuthProvider } from "@/lib/context/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import ScrollToTop from "@/components/common/ScrollToTop";
+import PayPalProvider from "@/components/payments/PayPalProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -53,13 +54,15 @@ export default function RootLayout({
         className={`${inter.variable} font-sans antialiased bg-background text-foreground`}
       >
         <AuthProvider>
-          <UnifiedCartProvider>
-            <WishlistProvider>
-              <ConditionalLayout>{children}</ConditionalLayout>
-              <ScrollToTop />
-              <Toaster />
-            </WishlistProvider>
-          </UnifiedCartProvider>
+          <PayPalProvider>
+            <UnifiedCartProvider>
+              <WishlistProvider>
+                <ConditionalLayout>{children}</ConditionalLayout>
+                <ScrollToTop />
+                <Toaster />
+              </WishlistProvider>
+            </UnifiedCartProvider>
+          </PayPalProvider>
         </AuthProvider>
       </body>
     </html>

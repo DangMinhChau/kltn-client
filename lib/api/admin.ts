@@ -476,6 +476,10 @@ export const adminVariantsApi = {
       limit?: number;
       search?: string;
       productId?: string;
+      minStock?: number;
+      maxStock?: number;
+      sortBy?: string;
+      sortOrder?: string;
     } = {}
   ): Promise<{ data: ProductVariant[]; totalCount: number }> => {
     const params = new URLSearchParams();

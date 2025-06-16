@@ -151,7 +151,7 @@ export enum PaymentStatus {
 export enum PaymentMethod {
   COD = "COD", // Cash on delivery
   CREDIT_CARD = "CREDIT_CARD",
-  VNPAY = "VNPAY",
+  PAYPAL = "PAYPAL",
 }
 
 // Add shipping enums to match backend

@@ -197,9 +197,47 @@ export const paymentApi = {
     paymentMethod: PaymentMethod
   ): Promise<PaymentCreationResponse> =>
     api.post(`/orders/${orderId}/payment`, { paymentMethod }),
+
   // Check payment status
   checkPaymentStatus: (orderId: string): Promise<PaymentStatusResponse> =>
     api.get(`/orders/${orderId}/payment/status`),
+
+  // PayPal specific endpoints
+  createPayPalOrder: (
+    orderId: string,
+    amount: number,
+    currency: string = "USD"
+  ): Promise<{
+    message: string;
+    data: {
+      paypalOrderId: string;
+      status: string;
+      orderId: string;
+    };
+    meta: {
+      timestamp: string;
+    };
+  }> =>
+    api.post("/payments/paypal/create-order", {
+      orderId,
+      amount,
+      currency,
+    }),
+
+  capturePayPalOrder: (
+    paypalOrderId: string,
+    orderId: string
+  ): Promise<{
+    message: string;
+    data: any;
+    meta: {
+      timestamp: string;
+    };
+  }> =>
+    api.post("/payments/paypal/capture-order", {
+      paypalOrderId,
+      orderId,
+    }),
 };
 
 export default {

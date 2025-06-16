@@ -206,7 +206,7 @@ function AdminOrdersContent() {
           ],
           payment: {
             id: "pay3",
-            method: "VNPAY",
+            method: "PAYPAL",
             status: "COMPLETED",
             amount: 2200000,
           },

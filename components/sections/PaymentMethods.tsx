@@ -2,11 +2,11 @@
  * PaymentMethods Component
  *
  * Displays supported payment methods with beautiful icons and descriptions.
- * Used in  to show payment options.
+ * Used in checkout to show payment options.
  *
  * Features:
- * - VNPay integration (primary payment method)
- * - Multiple payment options (Momo, Banking, COD, etc.)
+ * - PayPal integration (primary payment method)
+ * - COD (Cash on Delivery)
  * - Responsive grid layout
  * - Hover animations and visual feedback
  * - Security features section
@@ -28,40 +28,16 @@ import {
 export default function PaymentMethods() {
   const paymentMethods = [
     {
-      name: "VNPay",
+      name: "PayPal",
       icon: <CreditCard className="h-6 w-6 text-blue-600" />,
-      description: "Ví điện tử",
+      description: "Thanh toán quốc tế",
       color: "bg-blue-50 border-blue-200",
-    },
-    {
-      name: "Momo",
-      icon: <Smartphone className="h-6 w-6 text-pink-600" />,
-      description: "Thanh toán di động",
-      color: "bg-pink-50 border-pink-200",
-    },
-    {
-      name: "Banking",
-      icon: <Building2 className="h-6 w-6 text-green-600" />,
-      description: "Chuyển khoản ngân hàng",
-      color: "bg-green-50 border-green-200",
     },
     {
       name: "COD",
       icon: <Truck className="h-6 w-6 text-orange-600" />,
       description: "Thanh toán khi nhận hàng",
       color: "bg-orange-50 border-orange-200",
-    },
-    {
-      name: "ShopeePay",
-      icon: <ShoppingBag className="h-6 w-6 text-orange-500" />,
-      description: "Ví ShopeePay",
-      color: "bg-orange-50 border-orange-200",
-    },
-    {
-      name: "ZaloPay",
-      icon: <Zap className="h-6 w-6 text-blue-500" />,
-      description: "Ví ZaloPay",
-      color: "bg-blue-50 border-blue-200",
     },
   ];
 
@@ -77,7 +53,7 @@ export default function PaymentMethods() {
           Thanh toán an toàn & tiện lợi
         </h3>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 lg:gap-6">
+        <div className="grid grid-cols-2 gap-4 lg:gap-6 max-w-md mx-auto">
           {paymentMethods.map((method, index) => (
             <Card
               key={index}
