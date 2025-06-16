@@ -15,6 +15,9 @@ import {
   Style,
   Tag,
   PaginationResult,
+  Order,
+  OrderItem,
+  OrderStatus,
 } from "@/types";
 
 // ================================
@@ -958,12 +961,331 @@ export const adminApi = {
       return response.data.data;
     },
   },
+};
 
+// ================================
+// ORDERS API
+// ================================
+
+export interface AdminOrderFilters {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: OrderStatus;
+  paymentStatus?: string;
+  sortBy?: "createdAt" | "totalPrice" | "orderNumber";
+  sortOrder?: "ASC" | "DESC";
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface AdminOrderResponse {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddress: string;
+  status: OrderStatus;
+  subTotal: number;
+  shippingFee: number;
+  discount: number;
+  totalPrice: number;
+  orderedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  items: OrderItem[];
+  payment?: {
+    id: string;
+    method: string;
+    status: string;
+    amount: number;
+  };
+  shipping?: {
+    id: string;
+    trackingNumber: string;
+    status: string;
+    shippingFee: number;
+    expectedDeliveryDate: string;
+  };
+}
+
+export interface UpdateOrderStatusData {
+  status?: OrderStatus;
+  paymentStatus?: string;
+  shippingStatus?: string;
+  trackingNumber?: string;
+  notes?: string;
+}
+
+export const adminOrdersApi = {
+  // Get all orders with admin filters
+  getOrders: async (
+    filters: AdminOrderFilters = {}
+  ): Promise<PaginationResult<AdminOrderResponse>> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get(`/admin/orders?${params.toString()}`);
+    const responseBody = response.data;
+
+    return {
+      data: responseBody.data || [],
+      meta: {
+        page: responseBody.meta?.page || 1,
+        limit: responseBody.meta?.limit || 20,
+        total: responseBody.meta?.total || 0,
+        totalPages: responseBody.meta?.totalPages || 0,
+      },
+    };
+  },
+
+  // Get order by ID
+  getOrder: async (orderId: string): Promise<AdminOrderResponse> => {
+    const response = await api.get(`/admin/orders/${orderId}`);
+    const responseBody = response.data;
+    return responseBody.data;
+  },
+
+  // Update order status
+  updateOrderStatus: async (
+    orderId: string,
+    updateData: UpdateOrderStatusData
+  ): Promise<AdminOrderResponse> => {
+    const response = await api.patch(
+      `/admin/orders/${orderId}/status`,
+      updateData
+    );
+    const responseBody = response.data;
+    return responseBody.data;
+  },
+
+  // Cancel order (admin)
+  cancelOrder: async (
+    orderId: string,
+    reason?: string
+  ): Promise<AdminOrderResponse> => {
+    const response = await api.patch(`/admin/orders/${orderId}/cancel`, {
+      reason,
+    });
+    const responseBody = response.data;
+    return responseBody.data;
+  },
+
+  // Delete order (admin)
+  deleteOrder: async (orderId: string): Promise<void> => {
+    await api.delete(`/admin/orders/${orderId}`);
+  },
+
+  // Get order statistics
+  getOrderStatistics: async (): Promise<{
+    totalOrders: number;
+    pendingOrders: number;
+    processingOrders: number;
+    completedOrders: number;
+    cancelledOrders: number;
+    totalRevenue: number;
+    averageOrderValue: number;
+  }> => {
+    const response = await api.get("/admin/orders/statistics");
+    const responseBody = response.data;
+    return responseBody.data;
+  },
+
+  // Bulk update orders
+  bulkUpdateOrders: async (
+    orderIds: string[],
+    updateData: Partial<UpdateOrderStatusData>
+  ): Promise<{ updated: number; failed: string[] }> => {
+    const response = await api.patch("/admin/orders/bulk-update", {
+      orderIds,
+      updateData,
+    });
+    const responseBody = response.data;
+    return responseBody.data;
+  },
+
+  // Export orders
+  exportOrders: async (filters: AdminOrderFilters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get(
+      `/admin/orders/export?${params.toString()}`,
+      {
+        responseType: "blob",
+      }
+    );
+
+    // Create download link
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `orders-export-${
+      new Date().toISOString().split("T")[0]
+    }.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+};
+
+// ================================
+// MAIN ADMIN API EXPORT
+// ================================
+
+export const adminApi = {
+  // Products
+  products: adminProductsApi,
+
+  // Categories
+  categories: adminCategoriesApi,
+
+  // Collections
+  collections: adminCollectionApi,
+
+  // Materials, Styles, Tags - Combined attributes API
+  materials: {
+    getAll: async (): Promise<Material[]> => {
+      const response = await api.get<BackendResponse<Material[]>>(
+        "/admin/materials"
+      );
+      return response.data.data || [];
+    },
+
+    create: async (data: {
+      name: string;
+      description?: string;
+    }): Promise<Material> => {
+      const response = await api.post<BackendResponse<Material>>(
+        "/admin/materials",
+        data
+      );
+      return response.data.data;
+    },
+
+    update: async (
+      id: string,
+      data: { name?: string; description?: string }
+    ): Promise<Material> => {
+      const response = await api.put<BackendResponse<Material>>(
+        `/admin/materials/${id}`,
+        data
+      );
+      return response.data.data;
+    },
+
+    delete: async (id: string): Promise<void> => {
+      await api.delete(`/admin/materials/${id}`);
+    },
+
+    toggleActive: async (id: string): Promise<Material> => {
+      const response = await api.patch<BackendResponse<Material>>(
+        `/admin/materials/${id}/toggle`
+      );
+      return response.data.data;
+    },
+  },
+
+  styles: {
+    getAll: async (): Promise<Style[]> => {
+      const response = await api.get<BackendResponse<Style[]>>("/admin/styles");
+      return response.data.data || [];
+    },
+
+    create: async (data: {
+      name: string;
+      description?: string;
+    }): Promise<Style> => {
+      const response = await api.post<BackendResponse<Style>>(
+        "/admin/styles",
+        data
+      );
+      return response.data.data;
+    },
+
+    update: async (
+      id: string,
+      data: { name?: string; description?: string }
+    ): Promise<Style> => {
+      const response = await api.put<BackendResponse<Style>>(
+        `/admin/styles/${id}`,
+        data
+      );
+      return response.data.data;
+    },
+
+    delete: async (id: string): Promise<void> => {
+      await api.delete(`/admin/styles/${id}`);
+    },
+
+    toggleActive: async (id: string): Promise<Style> => {
+      const response = await api.patch<BackendResponse<Style>>(
+        `/admin/styles/${id}/toggle`
+      );
+      return response.data.data;
+    },
+  },
+
+  tags: {
+    getAll: async (): Promise<Tag[]> => {
+      const response = await api.get<BackendResponse<Tag[]>>("/admin/tags");
+      return response.data.data || [];
+    },
+
+    create: async (data: {
+      name: string;
+      description?: string;
+    }): Promise<Tag> => {
+      const response = await api.post<BackendResponse<Tag>>(
+        "/admin/tags",
+        data
+      );
+      return response.data.data;
+    },
+
+    update: async (
+      id: string,
+      data: { name?: string; description?: string }
+    ): Promise<Tag> => {
+      const response = await api.put<BackendResponse<Tag>>(
+        `/admin/tags/${id}`,
+        data
+      );
+      return response.data.data;
+    },
+
+    delete: async (id: string): Promise<void> => {
+      await api.delete(`/admin/tags/${id}`);
+    },
+
+    toggleActive: async (id: string): Promise<Tag> => {
+      const response = await api.patch<BackendResponse<Tag>>(
+        `/admin/tags/${id}/toggle`
+      );
+      return response.data.data;
+    },
+  },
   // Users
   users: adminUsersApi,
 
   // Variants
   variants: adminVariantsApi,
+
+  // Orders
+  orders: adminOrdersApi,
 };
 
 // ================================
