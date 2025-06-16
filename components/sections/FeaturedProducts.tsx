@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import ProductCard from "@/components/common/ProductCard/ProductCard";
+import ProductCard from "@/components/common/ProductCard";
 import { productApi } from "@/lib/api";
 import { Product } from "@/types";
 import { ArrowRight, TrendingUp, Star, Flame } from "lucide-react";

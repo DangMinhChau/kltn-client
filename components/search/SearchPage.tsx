@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { ProductCard } from "@/components/common/ProductCard";
+import ProductCard from "@/components/common/ProductCard";
 import { EmptyState } from "@/components/products/EmptyState";
 import { ProductCardSkeleton } from "@/components/common/ProductCardSkeleton";
 import { Button } from "@/components/ui/button";

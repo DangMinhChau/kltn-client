@@ -153,73 +153,114 @@ function CheckoutContent() {
       console.log("Creating order with data:", orderData);
 
       const response = await orderApi.createOrder(orderData);
-      console.log("Order creation response:", response);
-
-      // Handle both wrapped and direct response formats
+      console.log("Order creation response:", response); // Handle both wrapped and direct response formats
       const order = response.data || response;
       const orderId = order.id;
-      const orderNumber = order.orderNumber; // Handle payment based on selected method
+      const orderNumber = order.orderNumber || order.id; // Handle payment based on selected method
       if (paymentMethod === "vnpay") {
         // Create VNPay payment
-        const paymentHeaders: Record<string, string> = {
-          "Content-Type": "application/json",
-        };
-
-        // Add auth token only if user is authenticated
-        if (isAuthenticated) {
-          paymentHeaders.Authorization = `Bearer ${localStorage.getItem(
-            "accessToken"
-          )}`;
-        }
-
         try {
-          const paymentResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/payments`,
-            {
-              method: "POST",
-              headers: paymentHeaders,
-              body: JSON.stringify({
-                orderId: orderId,
-                method: "VNPAY",
-                amount: finalTotal,
-                returnUrl: `${window.location.origin}/checkout/payment/result/vnpay`,
-                clientIp: "127.0.0.1", // In production, get real IP
-              }),
-            }
-          );
-
-          if (paymentResponse.ok) {
-            const paymentData = await paymentResponse.json();
-
-            if (!paymentData.paymentUrl) {
-              throw new Error("Payment URL not received from server");
-            }
-
-            // Clear cart before redirect
-            await clearCart();
-
-            // Show success message before redirect
-            toast.success("Đang chuyển hướng đến trang thanh toán VNPay...");
-
-            // Small delay to show the toast
-            setTimeout(() => {
-              window.location.href = paymentData.paymentUrl;
-            }, 1000);
-
-            return;
-          } else {
-            const errorData = await paymentResponse.json();
+          // Test API connection before proceeding
+          const apiConnected = await testApiConnection();
+          if (!apiConnected) {
             throw new Error(
-              errorData.message || "Failed to create VNPay payment"
+              "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng."
             );
           }
+
+          const paymentHeaders: Record<string, string> = {
+            "Content-Type": "application/json",
+          };
+
+          // Add auth token only if user is authenticated
+          if (isAuthenticated) {
+            const token = localStorage.getItem("accessToken");
+            if (token) {
+              paymentHeaders.Authorization = `Bearer ${token}`;
+            }
+          }
+
+          const apiUrl =
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          console.log("Creating VNPay payment with URL:", `${apiUrl}/payments`);
+
+          const paymentResponse = await fetch(`${apiUrl}/payments`, {
+            method: "POST",
+            headers: paymentHeaders,
+            body: JSON.stringify({
+              orderId: orderId,
+              method: "VNPAY",
+              amount: finalTotal,
+              returnUrl: `${window.location.origin}/checkout/payment/result/vnpay`,
+              clientIp: "127.0.0.1", // In production, get real IP
+            }),
+          });
+
+          console.log("Payment response status:", paymentResponse.status);
+
+          if (!paymentResponse.ok) {
+            const errorText = await paymentResponse.text();
+            console.error("Payment response error:", errorText);
+
+            let errorMessage = "Failed to create VNPay payment";
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+              errorMessage = `HTTP ${paymentResponse.status}: ${paymentResponse.statusText}`;
+            }
+
+            throw new Error(errorMessage);
+          }
+
+          const paymentData = await paymentResponse.json();
+          console.log("Payment data received:", paymentData);
+
+          if (!paymentData.data?.paymentUrl && !paymentData.paymentUrl) {
+            throw new Error("Payment URL not received from server");
+          }
+
+          const paymentUrl =
+            paymentData.data?.paymentUrl || paymentData.paymentUrl;
+
+          // Clear cart before redirect
+          await clearCart();
+
+          // Show success message before redirect
+          toast.success("Đang chuyển hướng đến trang thanh toán VNPay...");
+
+          // Small delay to show the toast
+          setTimeout(() => {
+            window.location.href = paymentUrl;
+          }, 1000);
+
+          return;
         } catch (error) {
           console.error("VNPay payment error:", error);
-          throw new Error(
-            error instanceof Error
-              ? error.message
-              : "Không thể tạo thanh toán VNPay. Vui lòng thử lại."
-          );
+
+          // Enhanced error messages
+          let errorMessage =
+            "Không thể tạo thanh toán VNPay. Vui lòng thử lại.";
+
+          if (error instanceof TypeError && error.message.includes("fetch")) {
+            errorMessage =
+              "Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet và thử lại.";
+          } else if (error instanceof Error) {
+            if (error.message.includes("401")) {
+              errorMessage =
+                "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+            } else if (error.message.includes("400")) {
+              errorMessage =
+                "Thông tin thanh toán không hợp lệ. Vui lòng kiểm tra lại.";
+            } else if (error.message.includes("500")) {
+              errorMessage = "Lỗi server. Vui lòng thử lại sau ít phút.";
+            } else {
+              errorMessage = error.message;
+            }
+          }
+
+          // Re-throw with enhanced error message to be caught by outer catch block
+          throw new Error(errorMessage);
         }
       } else if (paymentMethod === "cash") {
         // Create COD payment record
@@ -233,7 +274,6 @@ function CheckoutContent() {
             "accessToken"
           )}`;
         }
-
         try {
           await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments`, {
             method: "POST",
@@ -257,6 +297,7 @@ function CheckoutContent() {
 
         // Redirect to success page
         router.push(`/checkout/success?orderNumber=${orderNumber}`);
+        return; // Add explicit return
       } else {
         // Fallback for other payment methods
         toast.success("Đặt hàng thành công!");
@@ -266,6 +307,7 @@ function CheckoutContent() {
 
         // Redirect to success page
         router.push(`/checkout/success?orderNumber=${orderNumber}`);
+        return; // Add explicit return
       }
     } catch (error: any) {
       console.error("Order creation error:", error);
@@ -322,7 +364,46 @@ function CheckoutContent() {
 
       autoApplyVoucher();
     }
-  }, [searchParams, subtotal, appliedVoucher, autoApplyingVoucher]);
+  }, [searchParams, subtotal, appliedVoucher, autoApplyingVoucher]); // Test API connection function
+  const testApiConnection = async () => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(`${apiUrl}/health`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        console.log("API connection successful");
+        return true;
+      } else {
+        console.error("API connection failed:", response.status);
+        return false;
+      }
+    } catch (error) {
+      console.error("API connection error:", error);
+      return false;
+    }
+  };
+
+  // Test API connection on component mount
+  useEffect(() => {
+    testApiConnection().then((connected) => {
+      if (!connected) {
+        console.warn(
+          "API connection test failed. Check NEXT_PUBLIC_API_URL environment variable."
+        );
+      }
+    });
+  }, []);
 
   if (items.length === 0) {
     return null; // Will redirect
