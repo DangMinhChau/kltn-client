@@ -160,11 +160,35 @@ function CheckoutContent() {
       if (paymentMethod === "vnpay") {
         // Create VNPay payment
         try {
-          // Test API connection before proceeding
-          const apiConnected = await testApiConnection();
-          if (!apiConnected) {
+          const apiUrl =
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          console.log("API URL:", apiUrl);
+          console.log("Environment variables check:", {
+            NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+            origin: window.location.origin,
+          }); // Test API connection before proceeding with a simpler endpoint
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+            const testResponse = await fetch(`${apiUrl}/health`, {
+              method: "GET",
+              headers: { "Content-Type": "application/json" },
+              signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!testResponse.ok) {
+              throw new Error(
+                `API không khả dụng (status: ${testResponse.status})`
+              );
+            }
+            console.log("API connection test successful");
+          } catch (testError) {
+            console.error("API connection test failed:", testError);
             throw new Error(
-              "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng."
+              "Không thể kết nối đến server thanh toán. Vui lòng thử lại sau."
             );
           }
 
@@ -177,37 +201,61 @@ function CheckoutContent() {
             const token = localStorage.getItem("accessToken");
             if (token) {
               paymentHeaders.Authorization = `Bearer ${token}`;
+              console.log("Authorization header added");
             }
           }
 
-          const apiUrl =
-            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
           console.log("Creating VNPay payment with URL:", `${apiUrl}/payments`);
+          console.log("Payment headers:", paymentHeaders);
+
+          const paymentBody = {
+            orderId: orderId,
+            method: "VNPAY",
+            amount: finalTotal,
+            returnUrl: `${window.location.origin}/checkout/payment/result/vnpay`,
+            clientIp: "127.0.0.1", // In production, get real IP
+          };
+          console.log("Payment request body:", paymentBody);
+
+          const paymentController = new AbortController();
+          const paymentTimeoutId = setTimeout(
+            () => paymentController.abort(),
+            30000
+          ); // 30 second timeout
 
           const paymentResponse = await fetch(`${apiUrl}/payments`, {
             method: "POST",
             headers: paymentHeaders,
-            body: JSON.stringify({
-              orderId: orderId,
-              method: "VNPAY",
-              amount: finalTotal,
-              returnUrl: `${window.location.origin}/checkout/payment/result/vnpay`,
-              clientIp: "127.0.0.1", // In production, get real IP
-            }),
+            body: JSON.stringify(paymentBody),
+            signal: paymentController.signal,
           });
 
-          console.log("Payment response status:", paymentResponse.status);
+          clearTimeout(paymentTimeoutId);
 
+          console.log("Payment response status:", paymentResponse.status);
+          console.log(
+            "Payment response headers:",
+            Object.fromEntries(paymentResponse.headers.entries())
+          );
           if (!paymentResponse.ok) {
-            const errorText = await paymentResponse.text();
-            console.error("Payment response error:", errorText);
+            let errorText = "";
+            try {
+              errorText = await paymentResponse.text();
+              console.error("Payment response error:", errorText);
+            } catch (readError) {
+              console.error("Could not read error response:", readError);
+              errorText = `HTTP ${paymentResponse.status}: ${paymentResponse.statusText}`;
+            }
 
             let errorMessage = "Failed to create VNPay payment";
             try {
               const errorData = JSON.parse(errorText);
-              errorMessage = errorData.message || errorMessage;
+              errorMessage =
+                errorData.message || errorData.error || errorMessage;
             } catch (e) {
-              errorMessage = `HTTP ${paymentResponse.status}: ${paymentResponse.statusText}`;
+              errorMessage =
+                errorText ||
+                `HTTP ${paymentResponse.status}: ${paymentResponse.statusText}`;
             }
 
             throw new Error(errorMessage);
@@ -235,25 +283,57 @@ function CheckoutContent() {
           }, 1000);
 
           return;
-        } catch (error) {
+        } catch (error: any) {
           console.error("VNPay payment error:", error);
+          console.error("Error details:", {
+            name: error?.name,
+            message: error?.message,
+            stack: error?.stack,
+          });
 
           // Enhanced error messages
           let errorMessage =
             "Không thể tạo thanh toán VNPay. Vui lòng thử lại.";
-
-          if (error instanceof TypeError && error.message.includes("fetch")) {
+          if (error instanceof TypeError) {
+            if (error.message.includes("fetch")) {
+              errorMessage =
+                "Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet và thử lại.";
+            }
+          } else if (
+            error instanceof DOMException &&
+            error.name === "AbortError"
+          ) {
             errorMessage =
-              "Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet và thử lại.";
+              "Yêu cầu thanh toán quá thời gian. Vui lòng thử lại.";
           } else if (error instanceof Error) {
-            if (error.message.includes("401")) {
+            if (
+              error.message.includes("401") ||
+              error.message.includes("Unauthorized")
+            ) {
               errorMessage =
                 "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
-            } else if (error.message.includes("400")) {
+            } else if (
+              error.message.includes("400") ||
+              error.message.includes("Bad Request")
+            ) {
               errorMessage =
                 "Thông tin thanh toán không hợp lệ. Vui lòng kiểm tra lại.";
-            } else if (error.message.includes("500")) {
+            } else if (
+              error.message.includes("500") ||
+              error.message.includes("Internal Server Error")
+            ) {
               errorMessage = "Lỗi server. Vui lòng thử lại sau ít phút.";
+            } else if (
+              error.message.includes("timeout") ||
+              error.message.includes("TIMEOUT")
+            ) {
+              errorMessage =
+                "Yêu cầu thanh toán quá thời gian. Vui lòng thử lại.";
+            } else if (
+              error.message.includes("không khả dụng") ||
+              error.message.includes("kết nối")
+            ) {
+              errorMessage = error.message; // Use the specific connection error message
             } else {
               errorMessage = error.message;
             }
@@ -404,6 +484,30 @@ function CheckoutContent() {
       }
     });
   }, []);
+
+  // Debug function for testing VNPay connection
+  const testVNPayConnection = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      console.log("Testing VNPay connection to:", apiUrl);
+
+      const testResponse = await fetch(`${apiUrl}/health`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (testResponse.ok) {
+        toast.success("Kết nối server thành công!");
+        console.log("VNPay connection test successful");
+      } else {
+        toast.error(`Lỗi kết nối server: ${testResponse.status}`);
+        console.error("VNPay connection test failed:", testResponse.status);
+      }
+    } catch (error) {
+      toast.error("Không thể kết nối đến server thanh toán");
+      console.error("VNPay connection test error:", error);
+    }
+  };
 
   if (items.length === 0) {
     return null; // Will redirect
@@ -577,7 +681,7 @@ function CheckoutContent() {
                       <div className="text-sm text-blue-800">
                         <p className="font-medium">
                           Thanh toán an toàn với VNPay
-                        </p>
+                        </p>{" "}
                         <p className="mt-1">
                           • Bạn sẽ được chuyển hướng đến cổng thanh toán VNPay
                           an toàn
@@ -586,6 +690,15 @@ function CheckoutContent() {
                           Code
                           <br />• Giao dịch được mã hóa 256-bit SSL
                         </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={testVNPayConnection}
+                          className="mt-2 text-xs"
+                        >
+                          Kiểm tra kết nối VNPay
+                        </Button>
                       </div>
                     </div>
                   </div>
