@@ -100,10 +100,9 @@ export default function CollectionProductsPage({
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(
     new Set()
   );
-
   useEffect(() => {
     fetchCollection();
-  }, [params.id]);
+  }, [id]);
 
   useEffect(() => {
     fetchProducts();
@@ -113,9 +112,7 @@ export default function CollectionProductsPage({
     try {
       setLoading(true);
       setError(null);
-      const result = await adminCollectionApi.getCollection(
-        parseInt(params.id)
-      );
+      const result = await adminCollectionApi.getCollection(parseInt(id));
       setCollection(result);
       setCollectionProducts(result.products || []);
     } catch (err: any) {
@@ -165,10 +162,9 @@ export default function CollectionProductsPage({
 
     try {
       setUpdating(true);
-
       if (isInCollection) {
         // Remove from collection
-        await adminCollectionApi.assignProducts(parseInt(params.id), {
+        await adminCollectionApi.assignProducts(parseInt(id), {
           productIds: collectionProducts
             .filter((p) => p.id !== product.id)
             .map((p) => parseInt(p.id)),
@@ -179,7 +175,7 @@ export default function CollectionProductsPage({
         toast.success(`Removed "${product.name}" from collection`);
       } else {
         // Add to collection
-        await adminCollectionApi.assignProducts(parseInt(params.id), {
+        await adminCollectionApi.assignProducts(parseInt(id), {
           productIds: [
             ...collectionProducts.map((p) => parseInt(p.id)),
             parseInt(product.id),
@@ -206,8 +202,7 @@ export default function CollectionProductsPage({
       );
       const existingProductIds = collectionProducts.map((p) => parseInt(p.id));
       const allProductIds = [...existingProductIds, ...newProductIds];
-
-      await adminCollectionApi.assignProducts(parseInt(params.id), {
+      await adminCollectionApi.assignProducts(parseInt(id), {
         productIds: allProductIds,
       });
 
@@ -232,8 +227,7 @@ export default function CollectionProductsPage({
       const remainingProductIds = collectionProducts
         .filter((p) => !selectedProducts.has(p.id))
         .map((p) => parseInt(p.id));
-
-      await adminCollectionApi.assignProducts(parseInt(params.id), {
+      await adminCollectionApi.assignProducts(parseInt(id), {
         productIds: remainingProductIds,
       });
 
