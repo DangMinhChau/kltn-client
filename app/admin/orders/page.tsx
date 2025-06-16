@@ -240,7 +240,7 @@ function AdminOrdersContent() {
   const handleFilterChange = (key: string, value: string | number) => {
     // Convert "all" to empty string for API
     const apiValue = value === "all" ? "" : value;
-    
+
     setFilters((prev) => ({
       ...prev,
       [key]: apiValue,
@@ -438,13 +438,15 @@ function AdminOrdersContent() {
                 onChange={(e) => handleFilterChange("search", e.target.value)}
                 className="pl-10"
               />
-            </div>            <Select
+            </div>{" "}
+            <Select
               value={filters.status || "all"}
               onValueChange={(value) => handleFilterChange("status", value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="All statuses" />
-              </SelectTrigger>              <SelectContent>
+              </SelectTrigger>{" "}
+              <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="processing">Processing</SelectItem>
@@ -452,7 +454,8 @@ function AdminOrdersContent() {
                 <SelectItem value="delivered">Delivered</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
-            </Select>            <Select
+            </Select>{" "}
+            <Select
               value={filters.paymentStatus || "all"}
               onValueChange={(value) =>
                 handleFilterChange("paymentStatus", value)
@@ -460,7 +463,8 @@ function AdminOrdersContent() {
             >
               <SelectTrigger>
                 <SelectValue placeholder="All payment status" />
-              </SelectTrigger>              <SelectContent>
+              </SelectTrigger>{" "}
+              <SelectContent>
                 <SelectItem value="all">All payment status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="paid">Paid</SelectItem>
@@ -468,7 +472,6 @@ function AdminOrdersContent() {
                 <SelectItem value="refunded">Refunded</SelectItem>
               </SelectContent>
             </Select>
-
             <Select
               value={`${filters.sortBy}-${filters.sortOrder}`}
               onValueChange={(value) => {

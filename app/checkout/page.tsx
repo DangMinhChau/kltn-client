@@ -151,9 +151,7 @@ function CheckoutContent() {
       const response = await orderApi.createOrder(orderData);
       const order = response.data || response;
 
-      setOrderCreated(order);
-
-      // Handle payment based on selected method
+      setOrderCreated(order); // Handle payment based on selected method
       if (paymentMethod === "cash") {
         // Create COD payment record
         const paymentHeaders: Record<string, string> = {
@@ -187,8 +185,11 @@ function CheckoutContent() {
         router.push(
           `/checkout/success?orderNumber=${order.orderNumber || order.id}`
         );
+      } else if (paymentMethod === "paypal") {
+        // PayPal payment will be handled by PayPalButton component
+        setLoading(false); // Stop loading to show PayPal button
+        toast.success("Đơn hàng đã được tạo! Vui lòng thanh toán qua PayPal.");
       }
-      // PayPal payment will be handled by PayPalButton component
     } catch (error: any) {
       const errorMessage =
         error?.response?.data?.message ||
