@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Product, PaginationResult } from "@/types";
 import { api, productApi } from "@/lib/api";
@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Percent, Tag, Clock, TrendingDown, Flame } from "lucide-react";
 
-export default function SalePage() {
+function SalePageContent() {
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,7 +112,6 @@ export default function SalePage() {
       <div className="mb-6">
         <PageBreadcrumb />
       </div>
-
       {/* Sale Banner */}
       <div className="mb-8">
         <Card className="bg-gradient-to-r from-red-500 via-pink-500 to-orange-500 text-white border-0 overflow-hidden relative">
@@ -177,7 +176,6 @@ export default function SalePage() {
           </CardContent>
         </Card>
       </div>
-
       {/* Controls */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-6">
         {/* Results count and view toggle */}
@@ -225,7 +223,6 @@ export default function SalePage() {
           </select>
         </div>
       </div>
-
       {/* Products Grid */}
       <div className="mb-8">
         {" "}
@@ -236,8 +233,7 @@ export default function SalePage() {
         ) : (
           <ProductsGrid products={products} viewMode={viewMode} />
         )}
-      </div>
-
+      </div>{" "}
       {/* Pagination */}
       {!loading && products.length > 0 && (
         <ProductsPagination
@@ -249,5 +245,13 @@ export default function SalePage() {
         />
       )}
     </div>
+  );
+}
+
+export default function SalePage() {
+  return (
+    <Suspense fallback={<ProductsSkeleton viewMode="grid" />}>
+      <SalePageContent />
+    </Suspense>
   );
 }
