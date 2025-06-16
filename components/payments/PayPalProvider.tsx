@@ -8,8 +8,23 @@ interface PayPalProviderProps {
 }
 
 export default function PayPalProvider({ children }: PayPalProviderProps) {
+  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+
+  // Check if PayPal Client ID is configured
+  if (!clientId || clientId === "your_paypal_client_id_here") {
+    console.error("❌ PayPal Client ID not configured properly");
+    return (
+      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+        <p className="text-red-700 font-medium">⚠️ PayPal chưa được cấu hình</p>
+        <p className="text-red-600 text-sm mt-1">
+          Vui lòng cấu hình NEXT_PUBLIC_PAYPAL_CLIENT_ID trong .env.local
+        </p>
+      </div>
+    );
+  }
+
   const initialOptions = {
-    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "",
+    clientId,
     currency: "VND",
     intent: "capture",
     components: "buttons,funding-eligibility",
