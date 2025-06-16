@@ -139,10 +139,8 @@ export const productApi = {
     });
     const responseBody = response.data;
 
-    // Backend returns: { message, data: Product[], meta: { ... } }
     return responseBody.data || [];
-  },
-  // Get products on sale
+  }, // Get products on sale
   getSaleProducts: async (params?: {
     page?: number;
     limit?: number;
@@ -161,10 +159,10 @@ export const productApi = {
     return {
       data: responseBody.data || [],
       meta: {
-        total: responseBody.meta?.totalItems || 0,
+        total: responseBody.meta?.total || 0,
         totalPages: responseBody.meta?.totalPages || 0,
-        page: responseBody.meta?.currentPage || 1,
-        limit: responseBody.meta?.itemsPerPage || 20,
+        page: responseBody.meta?.page || 1,
+        limit: responseBody.meta?.limit || 20,
       },
     };
   },

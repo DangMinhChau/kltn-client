@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Product } from "@/types";
-import { getSaleProducts, SearchProductsResponse } from "@/lib/api/products";
+import { productApi } from "@/lib/api";
 import {
   ViewModeToggle,
   SortSelect,
@@ -40,13 +40,12 @@ function SalePageContent() {
   // Get initial values from URL params
   const page = parseInt(searchParams.get("page") || "1");
   const sort = searchParams.get("sort") || "discount_desc";
-
   // Fetch sale products
   const fetchSaleProducts = async () => {
     try {
       setLoading(true);
       setError(null);
-      const result: SearchProductsResponse = await getSaleProducts({
+      const result = await productApi.getSaleProducts({
         page,
         limit: 20,
         sort: sort as any,

@@ -68,10 +68,26 @@ export const getSaleProducts = async (params?: {
   }
 
   const response = await api.get(`/products/sale?${searchParams.toString()}`);
-  return response.data;
+  const responseBody = response.data;
+  
+  return {
+    data: responseBody.data || [],
+    meta: {
+      page: responseBody.meta?.page || 1,
+      limit: responseBody.meta?.limit || 20,
+      total: responseBody.meta?.total || 0,
+      totalPages: responseBody.meta?.totalPages || 0,
+    },
+  };
 };
 
 export const getSaleStatistics = async () => {
   const response = await api.get("/products/sale/statistics");
-  return response.data.data;
+  const responseBody = response.data;
+  return responseBody.data || {
+    totalSaleProducts: 0,
+    maxDiscountPercent: 0,
+    averageDiscountPercent: 0,
+    totalDiscountValue: 0,
+  };
 };
