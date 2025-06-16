@@ -280,46 +280,7 @@ export const categoryApi = {
 };
 
 // Collection API
-export const collectionApi = {
-  // Get all collections
-  getCollections: async (): Promise<Collection[]> => {
-    const response = await api.get("/collections");
-    const responseBody = response.data;
-
-    // Backend returns: { message, data: Collection[], meta: { page, limit, total, totalPages, timestamp } }
-    return responseBody.data || [];
-  },
-
-  // Get collection by slug
-  getCollection: async (slug: string): Promise<Collection> => {
-    const response = await api.get(`/collections/${slug}`);
-    const responseBody = response.data;
-
-    // Backend returns: { message, data: Collection, meta: { timestamp } }
-    return responseBody.data;
-  },
-  // Get products by collection
-  getCollectionProducts: async (
-    slug: string,
-    filters?: ProductFilters
-  ): Promise<PaginationResult<Product>> => {
-    const response = await api.get(`/products`, {
-      params: { ...filters, collection: slug },
-    });
-    const responseBody = response.data;
-
-    // Backend returns: { message, data: Product[], meta: { page, limit, total, totalPages, timestamp } }
-    return {
-      data: responseBody.data || [],
-      meta: {
-        page: responseBody.meta?.page || 1,
-        limit: responseBody.meta?.limit || 10,
-        total: responseBody.meta?.total || 0,
-        totalPages: responseBody.meta?.totalPages || 0,
-      },
-    };
-  },
-};
+export { collectionApi, adminCollectionApi } from "./api/collections";
 
 // Style API
 export const styleApi = {

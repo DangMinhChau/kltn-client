@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { use } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import ProductCard from "@/components/common/ProductCard";
 import {
@@ -18,10 +20,21 @@ import {
   Filter,
   Share2,
   Heart,
+  Package,
+  Sparkles,
+  Tag,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { collectionApi } from "@/lib/api";
 import { Collection, Product } from "@/types";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface CollectionDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -41,40 +54,80 @@ export default function CollectionDetailPage({
   >("name");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (slug) {
-      fetchCollection();
-      fetchProducts();
+      fetchCollectionData();
     }
-  }, [slug, currentPage, sortBy]);
-  const fetchCollection = async () => {
+  }, [slug]);
+  const fetchCollectionData = async () => {
     try {
       setIsLoading(true);
-      const response = await collectionApi.getCollection(slug);
-      setCollection(response);
-    } catch (error) {
-      console.error("Failed to fetch collection:", error);
+      setError(null);
+      const result = await collectionApi.getCollection(slug);
+      setCollection(result);
+      setProducts(result.products || []);
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        notFound();
+      }
+      setError(err.message || "Failed to fetch collection");
+      console.error("Error fetching collection:", err);
     } finally {
       setIsLoading(false);
     }
   };
-  const fetchProducts = async () => {
-    try {
-      setProductsLoading(true);
-      const response = await collectionApi.getCollectionProducts(slug, {
-        page: currentPage,
-        limit: 12,
-        sortBy: sortBy,
-      });
-      setProducts(response.data);
-      setTotalPages(response.meta.totalPages);
-    } catch (error) {
-      console.error("Failed to fetch products:", error);
-    } finally {
-      setProductsLoading(false);
+
+  const handleShare = async () => {
+    if (navigator.share && collection) {
+      try {
+        await navigator.share({
+          title: collection.name,
+          text:
+            collection.description ||
+            `Check out the ${collection.name} collection`,
+          url: window.location.href,
+        });
+      } catch (err) {
+        // Fallback to copying URL
+        navigator.clipboard.writeText(window.location.href);
+        toast.success("Link copied to clipboard!");
+      }
+    } else {
+      // Fallback to copying URL
+      navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard!");
     }
   };
+
+  const toggleFavorite = () => {
+    setIsFavorited(!isFavorited);
+    toast.success(
+      isFavorited ? "Removed from favorites" : "Added to favorites"
+    );
+  };
+
+  const sortProducts = (products: Product[], sortBy: string): Product[] => {
+    const sorted = [...products];
+    switch (sortBy) {
+      case "price":
+        return sorted.sort((a, b) => a.basePrice - b.basePrice);
+      case "createdAt":
+        return sorted.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      case "rating":
+        return sorted.sort(
+          (a, b) => (b.averageRating || 0) - (a.averageRating || 0)
+        );
+      default:
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    }
+  };
+
+  const sortedProducts = sortProducts(products, sortBy);
 
   const getCollectionImage = () => {
     if (collection?.imageUrl) {

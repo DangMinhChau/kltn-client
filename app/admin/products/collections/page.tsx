@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
-  Plus,
   Search,
+  Plus,
   Filter,
   MoreHorizontal,
   Edit,
   Trash2,
+  Eye,
+  Package,
+  Calendar,
+  Tag,
   Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,13 +32,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -42,450 +55,484 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { adminCollectionsApi } from "@/lib/api/admin";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAdminCollections } from "@/hooks/useCollections";
+import { CollectionFormDialog } from "@/components/collections/CollectionFormDialog";
 import { Collection } from "@/types";
+import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
-import Image from "next/image";
 
-export default function CollectionsPage() {
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [loading, setLoading] = useState(true);
+const SEASONS = ["Spring", "Summer", "Fall", "Winter"];
+const YEARS = Array.from(
+  { length: 10 },
+  (_, i) => new Date().getFullYear() - i + 5
+);
+
+export default function AdminCollectionsPage() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [selectedCollection, setSelectedCollection] =
-    useState<Collection | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    season: "",
-    year: new Date().getFullYear(),
-  });
+  const [seasonFilter, setSeasonFilter] = useState<string>("");
+  const [yearFilter, setYearFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
 
-  const seasons = ["Spring", "Summer", "Fall", "Winter"];
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
-
-  useEffect(() => {
-    loadCollections();
-  }, []);
-
-  const loadCollections = async () => {
-    try {
-      setLoading(true);
-      const data = await adminCollectionsApi.getCollections();
-      setCollections(data);
-    } catch (error) {
-      console.error("Error loading collections:", error);
-      toast.error("Failed to load collections");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreate = async () => {
-    try {
-      const newCollection = await adminCollectionsApi.createCollection({
-        name: formData.name,
-        description: formData.description,
-        // season: formData.season, // Backend may not support these fields yet
-        // year: formData.year,
-        isActive: true,
-      });
-      setCollections([...collections, newCollection]);
-      setShowCreateDialog(false);
-      setFormData({
-        name: "",
-        description: "",
-        season: "",
-        year: new Date().getFullYear(),
-      });
-      toast.success("Collection created successfully");
-    } catch (error) {
-      console.error("Error creating collection:", error);
-      toast.error("Failed to create collection");
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (!selectedCollection) return;
-
-    try {
-      const updatedCollection = await adminCollectionsApi.updateCollection(
-        selectedCollection.id,
-        {
-          name: formData.name,
-          description: formData.description,
-          // season: formData.season, // Backend may not support these fields yet
-          // year: formData.year,
-          isActive: selectedCollection.isActive,
-        }
-      );
-      setCollections(
-        collections.map((col) =>
-          col.id === selectedCollection.id ? updatedCollection : col
-        )
-      );
-      setShowEditDialog(false);
-      setSelectedCollection(null);
-      setFormData({
-        name: "",
-        description: "",
-        season: "",
-        year: new Date().getFullYear(),
-      });
-      toast.success("Collection updated successfully");
-    } catch (error) {
-      console.error("Error updating collection:", error);
-      toast.error("Failed to update collection");
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this collection?")) return;
-
-    try {
-      await adminCollectionsApi.deleteCollection(id);
-      setCollections(collections.filter((col) => col.id !== id));
-      toast.success("Collection deleted successfully");
-    } catch (error) {
-      console.error("Error deleting collection:", error);
-      toast.error("Failed to delete collection");
-    }
-  };
-  const openEditDialog = (collection: Collection) => {
-    setSelectedCollection(collection);
-    setFormData({
-      name: collection.name,
-      description: collection.description || "",
-      season: collection.season || "",
-      year: collection.year || new Date().getFullYear(),
-    });
-    setShowEditDialog(true);
-  };
-
-  const filteredCollections = collections.filter(
-    (collection) =>
-      collection.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      collection.description
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      (collection.season &&
-        collection.season.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Form states
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingCollection, setEditingCollection] = useState<Collection | null>(
+    null
   );
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    collection: Collection | null;
+  }>({ open: false, collection: null });
+
+  // Build filters
+  const filters = {
+    search: searchTerm || undefined,
+    season: seasonFilter || undefined,
+    year: yearFilter ? parseInt(yearFilter) : undefined,
+    isActive:
+      statusFilter === "active"
+        ? true
+        : statusFilter === "inactive"
+        ? false
+        : undefined,
+    page,
+    limit,
+  };
+
+  const {
+    collections,
+    pagination,
+    loading,
+    error,
+    refetch,
+    createCollection,
+    updateCollection,
+    deleteCollection,
+  } = useAdminCollections(filters);
+
+  // Handle search
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    setPage(1);
+  };
+
+  // Handle filters
+  const handleSeasonChange = (value: string) => {
+    setSeasonFilter(value);
+    setPage(1);
+  };
+
+  const handleYearChange = (value: string) => {
+    setYearFilter(value);
+    setPage(1);
+  };
+
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSeasonFilter("");
+    setYearFilter("");
+    setStatusFilter("");
+    setPage(1);
+  };
+
+  // Handle create collection
+  const handleCreate = () => {
+    setEditingCollection(null);
+    setIsFormOpen(true);
+  };
+
+  // Handle edit collection
+  const handleEdit = (collection: Collection) => {
+    setEditingCollection(collection);
+    setIsFormOpen(true);
+  };
+
+  // Handle view collection details
+  const handleView = (collection: Collection) => {
+    router.push(`/admin/products/collections/${collection.id}`);
+  };
+
+  // Handle manage products
+  const handleManageProducts = (collection: Collection) => {
+    router.push(`/admin/products/collections/${collection.id}/products`);
+  };
+
+  // Handle delete confirmation
+  const handleDeleteClick = (collection: Collection) => {
+    setDeleteDialog({ open: true, collection });
+  };
+  // Handle delete collection
+  const handleDelete = async () => {
+    if (!deleteDialog.collection) return;
+
+    try {
+      await deleteCollection(parseInt(deleteDialog.collection.id));
+      toast.success("Collection deleted successfully");
+      setDeleteDialog({ open: false, collection: null });
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete collection");
+    }
+  };
+  // Handle form submit
+  const handleFormSubmit = async (data: any) => {
+    try {
+      if (editingCollection) {
+        await updateCollection(parseInt(editingCollection.id), data);
+        toast.success("Collection updated successfully");
+      } else {
+        await createCollection(data);
+        toast.success("Collection created successfully");
+      }
+      setIsFormOpen(false);
+      setEditingCollection(null);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save collection");
+    }
+  };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Collections</h1>
-          <p className="text-muted-foreground">Manage product collections</p>
+          <h1 className="text-3xl font-bold tracking-tight">Collections</h1>
+          <p className="text-muted-foreground">
+            Manage your product collections and seasonal releases
+          </p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
+        <Button onClick={handleCreate}>
+          <Plus className="h-4 w-4 mr-2" />
           Add Collection
         </Button>
       </div>
-
+      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>All Collections</CardTitle>
+          <CardTitle className="text-lg">Filters</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1 min-w-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search collections..."
+                  value={searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            {/* Season Filter */}
+            <Select value={seasonFilter} onValueChange={handleSeasonChange}>
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="Season" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Seasons</SelectItem>
+                {SEASONS.map((season) => (
+                  <SelectItem key={season} value={season}>
+                    {season}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Year Filter */}
+            <Select value={yearFilter} onValueChange={handleYearChange}>
+              <SelectTrigger className="w-full sm:w-32">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                {YEARS.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Status Filter */}
+            <Select value={statusFilter} onValueChange={handleStatusChange}>
+              <SelectTrigger className="w-full sm:w-32">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Clear Filters */}
+            <Button variant="outline" onClick={clearFilters}>
+              <Filter className="h-4 w-4 mr-2" />
+              Clear
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      {/* Collections Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Collections</CardTitle>
           <CardDescription>
-            A list of all product collections in your store.
+            {pagination.total} total collections
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-2 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search collections..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            <Button variant="outline" size="sm">
-              <Filter className="mr-2 h-4 w-4" />
-              Filter
-            </Button>
-          </div>
-
           {loading ? (
-            <div className="text-center py-4">Loading collections...</div>
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-destructive mb-4">{error}</p>
+              <Button onClick={() => refetch()} variant="outline">
+                Try Again
+              </Button>
+            </div>
+          ) : collections.length === 0 ? (
+            <div className="text-center py-8">
+              <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">
+                No collections found
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                {searchTerm || seasonFilter || yearFilter || statusFilter
+                  ? "Try adjusting your filters"
+                  : "Start by creating your first collection"}
+              </p>
+              {!(searchTerm || seasonFilter || yearFilter || statusFilter) && (
+                <Button onClick={handleCreate}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Collection
+                </Button>
+              )}
+            </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Image</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Season</TableHead>
-                  <TableHead>Year</TableHead>
-                  <TableHead>Products</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCollections.map((collection) => (
-                  <TableRow key={collection.id}>
-                    <TableCell>
-                      {collection.images && collection.images.length > 0 ? (
-                        <div className="h-10 w-10 relative rounded-md overflow-hidden">
-                          <Image
-                            src={collection.images[0].imageUrl}
-                            alt={collection.name}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center">
-                          <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{collection.name}</div>
-                        <div className="text-sm text-muted-foreground max-w-[200px] truncate">
-                          {collection.description}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{collection.season}</Badge>
-                    </TableCell>
-                    <TableCell>{collection.year}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {collection.products?.length || 0}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={collection.isActive ? "default" : "secondary"}
-                      >
-                        {collection.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => openEditDialog(collection)}
-                          >
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(collection.id)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Season</TableHead>
+                    <TableHead>Year</TableHead>
+                    <TableHead>Products</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="w-12"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {collections.map((collection) => (
+                    <TableRow key={collection.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          {collection.images && collection.images.length > 0 ? (
+                            <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                              {" "}
+                              <img
+                                src={collection.images[0].imageUrl}
+                                alt={collection.name}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-medium">{collection.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {collection.slug}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          <Tag className="h-3 w-3 mr-1" />
+                          {collection.season}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {collection.year}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">
+                          {collection.products?.length || 0} products
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            collection.isActive ? "default" : "secondary"
+                          }
+                        >
+                          {collection.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>{" "}
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(
+                          typeof collection.createdAt === "string"
+                            ? collection.createdAt
+                            : collection.createdAt.toISOString()
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => handleView(collection)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleEdit(collection)}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleManageProducts(collection)}
+                            >
+                              <Package className="h-4 w-4 mr-2" />
+                              Manage Products
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteClick(collection)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6">
+              <div className="text-sm text-muted-foreground">
+                Showing {(page - 1) * limit + 1} to{" "}
+                {Math.min(page * limit, pagination.total)} of {pagination.total}{" "}
+                collections
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page - 1)}
+                  disabled={page <= 1}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center space-x-1">
+                  {Array.from(
+                    { length: Math.min(5, pagination.totalPages) },
+                    (_, i) => {
+                      const pageNum =
+                        Math.max(
+                          1,
+                          Math.min(pagination.totalPages - 4, page - 2)
+                        ) + i;
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={pageNum === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setPage(pageNum)}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    }
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= pagination.totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
-      </Card>
-
-      {/* Create Collection Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      </Card>{" "}
+      {/* Collection Form Dialog */}
+      <CollectionFormDialog
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) {
+            setEditingCollection(null);
+          }
+        }}
+        collection={editingCollection}
+        onSubmit={handleFormSubmit}
+      />
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onOpenChange={(open) =>
+          !open && setDeleteDialog({ open: false, collection: null })
+        }
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New Collection</DialogTitle>
+            <DialogTitle>Delete Collection</DialogTitle>
             <DialogDescription>
-              Add a new collection to organize your products.
+              Are you sure you want to delete "{deleteDialog.collection?.name}"?
+              This action cannot be undone and will remove all associated
+              products from the collection.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="Collection name"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                placeholder="Collection description"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="season">Season</Label>
-                <Select
-                  value={formData.season}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, season: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select season" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {seasons.map((season) => (
-                      <SelectItem key={season} value={season}>
-                        {season}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="year">Year</Label>
-                <Select
-                  value={formData.year.toString()}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, year: parseInt(value) })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setShowCreateDialog(false)}
+              onClick={() => setDeleteDialog({ open: false, collection: null })}
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={!formData.name || !formData.season}
-            >
-              Create Collection
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Collection Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Collection</DialogTitle>
-            <DialogDescription>
-              Update the collection information.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-name">Name</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="Collection name"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea
-                id="edit-description"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                placeholder="Collection description"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-season">Season</Label>
-                <Select
-                  value={formData.season}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, season: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select season" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {seasons.map((season) => (
-                      <SelectItem key={season} value={season}>
-                        {season}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-year">Year</Label>
-                <Select
-                  value={formData.year.toString()}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, year: parseInt(value) })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleUpdate}
-              disabled={!formData.name || !formData.season}
-            >
-              Update Collection
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete Collection
             </Button>
           </DialogFooter>
         </DialogContent>
