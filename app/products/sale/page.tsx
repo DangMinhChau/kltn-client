@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Product, PaginationResult } from "@/types";
-import { api, productApi } from "@/lib/api";
+import { Product } from "@/types";
+import { productApi } from "@/lib/api";
+import { SearchProductsResponse } from "@/lib/api/products";
 import {
   ViewModeToggle,
   SortSelect,
@@ -46,13 +47,11 @@ function SalePageContent() {
     try {
       setLoading(true);
       setError(null);
-
-      const result: PaginationResult<Product> =
-        await productApi.getSaleProducts({
-          page,
-          limit: 20,
-          sort: sort as any,
-        });
+      const result: SearchProductsResponse = await productApi.getSaleProducts({
+        page,
+        limit: 20,
+        sort: sort as any,
+      });
 
       setProducts(result.data);
       setPagination({
