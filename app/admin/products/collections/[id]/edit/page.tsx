@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
+import { use } from "react";
 import { ArrowLeft, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,14 +20,15 @@ import { Collection } from "@/types";
 import { toast } from "sonner";
 
 interface CollectionEditPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default function CollectionEditPage({
   params,
 }: CollectionEditPageProps) {
+  const { id } = use(params);
   const router = useRouter();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,15 +37,13 @@ export default function CollectionEditPage({
 
   useEffect(() => {
     fetchCollection();
-  }, [params.id]);
+  }, [id]);
 
   const fetchCollection = async () => {
     try {
       setLoading(true);
       setError(null);
-      const result = await adminCollectionApi.getCollection(
-        parseInt(params.id)
-      );
+      const result = await adminCollectionApi.getCollection(parseInt(id));
       setCollection(result);
     } catch (err: any) {
       if (err.response?.status === 404) {
@@ -60,12 +60,12 @@ export default function CollectionEditPage({
     try {
       setSaving(true);
       const updatedCollection = await adminCollectionApi.updateCollection(
-        parseInt(params.id),
+        parseInt(id),
         data
       );
       setCollection(updatedCollection);
       toast.success("Collection updated successfully");
-      router.push(`/admin/products/collections/${params.id}`);
+      router.push(`/admin/products/collections/${id}`);
     } catch (error: any) {
       toast.error(error.message || "Failed to update collection");
     } finally {
