@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Header from "./Header";
 import Footer from "./Footer";
+import { PromotionBanner } from "./PromotionBanner";
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -16,10 +17,10 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     // Admin layout không có Header và Footer, chỉ có content
     return <>{children}</>;
   }
-
   // Layout bình thường có Header và Footer
   return (
     <div className="flex min-h-screen flex-col">
+      <PromotionBanner />
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />

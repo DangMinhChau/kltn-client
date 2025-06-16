@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import HeroSection from "@/components/sections/HeroSection";
 import FeaturedProducts from "@/components/sections/FeaturedProducts";
+import { SaleProductsSection } from "@/components/sections/SaleProductsSection";
 import CollectionsSection from "@/components/sections/CollectionsSection";
 
 export const metadata: Metadata = {
@@ -20,6 +21,9 @@ export default function Home() {
     <main className="min-h-screen">
       {/* Hero Section */}
       <HeroSection />
+
+      {/* Sale Products Section */}
+      <SaleProductsSection className="bg-gradient-to-b from-red-50/30 to-orange-50/30" />
 
       {/* Featured Products */}
       <FeaturedProducts />

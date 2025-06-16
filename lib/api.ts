@@ -142,6 +142,33 @@ export const productApi = {
     // Backend returns: { message, data: Product[], meta: { ... } }
     return responseBody.data || [];
   },
+  // Get products on sale
+  getSaleProducts: async (params?: {
+    page?: number;
+    limit?: number;
+    sort?: "newest" | "price_asc" | "price_desc" | "discount_desc";
+  }): Promise<PaginationResult<Product>> => {
+    const response = await api.get("/products/sale", {
+      params: {
+        page: 1,
+        limit: 20,
+        sort: "discount_desc",
+        ...params,
+      },
+    });
+    const responseBody = response.data;
+
+    return {
+      data: responseBody.data || [],
+      meta: {
+        total: responseBody.meta?.totalItems || 0,
+        totalPages: responseBody.meta?.totalPages || 0,
+        page: responseBody.meta?.currentPage || 1,
+        limit: responseBody.meta?.itemsPerPage || 20,
+      },
+    };
+  },
+
   // Get products by category
   getProductsByCategory: async (
     categorySlug: string,
@@ -200,6 +227,25 @@ export const productApi = {
 
     // Backend returns: { message, data: FilterOptions, meta: { timestamp } }
     return responseBody.data;
+  },
+
+  // Get sale statistics
+  getSaleStatistics: async (): Promise<{
+    totalSaleProducts: number;
+    maxDiscountPercent: number;
+    averageDiscountPercent: number;
+    totalDiscountValue: number;
+  }> => {
+    const response = await api.get("/products/sale/statistics");
+    const responseBody = response.data;
+    return (
+      responseBody.data || {
+        totalSaleProducts: 0,
+        maxDiscountPercent: 0,
+        averageDiscountPercent: 0,
+        totalDiscountValue: 0,
+      }
+    );
   },
 };
 

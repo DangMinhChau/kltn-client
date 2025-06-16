@@ -183,12 +183,16 @@ const Header = () => {
             <CategoryDropdown categories={categoryTree} isLoading={isLoading} />
           </div>
         )}
-      </div>
+      </div>{" "}
       <Link
-        href="/sale"
-        className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-accent rounded-md transition-colors"
+        href="/products/sale"
+        className="relative px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-accent rounded-md transition-colors group"
       >
-        Sale
+        <span className="relative z-10">Sale</span>
+        {/* Animated fire effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        {/* Hot badge */}
+        <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
       </Link>
       <Link
         href="/orders"
@@ -247,7 +251,6 @@ const Header = () => {
               >
                 Bộ sưu tập
               </Link>
-
               {/* Sản phẩm với dropdown - Mobile */}
               <div className="space-y-2">
                 <Link
@@ -293,17 +296,15 @@ const Header = () => {
                         </div>
                       ))}
                 </div>
-              </div>
-
+              </div>{" "}
               {/* Sale */}
               <Link
-                href="/sale"
+                href="/products/sale"
                 className="block py-3 px-4 text-base font-medium text-red-600 hover:bg-accent hover:text-red-700 rounded-md transition-colors"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Sale
               </Link>
-
               {/* Đơn hàng */}
               <Link
                 href="/orders"
@@ -312,7 +313,6 @@ const Header = () => {
               >
                 Đơn hàng
               </Link>
-
               {/* Wishlist - Mobile only */}
               <Link
                 href="/wishlist"
