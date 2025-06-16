@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Product, Image as ImageType } from "@/types";
+import { Product, ProductImageType } from "@/types";
 import {
   Heart,
   ShoppingCart,
@@ -15,6 +15,15 @@ import {
   ArrowRight,
   TrendingUp,
 } from "lucide-react";
+
+// Helper function to get image URL from ProductImageType
+const getImageUrl = (
+  image: ProductImageType | undefined
+): string | undefined => {
+  if (!image) return undefined;
+  if (typeof image === "string") return image;
+  return image.imageUrl;
+};
 
 // Helper function to parse price safely
 const parsePrice = (price: number | string): number => {
@@ -50,19 +59,19 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const firstVariantWithImages = product.variants?.find(
     (v) => v.images && v.images.length > 0
   );
-  const variantImage = firstVariantWithImages?.images?.[0]?.imageUrl;
-  const productMainImage = product.image?.imageUrl;
+  const variantImage = getImageUrl(firstVariantWithImages?.images?.[0]);
+  const productMainImage = getImageUrl(product.image);
 
   const mainImage =
     variantImage || productMainImage || "/placeholder-image.jpg";
   const hoverImage =
-    firstVariantWithImages?.images?.[1]?.imageUrl || productMainImage;
+    getImageUrl(firstVariantWithImages?.images?.[1]) || productMainImage;
   // Debug log (remove this later)
   console.log("=== ProductCard Debug START ===");
   console.log("Product name:", product.name);
   console.log("Product full object:", JSON.stringify(product, null, 2));
   console.log("Product image object:", product.image);
-  console.log("Product imageUrl:", product.image?.imageUrl);
+  console.log("Product imageUrl:", getImageUrl(product.image));
   console.log("Variants count:", product.variants?.length);
   console.log("Variants data:", product.variants);
   console.log("First variant with images:", firstVariantWithImages);
@@ -80,11 +89,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
     hasProductImage: !!product.image,
     hasVariants: !!product.variants?.length,
     firstVariantImages: firstVariantWithImages?.images?.length || 0, // More detailed debugging
-    productImageUrl: product.image?.imageUrl,
+    productImageUrl: getImageUrl(product.imagPe),
     allVariants: product.variants?.map((v) => ({
       id: v.id,
       hasImages: !!v.images?.length,
-      firstImageUrl: v.images?.[0]?.imageUrl,
+      firstImageUrl: getImageUrl(v.images?.[0]),
     })),
     rawProduct: product,
   });
