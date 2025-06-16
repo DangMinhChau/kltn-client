@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -385,8 +384,7 @@ export default function EditProductPage() {
                           </FormControl>
                           <FormMessage />
                         </FormItem>
-                      )}
-                    />{" "}
+                      )}                    />
                     <FormField
                       control={form.control}
                       name="discountPercent"
@@ -394,7 +392,6 @@ export default function EditProductPage() {
                         <FormItem>
                           <FormLabel>Giảm giá (%)</FormLabel>
                           <FormControl>
-                            {" "}
                             <Input
                               type="number"
                               placeholder="0"
