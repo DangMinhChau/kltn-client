@@ -7,14 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Product, Image as ImageType } from "@/types";
-import {
-  Heart,
-  ShoppingCart,
-  Star,
-  Eye,
-  ArrowRight,
-  TrendingUp,
-} from "lucide-react";
+import QuickViewModal from "@/components/common/QuickViewModal";
+import { Heart, Star, Eye } from "lucide-react";
 
 // Helper function to get image URL from Image
 const getImageUrl = (image: ImageType | undefined): string | undefined => {
@@ -42,11 +36,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
   className = "",
   variant = "card",
 }) => {
-  // Simple log to check if component loads
-  console.log("ProductCard component loaded!");
-
   const [isWishlisted, setIsWishlisted] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0); // Calculate discounted price
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+
+  // Calculate discounted price
   const hasDiscount = product.discountPercent && product.discountPercent > 0;
   const basePrice = parsePrice(product.basePrice);
   const discountedPrice = hasDiscount
@@ -59,66 +53,24 @@ const ProductCard: React.FC<ProductCardProps> = ({
   );
   const variantImage = getImageUrl(firstVariantWithImages?.images?.[0]);
   const productMainImage = getImageUrl(product.image);
-
   const mainImage =
     variantImage || productMainImage || "/placeholder-image.jpg";
   const hoverImage =
     getImageUrl(firstVariantWithImages?.images?.[1]) || productMainImage;
-  // Debug log (remove this later)
-  console.log("=== ProductCard Debug START ===");
-  console.log("Product name:", product.name);
-  console.log("Product full object:", JSON.stringify(product, null, 2));
-  console.log("Product image object:", product.image);
-  console.log("Product imageUrl:", getImageUrl(product.image));
-  console.log("Variants count:", product.variants?.length);
-  console.log("Variants data:", product.variants);
-  console.log("First variant with images:", firstVariantWithImages);
-  console.log("Variant image URL:", variantImage);
-  console.log("Product main image URL:", productMainImage);
-  console.log("FINAL mainImage being used:", mainImage);
-  console.log("=== ProductCard Debug END ===");
-  // Debug log (remove this later)
-  console.log("ProductCard Debug:", {
-    productName: product.name,
-    mainImage,
-    hoverImage,
-    variantImage,
-    productMainImage,
-    hasProductImage: !!product.image,
-    hasVariants: !!product.variants?.length,
-    firstVariantImages: firstVariantWithImages?.images?.length || 0, // More detailed debugging
-    productImageUrl: getImageUrl(product.image),
-    allVariants: product.variants?.map((v) => ({
-      id: v.id,
-      hasImages: !!v.images?.length,
-      firstImageUrl: getImageUrl(v.images?.[0]),
-    })),
-    rawProduct: product,
-  });
-
   const handleWishlistToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsWishlisted(!isWishlisted);
   };
 
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Add to cart logic here
-    console.log("Adding to cart:", product.id);
-  };
-
   const handleQuickView = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Quick view logic here
-    console.log("Quick view:", product.id);
+    setIsQuickViewOpen(true);
   };
-
   return (
     <Card
-      className={`group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden border-0 bg-white/80 backdrop-blur-sm ${className}`}
+      className={`group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden border-0 bg-white/80 backdrop-blur-sm rounded-none ${className}`}
     >
       <Link href={`/products/${product.slug}`}>
         <CardContent className="p-0">
@@ -126,20 +78,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {/* Image Container */}
           <div className="relative aspect-[3/4] overflow-hidden bg-gray-50">
             {" "}
-            {/* Main Image - Testing with regular img tag */}
+            {/* Main Image */}
             <img
               src={mainImage}
               alt={product.name}
               className="absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
               onError={(e) => {
-                console.log("Image load error for:", mainImage);
-                console.log("Error event:", e);
                 e.currentTarget.src = "/placeholder-image.jpg";
               }}
-              onLoad={() => {
-                console.log("Image loaded successfully:", mainImage);
-              }}
-            />
+            />{" "}
             {/* Hover Image */}
             {hoverImage && hoverImage !== mainImage && (
               <img
@@ -147,7 +94,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 alt={`${product.name} hover`}
                 className="absolute inset-0 w-full h-full object-cover transition-all duration-500 opacity-0 group-hover:opacity-100"
                 onError={(e) => {
-                  console.log("Hover image load error:", hoverImage);
                   e.currentTarget.style.display = "none";
                 }}
               />
@@ -167,7 +113,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   Hết hàng
                 </Badge>
               )}
-            </div>
+            </div>{" "}
             {/* Action Buttons */}
             <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
               <Button
@@ -183,29 +129,24 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 />
               </Button>
 
-              {showQuickView && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
-                  onClick={handleQuickView}
-                >
-                  <Eye className="h-4 w-4 text-gray-600" />
-                </Button>
-              )}
-            </div>
-            {/* Quick Add to Cart */}
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
+                onClick={handleQuickView}
+              >
+                <Eye className="h-4 w-4 text-gray-600" />
+              </Button>
+            </div>{" "}
+            {/* Quick View Button */}
             <div className="absolute bottom-3 left-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
               <Button
                 size="sm"
                 className="w-full bg-black/80 hover:bg-black text-white"
-                onClick={handleAddToCart}
-                disabled={product.variants?.[0]?.stockQuantity === 0}
+                onClick={handleQuickView}
               >
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                {product.variants?.[0]?.stockQuantity === 0
-                  ? "Hết hàng"
-                  : "Thêm vào giỏ"}
+                <Eye className="h-4 w-4 mr-2" />
+                Quick View
               </Button>
             </div>
           </div>
@@ -288,10 +229,17 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   )}
                 </div>
               </div>
-            )}
+            )}{" "}
           </div>
         </CardContent>
       </Link>
+
+      {/* Quick View Modal */}
+      <QuickViewModal
+        product={product}
+        isOpen={isQuickViewOpen}
+        onClose={() => setIsQuickViewOpen(false)}
+      />
     </Card>
   );
 };
