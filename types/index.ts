@@ -405,9 +405,6 @@ export interface WishlistItem {
   createdAt: string;
   updatedAt: string;
 }
-
-// Voucher Types
-// Matching backend DiscountType but extended for frontend
 export enum VoucherType {
   PERCENTAGE = "PERCENT", // Matches backend DiscountType.PERCENT
   FIXED_AMOUNT = "AMOUNT", // Matches backend DiscountType.AMOUNT
@@ -438,22 +435,6 @@ export interface VoucherValidationResult {
   voucher?: Voucher;
   discountAmount: number;
   message: string;
-}
-
-// Payment Types are now exported from ./order.ts to avoid duplication
-
-export interface Payment {
-  id: string;
-  orderId: string;
-  amount: number;
-  method: string; // Use string instead of enum to avoid conflicts
-  status: string; // Use string instead of enum to avoid conflicts
-  transactionId?: string;
-  paymentData?: Record<string, any>;
-  paidAt?: string;
-  note?: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export enum NotificationType {
