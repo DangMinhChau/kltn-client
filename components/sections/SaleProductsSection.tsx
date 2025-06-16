@@ -142,7 +142,8 @@ export function SaleProductsSection({
                   <Skeleton className="h-6 w-1/2" />
                 </CardContent>
               </Card>
-            ))          ) : saleProducts.length > 0 ? (
+            ))
+          ) : saleProducts.length > 0 ? (
             saleProducts.map((product) => (
               <ProductCard
                 key={product.id}
