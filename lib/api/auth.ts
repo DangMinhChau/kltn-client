@@ -130,13 +130,12 @@ class AuthApiClient {
       headers: this.getAuthHeaders(token),
     });
   }
-
   async changePassword(
     data: ChangePasswordRequest,
     token?: string
   ): Promise<{ message: string }> {
     return this.request<{ message: string }>("/change-password", {
-      method: "POST",
+      method: "PATCH",
       headers: this.getAuthHeaders(token),
       body: JSON.stringify(data),
     });

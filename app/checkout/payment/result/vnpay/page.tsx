@@ -168,20 +168,23 @@ function VNPayResultContent() {
             )}
           </div>
         </CardContent>
-      </Card>    </div>
+      </Card>{" "}
+    </div>
   );
 }
 
 export default function VNPayResultPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Đang tải...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p>Đang tải...</p>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <VNPayResultContent />
     </Suspense>
   );
