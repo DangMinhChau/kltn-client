@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { use } from "react";
 import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
 import {
@@ -39,14 +40,15 @@ import { Collection, Image } from "@/types";
 import { toast } from "sonner";
 
 interface CollectionImagesPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default function CollectionImagesPage({
   params,
 }: CollectionImagesPageProps) {
+  const { id } = use(params);
   const router = useRouter();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [images, setImages] = useState<Image[]>([]);

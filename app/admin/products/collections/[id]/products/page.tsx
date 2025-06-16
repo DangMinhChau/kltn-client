@@ -64,14 +64,15 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 interface CollectionProductsPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default function CollectionProductsPage({
   params,
 }: CollectionProductsPageProps) {
+  const { id } = React.use(params);
   const router = useRouter();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [allProducts, setAllProducts] = useState<Product[]>([]);

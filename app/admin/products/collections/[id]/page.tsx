@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { use } from "react";
 import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
 import {
@@ -32,14 +33,15 @@ import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface CollectionDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default function CollectionDetailPage({
   params,
 }: CollectionDetailPageProps) {
+  const { id } = use(params);
   const router = useRouter();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +49,7 @@ export default function CollectionDetailPage({
 
   useEffect(() => {
     fetchCollection();
-  }, [params.id]);
+  }, [id]);
 
   const fetchCollection = async () => {
     try {
