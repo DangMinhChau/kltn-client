@@ -70,8 +70,11 @@ export default function OrderDetailsPage() {
       setLoading(false);
     }
   };
-
-  const handleUpdateStatus = async (status: OrderStatus, note?: string) => {
+  const handleUpdateStatus = async (
+    orderId: string,
+    status: OrderStatus,
+    note?: string
+  ) => {
     try {
       await adminApi.orders.updateOrderStatus(orderId, { status, note });
       toast.success("Order status updated successfully");
@@ -132,7 +135,6 @@ export default function OrderDetailsPage() {
           </Button>
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
@@ -165,9 +167,11 @@ export default function OrderDetailsPage() {
                     <div className="text-right">
                       <p className="font-medium">
                         {item.quantity} x {formatPrice(item.unitPrice)}
-                      </p>
+                      </p>{" "}
                       <p className="text-sm font-semibold">
-                        {formatPrice(item.totalPrice)}
+                        {formatPrice(
+                          item.totalPrice || item.quantity * item.unitPrice
+                        )}
                       </p>
                     </div>
                   </div>
@@ -317,34 +321,30 @@ export default function OrderDetailsPage() {
             <CardContent className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Ordered:</span>
-                <span>{formatDate(order.createdAt.toISOString())}</span>
+                <span>{formatDate(order.createdAt)}</span>
               </div>
               {order.shipping?.expectedDeliveryDate && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
                     Expected Delivery:
                   </span>
-                  <span>
-                    {formatDate(
-                      order.shipping.expectedDeliveryDate.toISOString()
-                    )}
-                  </span>
+                  <span>{formatDate(order.shipping.expectedDeliveryDate)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Last Updated:</span>
-                <span>{formatDate(order.updatedAt.toISOString())}</span>
+                <span>{formatDate(order.updatedAt)}</span>
               </div>
             </CardContent>
           </Card>
         </div>
-      </div>
-
+      </div>{" "}
       {/* Update Status Dialog */}
       <UpdateOrderStatusDialog
-        open={showUpdateStatusDialog}
-        onOpenChange={setShowUpdateStatusDialog}
+        isOpen={showUpdateStatusDialog}
+        onClose={() => setShowUpdateStatusDialog(false)}
         currentStatus={order.status}
+        orderId={order.id}
         onUpdate={handleUpdateStatus}
       />
     </div>

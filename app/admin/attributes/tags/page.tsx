@@ -83,8 +83,14 @@ export default function TagsPage() {
         limit: pagination.limit,
         search: search || undefined,
       });
-      setTags(response.data);
-      setPagination(response.meta);
+      setTags(response);
+      // For now, just set static pagination since tags API doesn't support pagination
+      setPagination({
+        page: 1,
+        limit: 20,
+        total: response.length,
+        totalPages: 1,
+      });
     } catch (error) {
       console.error("Error fetching tags:", error);
       toast.error("Failed to fetch tags");

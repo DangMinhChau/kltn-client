@@ -687,6 +687,7 @@ export interface AdminOrderResponse {
   orderedAt: string;
   createdAt: string;
   updatedAt: string;
+  note?: string; // Add note property
   items: OrderItem[];
   payment?: {
     id: string;
@@ -709,6 +710,7 @@ export interface UpdateOrderStatusData {
   shippingStatus?: string;
   trackingNumber?: string;
   notes?: string;
+  note?: string; // Add for compatibility
 }
 
 export const adminOrdersApi = {
@@ -931,10 +933,19 @@ export const adminApi = {
       return response.data.data;
     },
   },
-
   tags: {
-    getAll: async (): Promise<Tag[]> => {
-      const response = await api.get<BackendResponse<Tag[]>>("/admin/tags");
+    getAll: async (filters?: any): Promise<Tag[]> => {
+      const params = new URLSearchParams();
+      if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            params.append(key, value.toString());
+          }
+        });
+      }
+      const response = await api.get<BackendResponse<Tag[]>>(
+        `/admin/tags?${params.toString()}`
+      );
       return response.data.data || [];
     },
 
@@ -977,12 +988,43 @@ export const adminApi = {
   variants: adminVariantsApi,
 
   // Orders
-  orders: adminOrdersApi,
-  // Colors
+  orders: adminOrdersApi, // Colors
   colors: {
     getAll: async (): Promise<{ data: Color[] }> => {
       const response = await api.get<BackendResponse<Color[]>>("/colors");
       return { data: response.data.data || [] };
+    },
+
+    create: async (data: {
+      name: string;
+      hexCode: string;
+      code?: string;
+    }): Promise<Color> => {
+      const response = await api.post<BackendResponse<Color>>(
+        "/admin/colors",
+        data
+      );
+      return response.data.data;
+    },
+
+    update: async (
+      id: string,
+      data: {
+        name?: string;
+        hexCode?: string;
+        code?: string;
+        isActive?: boolean;
+      }
+    ): Promise<Color> => {
+      const response = await api.put<BackendResponse<Color>>(
+        `/admin/colors/${id}`,
+        data
+      );
+      return response.data.data;
+    },
+
+    delete: async (id: string): Promise<void> => {
+      await api.delete(`/admin/colors/${id}`);
     },
   },
 
@@ -992,7 +1034,36 @@ export const adminApi = {
       const response = await api.get<BackendResponse<Size[]>>("/sizes");
       return { data: response.data.data || [] };
     },
+
+    create: async (data: {
+      name: string;
+      displayOrder?: number;
+    }): Promise<Size> => {
+      const response = await api.post<BackendResponse<Size>>(
+        "/admin/sizes",
+        data
+      );
+      return response.data.data;
+    },
+
+    update: async (
+      id: string,
+      data: { name?: string; displayOrder?: number }
+    ): Promise<Size> => {
+      const response = await api.put<BackendResponse<Size>>(
+        `/admin/sizes/${id}`,
+        data
+      );
+      return response.data.data;
+    },
+
+    delete: async (id: string): Promise<void> => {
+      await api.delete(`/admin/sizes/${id}`);
+    },
   },
+
+  // Combined attributes API for backward compatibility
+  attributes: adminAttributesApi,
 };
 
 // ================================
