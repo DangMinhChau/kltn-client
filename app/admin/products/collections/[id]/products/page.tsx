@@ -42,7 +42,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AddProductsToCollectionDialog } from "@/components/collections/AddProductsToCollectionDialog";
+import { AddProductsToCollectionDialog } from "@/components/collections";
 import { adminCollectionApi, productApi } from "@/lib/api";
 import { Collection, Product, ProductFilters } from "@/types";
 import { formatPrice } from "@/lib/utils";
