@@ -384,7 +384,9 @@ export default function AdminDashboard() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">{formatCurrency(order.total)}</p>
+                        <p className="font-medium">
+                          {formatCurrency(order.total)}
+                        </p>
                         <div className="flex items-center gap-2">
                           {getStatusBadge(order.status)}
                         </div>
@@ -431,7 +433,9 @@ export default function AdminDashboard() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">{formatCurrency(order.total)}</p>
+                        <p className="font-medium">
+                          {formatCurrency(order.total)}
+                        </p>
                         <div className="flex items-center gap-2">
                           {getStatusBadge(order.status)}
                         </div>
@@ -457,16 +461,24 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Tổng khách hàng</span>
+                  <span className="text-sm text-muted-foreground">
+                    Tổng khách hàng
+                  </span>
                   <span className="font-medium">{stats.totalUsers}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Khách hàng mới tháng này</span>
+                  <span className="text-sm text-muted-foreground">
+                    Khách hàng mới tháng này
+                  </span>
                   <span className="font-medium text-green-600">+24</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Khách hàng hoạt động</span>
-                  <span className="font-medium">{Math.floor(stats.totalUsers * 0.7)}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Khách hàng hoạt động
+                  </span>
+                  <span className="font-medium">
+                    {Math.floor(stats.totalUsers * 0.7)}
+                  </span>
                 </div>
                 <Button variant="outline" className="w-full" asChild>
                   <Link href="/admin/users">Quản lý khách hàng</Link>
@@ -494,7 +506,9 @@ export default function AdminDashboard() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">{formatCurrency(product.price)}</p>
+                        <p className="font-medium">
+                          {formatCurrency(product.price)}
+                        </p>
                         {getStatusBadge(product.status)}
                       </div>
                     </div>
