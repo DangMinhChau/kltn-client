@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Product, ProductImageType } from "@/types";
+import { Product, Image as ImageType } from "@/types";
 import {
   Heart,
   ShoppingCart,
@@ -16,10 +16,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-// Helper function to get image URL from ProductImageType
-const getImageUrl = (
-  image: ProductImageType | undefined
-): string | undefined => {
+// Helper function to get image URL from Image
+const getImageUrl = (image: ImageType | undefined): string | undefined => {
   if (!image) return undefined;
   if (typeof image === "string") return image;
   return image.imageUrl;
@@ -89,7 +87,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
     hasProductImage: !!product.image,
     hasVariants: !!product.variants?.length,
     firstVariantImages: firstVariantWithImages?.images?.length || 0, // More detailed debugging
-    productImageUrl: getImageUrl(product.imagPe),
+    productImageUrl: getImageUrl(product.image),
     allVariants: product.variants?.map((v) => ({
       id: v.id,
       hasImages: !!v.images?.length,
