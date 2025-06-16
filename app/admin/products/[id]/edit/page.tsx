@@ -60,7 +60,7 @@ const updateProductSchema = z.object({
   name: z.string().min(1, "Tên sản phẩm là bắt buộc"),
   description: z.string().optional(),
   basePrice: z.number().min(0, "Giá phải lớn hơn 0"),
-  discountPercent: z.number().min(0).max(1).optional(),
+  discountPercent: z.number().min(0).max(100).optional(),
   categoryId: z.string().min(1, "Danh mục là bắt buộc"),
   baseSku: z.string().min(1, "Mã SKU là bắt buộc"),
   isActive: z.boolean(),
@@ -394,18 +394,22 @@ export default function EditProductPage() {
                         <FormItem>
                           <FormLabel>Giảm giá (%)</FormLabel>
                           <FormControl>
+                            {" "}
                             <Input
                               type="number"
                               placeholder="0"
                               min="0"
                               max="100"
+                              step="1"
                               {...field}
                               onChange={(e) =>
-                                field.onChange(+e.target.value / 100)
+                                field.onChange(+e.target.value || 0)
                               }
-                              value={field.value ? field.value * 100 : ""}
                             />
                           </FormControl>
+                          <FormDescription>
+                            Phần trăm giảm giá (0-100%)
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}

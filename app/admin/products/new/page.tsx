@@ -59,7 +59,7 @@ const productSchema = z.object({
   discountPercent: z
     .number()
     .min(0, "Giảm giá không được âm")
-    .max(99, "Giảm giá không được quá 99%")
+    .max(100, "Giảm giá không được quá 100%")
     .optional(),
   baseSku: z
     .string()
@@ -374,7 +374,7 @@ export default function NewProductPage() {
                               type="number"
                               step="1"
                               min="0"
-                              max="99"
+                              max="100"
                               placeholder="0"
                               {...field}
                               onChange={(e) =>
@@ -390,7 +390,7 @@ export default function NewProductPage() {
                                   form.getValues("basePrice") *
                                     (1 - field.value / 100)
                                 )}`
-                              : "Phần trăm giảm giá (0-99%)"}
+                              : "Phần trăm giảm giá (0-100%)"}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
