@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ interface PaymentResult {
   transactionId?: string;
 }
 
-export default function VNPayResultPage() {
+function VNPayResultContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -168,7 +168,21 @@ export default function VNPayResultPage() {
             )}
           </div>
         </CardContent>
-      </Card>
-    </div>
+      </Card>    </div>
+  );
+}
+
+export default function VNPayResultPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Đang tải...</p>
+        </div>
+      </div>
+    }>
+      <VNPayResultContent />
+    </Suspense>
   );
 }
