@@ -978,20 +978,19 @@ export const adminApi = {
 
   // Orders
   orders: adminOrdersApi,
-
   // Colors
   colors: {
-    getAll: async (): Promise<Color[]> => {
+    getAll: async (): Promise<{ data: Color[] }> => {
       const response = await api.get<BackendResponse<Color[]>>("/colors");
-      return response.data.data || [];
+      return { data: response.data.data || [] };
     },
   },
 
   // Sizes
   sizes: {
-    getAll: async (): Promise<Size[]> => {
+    getAll: async (): Promise<{ data: Size[] }> => {
       const response = await api.get<BackendResponse<Size[]>>("/sizes");
-      return response.data.data || [];
+      return { data: response.data.data || [] };
     },
   },
 };
