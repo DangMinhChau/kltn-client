@@ -23,6 +23,16 @@ export default function PayPalButton({
   const [{ isResolved, isPending }] = usePayPalScriptReducer();
   const createOrder = async () => {
     try {
+      console.log("=== PayPal Create Order Debug ===");
+      console.log("Amount:", amount);
+      console.log("OrderId:", orderId);
+      console.log("OrderData:", orderData);
+
+      // Validate required data
+      if (!amount || amount <= 0) {
+        throw new Error("Invalid amount for PayPal order");
+      }
+
       // Prepare headers
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -38,7 +48,20 @@ export default function PayPalButton({
       let orderIdToUse = orderId;
 
       if (orderData && !orderId) {
-        // Create order first
+        console.log("Creating backend order first...");
+
+        // Validate orderData before sending
+        if (
+          !orderData.customerName ||
+          !orderData.customerEmail ||
+          !orderData.shippingAddress
+        ) {
+          throw new Error("Missing required shipping information");
+        }
+
+        if (!orderData.items || orderData.items.length === 0) {
+          throw new Error("No items in order");
+        } // Create order first
         const orderResponse = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/orders`,
           {
@@ -48,42 +71,122 @@ export default function PayPalButton({
           }
         );
 
+        console.log("Backend order response status:", orderResponse.status);
+
         if (!orderResponse.ok) {
-          const errorData = await orderResponse.json().catch(() => ({}));
-          throw new Error(errorData.message || "Failed to create order");
+          let errorData;
+          const contentType = orderResponse.headers.get("content-type");
+
+          if (contentType && contentType.includes("application/json")) {
+            errorData = await orderResponse.json().catch(() => ({}));
+          } else {
+            const textData = await orderResponse
+              .text()
+              .catch(() => "No response body");
+            errorData = { message: textData };
+          }
+
+          console.error("Backend order creation failed:", {
+            status: orderResponse.status,
+            statusText: orderResponse.statusText,
+            errorData,
+          });
+
+          throw new Error(
+            errorData.message ||
+              `Failed to create order: HTTP ${orderResponse.status}`
+          );
         }
 
         const orderResult = await orderResponse.json();
         orderIdToUse = orderResult.data?.id || orderResult.id;
-        console.log("Order created:", orderIdToUse);
+        console.log("Backend order created with ID:", orderIdToUse);
       }
 
+      if (!orderIdToUse) {
+        throw new Error("No order ID available for PayPal payment");
+      }
+      console.log("Creating PayPal order with orderID:", orderIdToUse);
+
       // Create PayPal order on backend
+      const paypalOrderPayload = {
+        orderId: orderIdToUse,
+        amount: Math.round(amount), // Ensure integer for VND
+        currency: "VND",
+      };
+
+      console.log("PayPal order payload:", paypalOrderPayload);
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/payments/paypal/create-order`,
         {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            orderId: orderIdToUse,
-            amount: amount,
-            currency: "VND",
-          }),
+          body: JSON.stringify(paypalOrderPayload),
         }
       );
 
+      console.log("PayPal API response status:", response.status);
+      console.log(
+        "PayPal API response headers:",
+        Object.fromEntries(response.headers)
+      );
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("PayPal order creation failed:", errorData);
-        throw new Error(errorData.message || "Failed to create PayPal order");
+        let errorData;
+        const contentType = response.headers.get("content-type");
+
+        if (contentType && contentType.includes("application/json")) {
+          errorData = await response.json().catch(() => ({}));
+        } else {
+          const textData = await response
+            .text()
+            .catch(() => "No response body");
+          errorData = { message: textData };
+        }
+
+        console.error("PayPal order creation failed:", {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+        });
+
+        throw new Error(
+          errorData.message || `HTTP ${response.status}: ${response.statusText}`
+        );
       }
 
       const data = await response.json();
-      console.log("PayPal order created:", data);
-      return data.data.paypalOrderId || data.paypalOrderId;
+      console.log("PayPal order response:", data);
+      const paypalOrderId = data.data?.paypalOrderId || data.paypalOrderId;
+
+      if (!paypalOrderId) {
+        throw new Error("No PayPal order ID returned from backend");
+      }
+
+      console.log("PayPal order created successfully:", paypalOrderId);
+      return paypalOrderId;
     } catch (error) {
       console.error("PayPal order creation error:", error);
-      toast.error("Không thể tạo đơn thanh toán PayPal");
+
+      // More user-friendly error messages
+      let userMessage = "Không thể tạo đơn thanh toán PayPal";
+      if (error instanceof Error) {
+        if (error.message.includes("Invalid amount")) {
+          userMessage = "Số tiền thanh toán không hợp lệ";
+        } else if (error.message.includes("Missing required")) {
+          userMessage = "Thiếu thông tin giao hàng bắt buộc";
+        } else if (error.message.includes("No items")) {
+          userMessage = "Giỏ hàng trống. Vui lòng thêm sản phẩm";
+        } else if (error.message.includes("HTTP 401")) {
+          userMessage = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại";
+        } else if (error.message.includes("HTTP 400")) {
+          userMessage = "Dữ liệu đơn hàng không hợp lệ";
+        } else if (error.message.includes("HTTP 500")) {
+          userMessage = "Lỗi server. Vui lòng thử lại sau";
+        }
+      }
+
+      toast.error(userMessage);
       throw error;
     }
   };

@@ -628,33 +628,89 @@ function CheckoutContent() {
                   ) : (
                     "Đặt hàng"
                   )}
-                </Button>
+                </Button>{" "}
                 {/* PayPal Button - Show when PayPal is selected */}
                 {paymentMethod === "paypal" && (
                   <div className="mt-4">
-                    <PayPalButton
-                      amount={finalTotal}
-                      orderData={{
-                        customerName: shippingForm.customerName,
-                        customerEmail: shippingForm.customerEmail,
-                        customerPhone: shippingForm.customerPhone,
-                        shippingAddress: shippingForm.shippingAddress,
-                        items: items.map((item) => ({
-                          variantId: item.variant.id,
-                          quantity: item.quantity,
-                          unitPrice: item.discountPrice || item.price,
-                        })),
-                        voucherId: appliedVoucher?.voucher?.id,
-                        subTotal: subtotal,
-                        shippingFee,
-                        discount,
-                        totalPrice: finalTotal,
-                        note: shippingForm.note,
-                        userId: user?.id,
-                      }}
-                      onSuccess={handlePayPalSuccess}
-                      onError={handlePayPalError}
-                    />
+                    {(() => {
+                      // Debug logging
+                      console.log("=== PayPal Checkout Debug ===");
+                      console.log("Subtotal:", subtotal);
+                      console.log("Shipping Fee:", shippingFee);
+                      console.log("Discount:", discount);
+                      console.log("Final Total:", finalTotal);
+                      console.log("Shipping Form:", shippingForm);
+                      console.log("Items:", items);
+                      console.log("Applied Voucher:", appliedVoucher);
+                      console.log("User:", user);
+
+                      // Validation checks
+                      const validationErrors = [];
+
+                      if (finalTotal <= 0) {
+                        validationErrors.push("Tổng tiền phải lớn hơn 0");
+                      }
+
+                      if (!shippingForm.customerName.trim()) {
+                        validationErrors.push("Vui lòng nhập tên khách hàng");
+                      }
+
+                      if (!shippingForm.customerEmail.trim()) {
+                        validationErrors.push("Vui lòng nhập email");
+                      }
+
+                      if (!shippingForm.shippingAddress.trim()) {
+                        validationErrors.push(
+                          "Vui lòng nhập địa chỉ giao hàng"
+                        );
+                      }
+
+                      if (items.length === 0) {
+                        validationErrors.push("Giỏ hàng trống");
+                      }
+
+                      if (validationErrors.length > 0) {
+                        return (
+                          <div className="p-4 border border-red-200 bg-red-50 rounded-lg">
+                            <p className="text-sm text-red-600 font-medium mb-2">
+                              Vui lòng sửa các lỗi sau:
+                            </p>
+                            <ul className="text-sm text-red-600 list-disc list-inside">
+                              {validationErrors.map((error, index) => (
+                                <li key={index}>{error}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <PayPalButton
+                          amount={Math.max(0, finalTotal)} // Ensure positive amount
+                          orderData={{
+                            customerName: shippingForm.customerName.trim(),
+                            customerEmail: shippingForm.customerEmail.trim(),
+                            customerPhone: shippingForm.customerPhone.trim(),
+                            shippingAddress:
+                              shippingForm.shippingAddress.trim(),
+                            items: items.map((item) => ({
+                              variantId: item.variant.id,
+                              quantity: item.quantity,
+                              unitPrice: item.discountPrice || item.price,
+                            })),
+                            voucherId: appliedVoucher?.voucher?.id || null,
+                            subTotal: subtotal,
+                            shippingFee,
+                            discount,
+                            totalPrice: Math.max(0, finalTotal),
+                            note: shippingForm.note?.trim() || "",
+                            userId: user?.id || null,
+                          }}
+                          onSuccess={handlePayPalSuccess}
+                          onError={handlePayPalError}
+                        />
+                      );
+                    })()}
                   </div>
                 )}
               </CardContent>
