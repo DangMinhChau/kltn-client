@@ -219,11 +219,11 @@ export default function UsersPage() {
     setFormData({
       fullName: user.fullName,
       email: user.email,
-      phoneNumber: user.phoneNumber,
+      phoneNumber: user.phoneNumber || "",
       password: "",
-      role: user.role,
+      role: user.role || "USER",
       isActive: user.isActive,
-      isEmailVerified: user.isEmailVerified,
+      isEmailVerified: user.isEmailVerified || false,
     });
     setShowEditDialog(true);
   };
@@ -371,7 +371,7 @@ export default function UsersPage() {
                 <TableBody>
                   {filteredUsers.map((user) => {
                     const statusBadge = getUserStatusBadge(user);
-                    const roleBadge = getRoleBadge(user.role);
+                    const roleBadge = getRoleBadge(user.role || "USER");
                     const RoleIcon = roleBadge.icon;
 
                     return (

@@ -123,16 +123,17 @@ export default function EditVoucherPage() {
       reset({
         code: voucherData.code,
         description: voucherData.description,
-        discountType: voucherData.discountType,
+        discountType:
+          voucherData.discountType === "FIXED_AMOUNT" ? "amount" : "percent",
         discountAmount:
-          voucherData.discountType === "amount"
+          voucherData.discountType === "FIXED_AMOUNT"
             ? voucherData.discountValue
             : undefined,
         discountPercent:
-          voucherData.discountType === "percent"
+          voucherData.discountType === "PERCENTAGE"
             ? voucherData.discountValue
             : undefined,
-        minOrderAmount: voucherData.minOrderValue,
+        minOrderAmount: voucherData.minOrderAmount,
         maxDiscountAmount: voucherData.maxDiscountAmount,
         startAt: new Date(voucherData.startDate),
         expireAt: new Date(voucherData.endDate),
@@ -491,7 +492,7 @@ export default function EditVoucherPage() {
 
               <div className="text-sm text-muted-foreground">
                 <p>
-                  <strong>Đã sử dụng:</strong> {voucher.usedCount} lần
+                  <strong>Đã sử dụng:</strong> {voucher.usageCount} lần
                 </p>
               </div>
             </CardContent>

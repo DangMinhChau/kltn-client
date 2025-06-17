@@ -314,9 +314,11 @@ export default function TagsPage() {
                       <TableCell>
                         {" "}
                         <Badge variant="outline">0 products</Badge>
-                      </TableCell>
+                      </TableCell>{" "}
                       <TableCell>
-                        {new Date(tag.createdAt).toLocaleDateString()}
+                        {tag.createdAt
+                          ? new Date(tag.createdAt).toLocaleDateString()
+                          : "N/A"}
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>

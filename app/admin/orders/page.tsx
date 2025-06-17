@@ -46,6 +46,7 @@ import Link from "next/link";
 // Import enhanced types
 import { Order, OrderStatus, PaymentStatus, OrderListItem } from "@/types";
 import {
+  AdminOrder,
   OrderQueryDto,
   OrderListApiResponse,
   UpdateOrderStatusDto,
@@ -62,7 +63,7 @@ interface PaginationMeta {
 }
 
 function AdminOrdersContent() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta>({
     page: 1,
     limit: 20,
@@ -75,7 +76,7 @@ function AdminOrdersContent() {
     status: "",
     paymentStatus: "",
     sortBy: "createdAt",
-    sortOrder: "DESC" as "ASC" | "DESC",
+    sortOrder: "desc" as "asc" | "desc",
     page: 1,
     limit: 20,
   });
@@ -88,10 +89,8 @@ function AdminOrdersContent() {
     try {
       setLoading(true);
       // Simulated API call - replace with actual admin API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Mock data using proper Order type
-      const mockOrders: Order[] = [
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Mock data using proper AdminOrder type
+      const mockOrders: AdminOrder[] = [
         {
           id: "1",
           orderNumber: "ORD-2024-001",
@@ -254,9 +253,9 @@ function AdminOrdersContent() {
       currency: "VND",
     }).format(price);
   };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("vi-VN", {
+  const formatDate = (date: Date | string) => {
+    const dateObj = typeof date === "string" ? new Date(date) : date;
+    return dateObj.toLocaleDateString("vi-VN", {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -386,8 +385,9 @@ function AdminOrdersContent() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
+            {" "}
             <div className="text-2xl font-bold">
-              {orders.filter((o) => o.status === "pending").length}
+              {orders.filter((o) => o.status === OrderStatus.PENDING).length}
             </div>
             <p className="text-xs text-muted-foreground">Requires attention</p>
           </CardContent>
@@ -398,8 +398,9 @@ function AdminOrdersContent() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
+            {" "}
             <div className="text-2xl font-bold">
-              {orders.filter((o) => o.status === "processing").length}
+              {orders.filter((o) => o.status === OrderStatus.PROCESSING).length}
             </div>
             <p className="text-xs text-muted-foreground">Being prepared</p>
           </CardContent>
@@ -410,8 +411,9 @@ function AdminOrdersContent() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
+            {" "}
             <div className="text-2xl font-bold">
-              {orders.filter((o) => o.status === "delivered").length}
+              {orders.filter((o) => o.status === OrderStatus.DELIVERED).length}
             </div>
             <p className="text-xs text-muted-foreground">
               Successfully completed
@@ -479,7 +481,7 @@ function AdminOrdersContent() {
                 setFilters((prev) => ({
                   ...prev,
                   sortBy,
-                  sortOrder: sortOrder as "ASC" | "DESC",
+                  sortOrder: sortOrder.toLowerCase() as "asc" | "desc",
                 }));
               }}
             >
@@ -549,16 +551,15 @@ function AdminOrdersContent() {
                       />
                     </TableCell>
                     <TableCell>
+                      {" "}
                       <Badge variant="outline">
-                        {order.items.length} items
+                        {order.items?.length || 0} items
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">
                       {formatPrice(order.totalPrice)}
-                    </TableCell>
-                    <TableCell>
-                      {formatDate(order.createdAt.toISOString())}
-                    </TableCell>
+                    </TableCell>{" "}
+                    <TableCell>{formatDate(order.createdAt)}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

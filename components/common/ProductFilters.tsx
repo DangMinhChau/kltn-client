@@ -469,7 +469,7 @@ export function ProductFiltersComponent({
                             : ""
                         }`}
                         onClick={() =>
-                          handleSingleFilterChange("color", color.code)
+                          handleSingleFilterChange("color", color.code || "")
                         }
                       >
                         <div
@@ -566,7 +566,7 @@ export function ProductFiltersComponent({
                             onChange={() =>
                               handleSingleFilterChange(
                                 "material",
-                                material.slug
+                                material.slug || ""
                               )
                             }
                             className="rounded border-gray-300"
@@ -614,7 +614,10 @@ export function ProductFiltersComponent({
                             name="style"
                             checked={filters.style === style.slug}
                             onChange={() =>
-                              handleSingleFilterChange("style", style.slug)
+                              handleSingleFilterChange(
+                                "style",
+                                style.slug || ""
+                              )
                             }
                             className="rounded border-gray-300"
                           />

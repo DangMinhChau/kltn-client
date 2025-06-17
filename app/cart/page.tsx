@@ -14,9 +14,9 @@ import VoucherInput from "@/components/cart/VoucherInput";
 
 interface CartContentProps {
   items: CartItem[];
-  removeItem: (variantId: string) => Promise<void>;
-  updateItemQuantity: (variantId: string, quantity: number) => Promise<void>;
-  clearCart: () => Promise<void>;
+  removeItem: (variantId: string) => void;
+  updateItemQuantity: (variantId: string, quantity: number) => void;
+  clearCart: () => void;
   handleQuantityChange: (
     variantId: string,
     newQuantity: number
@@ -58,7 +58,6 @@ export default function CartPage() {
         price: item.price,
         discountPrice: item.discountPrice,
         imageUrl: item.imageUrl,
-        image: item.image,
         variant: item.variant,
       });
     });
@@ -235,12 +234,9 @@ function CartContent({
                       {" "}
                       {/* Product Image */}
                       <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg border sm:h-32 sm:w-32">
+                        {" "}
                         <Image
-                          src={
-                            item.imageUrl ||
-                            item.image ||
-                            "/placeholder-image.jpg"
-                          }
+                          src={item.imageUrl || "/placeholder-image.jpg"}
                           alt={item.name}
                           fill
                           className="object-cover object-center"

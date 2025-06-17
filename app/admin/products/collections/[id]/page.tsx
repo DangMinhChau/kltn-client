@@ -369,11 +369,8 @@ export default function CollectionDetailPage({
                   Created
                 </label>
                 <p className="text-sm mt-1">
-                  {formatDate(
-                    typeof collection.createdAt === "string"
-                      ? collection.createdAt
-                      : collection.createdAt.toISOString()
-                  )}
+                  {" "}
+                  {formatDate(collection.createdAt || new Date().toISOString())}
                 </p>
               </div>
               <div>
@@ -381,11 +378,8 @@ export default function CollectionDetailPage({
                   Last Updated
                 </label>
                 <p className="text-sm mt-1">
-                  {formatDate(
-                    typeof collection.updatedAt === "string"
-                      ? collection.updatedAt
-                      : collection.updatedAt.toISOString()
-                  )}
+                  {" "}
+                  {formatDate(collection.updatedAt || new Date().toISOString())}
                 </p>
               </div>
             </div>

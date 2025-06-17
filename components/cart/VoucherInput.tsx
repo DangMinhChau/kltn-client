@@ -139,9 +139,9 @@ export default function VoucherInput({
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className="font-mono text-xs">
                       {appliedVoucher.voucher?.code}
-                    </Badge>
+                    </Badge>{" "}
                     <span className="text-sm font-medium text-green-700">
-                      -{formatPrice(appliedVoucher.discountAmount)}
+                      -{formatPrice(appliedVoucher.discountAmount || 0)}
                     </span>
                   </div>
                   {appliedVoucher.voucher?.description && (
@@ -165,9 +165,9 @@ export default function VoucherInput({
             <Separator />
 
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Tiết kiệm:</span>
+              <span className="text-muted-foreground">Tiết kiệm:</span>{" "}
               <span className="font-medium text-green-600">
-                -{formatPrice(appliedVoucher.discountAmount)}
+                -{formatPrice(appliedVoucher.discountAmount || 0)}
               </span>
             </div>
           </div>

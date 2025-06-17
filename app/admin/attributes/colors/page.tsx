@@ -155,7 +155,7 @@ export default function ColorsPage() {
     setSelectedColor(color);
     setFormData({
       name: color.name,
-      code: color.code,
+      code: color.code || "",
       hexCode: color.hexCode,
     });
     setShowEditDialog(true);

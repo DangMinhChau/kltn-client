@@ -33,18 +33,17 @@ export const ProductCardGrid: React.FC<EnhancedProductCardProps> = ({
   ...props
 }) => {
   const [imageLoading, setImageLoading] = React.useState(true);
-
   // Memoize unique variants
   const uniqueColors = React.useMemo(() => {
     return Array.from(
       new Set(product.variants?.map((v) => v.color?.name).filter(Boolean) || [])
-    );
+    ).filter((name): name is string => Boolean(name));
   }, [product.variants]);
 
   const uniqueSizes = React.useMemo(() => {
     return Array.from(
       new Set(product.variants?.map((v) => v.size?.name).filter(Boolean) || [])
-    );
+    ).filter((name): name is string => Boolean(name));
   }, [product.variants]);
   return (
     <Card

@@ -106,11 +106,10 @@ const GHNAddressForm: React.FC<GHNAddressFormProps> = ({
       }));
     }
   }, [formData.ghnDistrictId]);
-
   const loadProvinces = async () => {
     try {
       setLoadingProvinces(true);
-      const provincesData = await ghnService.getProvinces();
+      const provincesData = await ghnApi.getProvinces();
       setProvinces(provincesData);
     } catch (error) {
       console.error("Error loading provinces:", error);
@@ -119,11 +118,10 @@ const GHNAddressForm: React.FC<GHNAddressFormProps> = ({
       setLoadingProvinces(false);
     }
   };
-
   const loadDistricts = async (provinceId: number) => {
     try {
       setLoadingDistricts(true);
-      const districtsData = await ghnService.getDistricts(provinceId);
+      const districtsData = await ghnApi.getDistricts(provinceId);
       setDistricts(districtsData);
     } catch (error) {
       console.error("Error loading districts:", error);
@@ -132,11 +130,10 @@ const GHNAddressForm: React.FC<GHNAddressFormProps> = ({
       setLoadingDistricts(false);
     }
   };
-
   const loadWards = async (districtId: number) => {
     try {
       setLoadingWards(true);
-      const wardsData = await ghnService.getWards(districtId);
+      const wardsData = await ghnApi.getWards(districtId);
       setWards(wardsData);
     } catch (error) {
       console.error("Error loading wards:", error);

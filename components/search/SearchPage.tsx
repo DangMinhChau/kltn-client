@@ -39,7 +39,7 @@ export function SearchPage() {
       ? Number(searchParams.get("priceMax"))
       : undefined,
     sortBy: (searchParams.get("sort") as any) || "createdAt",
-    sortOrder: "DESC",
+    sortOrder: "desc",
     search: searchParams.get("q") || "",
     page: 1,
     limit: 12,

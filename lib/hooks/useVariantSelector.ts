@@ -25,17 +25,20 @@ export function useVariantSelector(
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [availableSizes, setAvailableSizes] = useState<string[]>([]);
-  const variants = product?.variants || [];
-  // Get unique colors and sizes - memoized to prevent recreation on every render
+  const variants = product?.variants || []; // Get unique colors and sizes - memoized to prevent recreation on every render
   const availableColors = useMemo(
     () =>
-      Array.from(new Set(variants.map((v) => v.color?.name).filter(Boolean))),
+      Array.from(
+        new Set(variants.map((v) => v.color?.name).filter(Boolean))
+      ).filter((name): name is string => Boolean(name)),
     [variants]
   );
 
   const allSizes = useMemo(
     () =>
-      Array.from(new Set(variants.map((v) => v.size?.name).filter(Boolean))),
+      Array.from(
+        new Set(variants.map((v) => v.size?.name).filter(Boolean))
+      ).filter((name): name is string => Boolean(name)),
     [variants]
   );
 
@@ -45,7 +48,7 @@ export function useVariantSelector(
       const sizesForColor = variants
         .filter((v) => v.color?.name === selectedColor && v.stockQuantity > 0)
         .map((v) => v.size?.name)
-        .filter(Boolean);
+        .filter((name): name is string => Boolean(name));
       setAvailableSizes(sizesForColor);
     } else {
       setAvailableSizes(allSizes);

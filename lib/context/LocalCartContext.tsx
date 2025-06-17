@@ -141,7 +141,6 @@ export function LocalCartProvider({ children }: { children: React.ReactNode }) {
               price: basePrice,
               discountPrice,
               imageUrl,
-              image: imageUrl,
               slug: variantData.product.slug || "",
               variant: variantData,
               color: variantData.color?.name || "",

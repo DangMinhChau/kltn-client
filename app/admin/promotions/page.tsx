@@ -139,10 +139,9 @@ export default function PromotionsPage() {
     ) {
       return "N/A";
     }
-
-    if (voucher.discountType === "amount") {
+    if (voucher.discountType === "FIXED_AMOUNT") {
       return formatPrice(Number(voucher.discountValue) || 0);
-    } else if (voucher.discountType === "percent") {
+    } else if (voucher.discountType === "PERCENTAGE") {
       return `${Number(voucher.discountValue) || 0}%`;
     }
 
@@ -213,14 +212,16 @@ export default function PromotionsPage() {
                           {voucher.code}
                         </TableCell>
                         <TableCell>{voucher.description}</TableCell>
-                        <TableCell>{getDiscountDisplay(voucher)}</TableCell>
                         <TableCell>
-                          {voucher.minOrderValue
-                            ? formatPrice(voucher.minOrderValue)
+                          {getDiscountDisplay(voucher)}
+                        </TableCell>{" "}
+                        <TableCell>
+                          {voucher.minOrderAmount
+                            ? formatPrice(voucher.minOrderAmount)
                             : "-"}
                         </TableCell>
                         <TableCell>
-                          {voucher.usedCount}
+                          {voucher.usageCount}
                           {voucher.usageLimit ? `/${voucher.usageLimit}` : ""}
                         </TableCell>
                         <TableCell>{getStatusBadge(voucher)}</TableCell>

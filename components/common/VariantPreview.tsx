@@ -21,14 +21,13 @@ export const VariantPreview: React.FC<VariantPreviewProps> = ({
   const [hoveredVariant, setHoveredVariant] = useState<ProductVariant | null>(
     null
   );
-
   // Get unique colors and sizes
   const colors = Array.from(
     new Set(variants.map((v) => v.color?.name).filter(Boolean))
-  );
+  ).filter((name): name is string => Boolean(name));
   const sizes = Array.from(
     new Set(variants.map((v) => v.size?.name).filter(Boolean))
-  );
+  ).filter((name): name is string => Boolean(name));
 
   const getColorVariant = (colorName: string) => {
     return variants.find((v) => v.color?.name === colorName);

@@ -34,7 +34,7 @@ export function CartItem({
         {/* Product Image */}{" "}
         <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
           <Image
-            src={item.image || item.imageUrl}
+            src={item.imageUrl}
             alt={item.name}
             fill
             className="object-cover"
@@ -117,7 +117,7 @@ export function CartItem({
       {/* Product Image */}{" "}
       <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg border sm:h-32 sm:w-32">
         <Image
-          src={item.image || item.imageUrl}
+          src={item.imageUrl}
           alt={item.name}
           fill
           className="object-cover object-center"

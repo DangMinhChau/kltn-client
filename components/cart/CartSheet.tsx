@@ -110,10 +110,9 @@ export function CartSheet() {
                 {" "}
                 {/* Product Image */}
                 <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
+                  {" "}
                   <Image
-                    src={
-                      item.imageUrl || item.image || "/placeholder-image.jpg"
-                    }
+                    src={item.imageUrl || "/placeholder-image.jpg"}
                     alt={item.name}
                     fill
                     className="object-cover"

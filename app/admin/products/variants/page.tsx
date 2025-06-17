@@ -300,8 +300,8 @@ function VariantsContent() {
   const handleEditVariant = (variant: ProductVariant) => {
     setSelectedVariantForEdit(variant);
     setEditVariant({
-      colorId: variant.color.id,
-      sizeId: variant.size.id,
+      colorId: variant.color?.id || "",
+      sizeId: variant.size?.id || "",
       stockQuantity: variant.stockQuantity,
       isActive: variant.isActive,
       images: [],

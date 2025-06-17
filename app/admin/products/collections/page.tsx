@@ -401,10 +401,9 @@ export default function AdminCollectionsPage() {
                         </Badge>
                       </TableCell>{" "}
                       <TableCell className="text-sm text-muted-foreground">
+                        {" "}
                         {formatDate(
-                          typeof collection.createdAt === "string"
-                            ? collection.createdAt
-                            : collection.createdAt.toISOString()
+                          collection.createdAt || new Date().toISOString()
                         )}
                       </TableCell>
                       <TableCell>

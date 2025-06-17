@@ -173,8 +173,9 @@ export default function CheckoutPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {" "}
               <AddressSelector
-                onAddressSelected={handleAddressSelected}
+                onAddressSelect={handleAddressSelected}
                 selectedAddress={selectedAddress}
               />
             </CardContent>
@@ -259,25 +260,23 @@ export default function CheckoutPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Order Items */}
+              {/* Order Items */}{" "}
               <div className="space-y-3">
                 {items.map((item) => (
                   <div
-                    key={`${item.variantId}`}
+                    key={`${item.variant.id}`}
                     className="flex justify-between items-start"
                   >
                     <div className="flex-1">
-                      <h4 className="font-medium text-sm">
-                        {item.productName}
-                      </h4>
-                      {item.colorName && (
+                      <h4 className="font-medium text-sm">{item.name} </h4>
+                      {item.color && (
                         <p className="text-xs text-muted-foreground">
-                          Màu: {item.colorName}
+                          Màu: {item.color}
                         </p>
                       )}
-                      {item.sizeName && (
+                      {item.size && (
                         <p className="text-xs text-muted-foreground">
-                          Size: {item.sizeName}
+                          Size: {item.size}
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
@@ -292,9 +291,7 @@ export default function CheckoutPage() {
                   </div>
                 ))}
               </div>
-
               <Separator />
-
               {/* Order Summary */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
@@ -323,7 +320,6 @@ export default function CheckoutPage() {
                   </span>
                 </div>
               </div>
-
               {/* Place Order Button */}
               <Button
                 onClick={handlePlaceOrder}
@@ -340,7 +336,6 @@ export default function CheckoutPage() {
                   `Đặt hàng - ${formatPrice(finalTotal)}`
                 )}
               </Button>
-
               {!selectedAddress && (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
@@ -349,7 +344,6 @@ export default function CheckoutPage() {
                   </AlertDescription>
                 </Alert>
               )}
-
               {/* Order Info */}
               <div className="text-xs text-muted-foreground space-y-1">
                 <p>• Miễn phí đổi trả trong 30 ngày</p>
