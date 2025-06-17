@@ -108,23 +108,27 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [state, dispatch] = useReducer(authReducer, initialState);
-  // Load auth state from localStorage on mount
+  const [state, dispatch] = useReducer(authReducer, initialState); // Load auth state from localStorage on mount (only on client)
   useEffect(() => {
     const loadAuthState = () => {
       try {
-        const accessToken = localStorage.getItem("accessToken");
-        const refreshToken = localStorage.getItem("refreshToken");
-        const userData = localStorage.getItem("user");
+        if (typeof window !== "undefined") {
+          const accessToken = localStorage.getItem("accessToken");
+          const refreshToken = localStorage.getItem("refreshToken");
+          const userData = localStorage.getItem("user");
 
-        if (accessToken && refreshToken && userData) {
-          const user = JSON.parse(userData);
-          dispatch({
-            type: "AUTH_SUCCESS",
-            payload: { user, accessToken, refreshToken },
-          });
+          if (accessToken && refreshToken && userData) {
+            const user = JSON.parse(userData);
+            dispatch({
+              type: "AUTH_SUCCESS",
+              payload: { user, accessToken, refreshToken },
+            });
+          } else {
+            // No saved auth data, set loading to false
+            dispatch({ type: "SET_LOADING", payload: false });
+          }
         } else {
-          // No saved auth data, set loading to false
+          // Server-side, just set loading to false
           dispatch({ type: "SET_LOADING", payload: false });
         }
       } catch (error) {
@@ -147,7 +151,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       hasRefreshToken: !!state.refreshToken,
       hasUser: !!state.user,
     });
-
     if (
       state.isAuthenticated &&
       state.accessToken &&
@@ -155,21 +158,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       state.user
     ) {
       console.log("Saving to localStorage:", state.user.fullName);
-      localStorage.setItem("accessToken", state.accessToken);
-      localStorage.setItem("refreshToken", state.refreshToken);
-      localStorage.setItem("user", JSON.stringify(state.user));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("accessToken", state.accessToken);
+        localStorage.setItem("refreshToken", state.refreshToken);
+        localStorage.setItem("user", JSON.stringify(state.user));
+      }
     } else {
       console.log("Clearing localStorage");
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("user");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+      }
     }
   }, [
     state.isAuthenticated,
     state.accessToken,
     state.refreshToken,
     state.user,
-  ]);  const login = async (email: string, password: string): Promise<User> => {
+  ]);
+  const login = async (email: string, password: string): Promise<User> => {
     try {
       dispatch({ type: "AUTH_START" });
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -200,14 +208,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           refreshToken: data.refreshToken,
         },
       });
-
       console.log("Auth state updated successfully"); // Force save to localStorage immediately
       console.log("Force saving to localStorage...");
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("accessToken", data.accessToken);
+        localStorage.setItem("refreshToken", data.refreshToken);
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
       console.log("localStorage saved manually");
-      
+
       // Return the user data for redirect logic
       return data.user;
     } catch (error) {
@@ -286,12 +295,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       dispatch({ type: "LOGOUT" });
     }
   };
-
   const updateUser = (userData: Partial<User>) => {
     dispatch({ type: "UPDATE_USER", payload: userData });
 
     // Update localStorage with new user data
-    if (state.user) {
+    if (state.user && typeof window !== "undefined") {
       const updatedUser = { ...state.user, ...userData };
       localStorage.setItem("user", JSON.stringify(updatedUser));
     }

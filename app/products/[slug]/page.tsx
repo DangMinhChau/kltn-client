@@ -39,6 +39,7 @@ import ProductCard from "@/components/common/ProductCard";
 import { useCart } from "@/lib/context";
 import { cn } from "@/lib/utils";
 import { PageLoading } from "@/components/common/Loading";
+import { toast } from "sonner";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -68,15 +69,15 @@ export default function ProductDetailPage() {
         console.log("Product data received:", productData); // Handle different response formats from backend
         const product = (productData as any).data || productData;
         console.log("Processed product:", product);
-
-        setProduct(product); // Set default variant (prioritize variants with stock)
-        if (product.variants && product.variants.length > 0) {
-          const availableVariant =
-            product.variants.find((v: ProductVariant) => v.stockQuantity > 0) ||
-            product.variants[0];
-          setSelectedVariant(availableVariant);
-          console.log("Set default variant:", availableVariant.id);
-        }
+        setProduct(product);
+        // Don't auto-select variant - force user to choose
+        // if (product.variants && product.variants.length > 0) {
+        //   const availableVariant =
+        //     product.variants.find((v: ProductVariant) => v.stockQuantity > 0) ||
+        //     product.variants[0];
+        //   setSelectedVariant(availableVariant);
+        //   console.log("Set default variant:", availableVariant.id);
+        // }
 
         // Fetch related products from the same category
         if (product.category?.slug) {
@@ -321,7 +322,9 @@ export default function ProductDetailPage() {
     let variantToAdd: ProductVariant;
     if (!selectedVariant) {
       if (product.variants && product.variants.length > 0) {
-        alert("Vui lòng chọn phiên bản sản phẩm");
+        toast.error(
+          "Vui lòng chọn phiên bản sản phẩm trước khi thêm vào giỏ hàng"
+        );
         return;
       } // Create default variant for products without variants
       // Note: Variants don't have price fields - they use product price

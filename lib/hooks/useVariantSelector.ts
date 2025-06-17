@@ -55,21 +55,12 @@ export function useVariantSelector(
     }
   }, [selectedColor, variants, allSizes]); // Find and select variant when both color and size are selected
   useEffect(() => {
-    if (!selectedColor && !selectedSize) return;
+    if (!selectedColor || !selectedSize) return;
 
     // Find the matching variant based on current selections
-    let targetVariant: ProductVariant | undefined;
-
-    if (selectedColor && selectedSize) {
-      targetVariant = variants.find(
-        (v) => v.color?.name === selectedColor && v.size?.name === selectedSize
-      );
-    } else if (selectedColor && !selectedSize) {
-      // If only color is selected, pick first available variant for that color
-      targetVariant = variants.find(
-        (v) => v.color?.name === selectedColor && v.stockQuantity > 0
-      );
-    }
+    const targetVariant = variants.find(
+      (v) => v.color?.name === selectedColor && v.size?.name === selectedSize
+    );
 
     // Only update if we found a different variant or don't have one selected
     if (
@@ -78,7 +69,7 @@ export function useVariantSelector(
     ) {
       setSelectedVariant(targetVariant);
     }
-  }, [selectedColor, selectedSize, variants]); // Initialize with first available variant or provided initial variant
+  }, [selectedColor, selectedSize, variants]); // Initialize with provided initial variant only - no auto-selection
   useEffect(() => {
     // Only initialize if we don't have a selected variant
     if (selectedVariant) return;
@@ -87,13 +78,15 @@ export function useVariantSelector(
       setSelectedVariant(initialVariant);
       setSelectedColor(initialVariant.color?.name || "");
       setSelectedSize(initialVariant.size?.name || "");
-    } else if (variants.length > 0) {
-      const firstAvailable =
-        variants.find((v) => v.stockQuantity > 0) || variants[0];
-      setSelectedVariant(firstAvailable);
-      setSelectedColor(firstAvailable.color?.name || "");
-      setSelectedSize(firstAvailable.size?.name || "");
     }
+    // Remove auto-selection logic - force user to choose
+    // else if (variants.length > 0) {
+    //   const firstAvailable =
+    //     variants.find((v) => v.stockQuantity > 0) || variants[0];
+    //   setSelectedVariant(firstAvailable);
+    //   setSelectedColor(firstAvailable.color?.name || "");
+    //   setSelectedSize(firstAvailable.size?.name || "");
+    // }
   }, [initialVariant, variants, selectedVariant]);
   const getCurrentImage = useCallback(() => {
     // First try to get image from selected variant

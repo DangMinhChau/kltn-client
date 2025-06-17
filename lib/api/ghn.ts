@@ -47,16 +47,17 @@ export const ghnApi = {
     const response = await api.get("/ghn/provinces");
     return response.data;
   },
-
   // Lấy danh sách quận/huyện theo tỉnh
   getDistricts: async (provinceId: number): Promise<GHNDistrict[]> => {
-    const response = await api.post("/ghn/districts", { provinceId });
+    const response = await api.post("/ghn/districts", {
+      province_id: provinceId,
+    });
     return response.data;
   },
 
   // Lấy danh sách phường/xã theo quận/huyện
   getWards: async (districtId: number): Promise<GHNWard[]> => {
-    const response = await api.post("/ghn/wards", { districtId });
+    const response = await api.post("/ghn/wards", { district_id: districtId });
     return response.data;
   },
 

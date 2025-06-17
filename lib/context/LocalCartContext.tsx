@@ -46,14 +46,18 @@ export function LocalCartProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  // Load cart from localStorage on mount
+  // Load cart from localStorage on mount (only on client)
   useEffect(() => {
+    setIsHydrated(true);
     try {
-      const savedCart = localStorage.getItem("cart");
-      if (savedCart) {
-        const cartItems = JSON.parse(savedCart);
-        setItems(cartItems);
+      if (typeof window !== "undefined") {
+        const savedCart = localStorage.getItem("cart");
+        if (savedCart) {
+          const cartItems = JSON.parse(savedCart);
+          setItems(cartItems);
+        }
       }
     } catch (error) {
       console.error("Error loading cart from localStorage:", error);
@@ -61,14 +65,18 @@ export function LocalCartProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Save cart to localStorage whenever items change
+  // Save cart to localStorage whenever items change (only after hydration)
   useEffect(() => {
+    if (!isHydrated) return;
+
     try {
-      localStorage.setItem("cart", JSON.stringify(items));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("cart", JSON.stringify(items));
+      }
     } catch (error) {
       console.error("Error saving cart to localStorage:", error);
     }
-  }, [items]);
+  }, [items, isHydrated]);
 
   // Fetch variant data from server (only for validation)
   const fetchVariantData = async (variantId: string) => {
@@ -80,13 +88,19 @@ export function LocalCartProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Could not fetch product details");
     }
   };
-
   // Add item to cart (local only)
   const addToCart = useCallback(
     async (variantId: string, quantity: number = 1) => {
       try {
         setLoading(true);
         setError(null);
+
+        // Validate variant ID
+        if (!variantId || variantId.trim() === "") {
+          throw new Error(
+            "Vui lòng chọn phiên bản sản phẩm trước khi thêm vào giỏ hàng"
+          );
+        }
 
         // Fetch fresh variant data to get product info and pricing
         const variantData = await fetchVariantData(variantId);

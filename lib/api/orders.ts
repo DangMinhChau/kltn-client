@@ -9,11 +9,20 @@ export interface CreateOrderData {
   shippingAddress: any;
   paymentMethod: "COD" | "PAYPAL";
   voucherCode?: string;
-  subtotal: number;
+  subtotal?: number;
   shippingFee: number;
-  voucherDiscount: number;
-  totalAmount: number;
+  voucherDiscount?: number;
+  totalAmount?: number;
   notes?: string;
+  // Guest order fields
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  subTotal?: number;
+  discount?: number;
+  totalPrice?: number;
+  note?: string;
+  voucherId?: string;
 }
 
 export interface OrderResponse {

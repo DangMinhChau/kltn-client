@@ -63,9 +63,7 @@ api.interceptors.response.use(
     console.error("API Error - Status:", error.response?.status);
     console.error("API Error - URL:", error.config?.url);
     console.error("API Error - Message:", error.response?.data?.message);
-    console.error("API Error - Full Response:", error.response?.data);
-
-    // Handle 401 Unauthorized errors
+    console.error("API Error - Full Response:", error.response?.data); // Handle 401 Unauthorized errors
     if (error.response?.status === 401) {
       console.warn(
         "API Error - Unauthorized (401), clearing tokens and redirecting to login"
@@ -76,14 +74,17 @@ api.interceptors.response.use(
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");
 
-      // Only redirect if we're on an admin route
-      if (
-        typeof window !== "undefined" &&
-        window.location.pathname.startsWith("/admin")
-      ) {
-        window.location.href =
-          "/auth/login?redirect=" +
-          encodeURIComponent(window.location.pathname);
+      // Redirect to login with current page as redirect
+      if (typeof window !== "undefined") {
+        const currentPath = window.location.pathname;
+        const redirectPath = currentPath.startsWith("/admin")
+          ? "/auth/login?redirect=" + encodeURIComponent(currentPath)
+          : "/auth/login?redirect=" + encodeURIComponent(currentPath);
+
+        // Use a slight delay to allow any ongoing operations to complete
+        setTimeout(() => {
+          window.location.href = redirectPath;
+        }, 100);
       }
     }
 

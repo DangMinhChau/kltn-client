@@ -23,6 +23,9 @@ import { useCart } from "@/lib/context";
 import { useAuth } from "@/lib/context/AuthContext";
 import VoucherInput from "@/components/cart/VoucherInput";
 import AddressSelector from "@/components/address/AddressSelector";
+import GuestAddressForm, {
+  GuestAddressData,
+} from "@/components/address/GuestAddressForm";
 import { formatPrice } from "@/lib/utils";
 import { orderApi } from "@/lib/api/orders";
 import { VoucherValidationResult } from "@/types";
@@ -34,20 +37,30 @@ export default function CheckoutPage() {
   const { user } = useAuth();
   const { items, totalAmount, totalItems, clearCart } = useCart();
 
+  // Hydration fix - only render after client mount
+  const [isMounted, setIsMounted] = useState(false);
+
   // State management
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+  const [guestAddress, setGuestAddress] = useState<GuestAddressData | null>(
+    null
+  );
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "PAYPAL">("COD");
   const [appliedVoucher, setAppliedVoucher] =
     useState<VoucherValidationResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
 
+  // Hydration effect
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Calculations
   const subtotal = totalAmount;
   const shippingFee = 30000; // Fixed shipping fee
   const voucherDiscount = appliedVoucher?.discountAmount || 0;
   const finalTotal = subtotal + shippingFee - voucherDiscount;
-
   // Redirect if cart is empty
   useEffect(() => {
     if (items.length === 0) {
@@ -56,13 +69,7 @@ export default function CheckoutPage() {
     }
   }, [items.length, router]);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!user) {
-      router.push("/auth/login?redirect=/checkout");
-      return;
-    }
-  }, [user, router]);
+  // No redirect for non-authenticated users - allow guest checkout
 
   const handleVoucherApplied = (voucher: VoucherValidationResult) => {
     setAppliedVoucher(voucher);
@@ -76,9 +83,19 @@ export default function CheckoutPage() {
     setShowAddressForm(false);
   };
 
+  const handleGuestAddressChange = (address: GuestAddressData | null) => {
+    setGuestAddress(address);
+  };
+
   const validateOrder = () => {
-    if (!selectedAddress) {
+    // Check address for both user and guest
+    if (user && !selectedAddress) {
       toast.error("Vui lòng chọn địa chỉ giao hàng");
+      return false;
+    }
+
+    if (!user && !guestAddress) {
+      toast.error("Vui lòng điền đầy đủ thông tin giao hàng");
       return false;
     }
 
@@ -89,28 +106,56 @@ export default function CheckoutPage() {
 
     return true;
   };
-
   const handlePlaceOrder = async () => {
     if (!validateOrder()) return;
 
     setIsProcessing(true);
 
     try {
-      const orderData = {
-        items: items.map((item) => ({
-          variantId: item.variant.id,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-        shippingAddress: selectedAddress,
-        paymentMethod,
-        voucherCode: appliedVoucher?.voucher?.code,
-        subtotal,
-        shippingFee,
-        voucherDiscount,
-        totalAmount: finalTotal,
-        notes: "",
-      };
+      // Build order data based on user type
+      let orderData;
+
+      if (user && selectedAddress) {
+        // Authenticated user order
+        orderData = {
+          items: items.map((item) => ({
+            variantId: item.variant.id,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          shippingAddress: `${selectedAddress.streetAddress}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.province}`,
+          paymentMethod,
+          voucherCode: appliedVoucher?.voucher?.code,
+          subtotal,
+          shippingFee,
+          voucherDiscount,
+          totalAmount: finalTotal,
+          notes: "",
+          // userId will be set by backend from JWT
+        };
+      } else if (!user && guestAddress) {
+        // Guest order
+        orderData = {
+          customerName: guestAddress.recipientName,
+          customerEmail: guestAddress.email,
+          customerPhone: guestAddress.phoneNumber,
+          shippingAddress: `${guestAddress.streetAddress}, ${guestAddress.ward}, ${guestAddress.district}, ${guestAddress.province}`,
+          items: items.map((item) => ({
+            variantId: item.variant.id,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          subTotal: subtotal,
+          shippingFee,
+          discount: voucherDiscount,
+          totalPrice: finalTotal,
+          note: "",
+          voucherId: appliedVoucher?.voucher?.id,
+        };
+      } else {
+        toast.error("Dữ liệu không hợp lệ");
+        return;
+      }
 
       let result;
 
@@ -144,7 +189,18 @@ export default function CheckoutPage() {
     }
   };
 
-  if (!user || items.length === 0) {
+  // Show loading until mounted to prevent hydration mismatch
+  if (!isMounted) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -159,11 +215,29 @@ export default function CheckoutPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Thanh toán</h1>
         <p className="text-muted-foreground mt-2">Hoàn tất đơn hàng của bạn</p>
+
+        {/* User Status */}
+        <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+          {user ? (
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span>
+                Đăng nhập dưới tên: <strong>{user.fullName}</strong>
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span>Thanh toán với tư cách khách vãng lai</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column - Order Info and Forms */}
         <div className="lg:col-span-2 space-y-6">
+          {" "}
           {/* Shipping Address */}
           <Card>
             <CardHeader>
@@ -173,14 +247,23 @@ export default function CheckoutPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {" "}
-              <AddressSelector
-                onAddressSelect={handleAddressSelected}
-                selectedAddress={selectedAddress}
-              />
+              {user ? (
+                <AddressSelector
+                  onAddressSelect={handleAddressSelected}
+                  selectedAddress={selectedAddress}
+                />
+              ) : (
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    Điền thông tin giao hàng (khách vãng lai)
+                  </div>
+                  <GuestAddressForm
+                    onAddressChange={handleGuestAddressChange}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
-
           {/* Payment Method */}
           <Card>
             <CardHeader>
@@ -233,7 +316,6 @@ export default function CheckoutPage() {
               </RadioGroup>
             </CardContent>
           </Card>
-
           {/* Voucher */}
           <Card>
             <CardHeader>
@@ -319,11 +401,15 @@ export default function CheckoutPage() {
                     {formatPrice(finalTotal)}
                   </span>
                 </div>
-              </div>
+              </div>{" "}
               {/* Place Order Button */}
               <Button
                 onClick={handlePlaceOrder}
-                disabled={!selectedAddress || isProcessing}
+                disabled={
+                  (user && !selectedAddress) ||
+                  (!user && !guestAddress) ||
+                  isProcessing
+                }
                 className="w-full h-12 text-base font-semibold"
                 size="lg"
               >
@@ -336,11 +422,13 @@ export default function CheckoutPage() {
                   `Đặt hàng - ${formatPrice(finalTotal)}`
                 )}
               </Button>
-              {!selectedAddress && (
+              {((user && !selectedAddress) || (!user && !guestAddress)) && (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Vui lòng chọn địa chỉ giao hàng để tiếp tục
+                    {user
+                      ? "Vui lòng chọn địa chỉ giao hàng để tiếp tục"
+                      : "Vui lòng điền đầy đủ thông tin giao hàng để tiếp tục"}
                   </AlertDescription>
                 </Alert>
               )}

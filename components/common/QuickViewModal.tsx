@@ -27,6 +27,7 @@ import {
   getStockStatus,
 } from "@/lib/utils";
 import { useCart } from "@/lib/context";
+import { toast } from "sonner";
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -43,14 +44,9 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
   const [selectedVariant, setSelectedVariant] = useState<
     ProductVariant | undefined
   >(undefined);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  // Set initial variant when product changes
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0); // Reset variant when product changes - no auto-selection
   React.useEffect(() => {
-    if (product && product.variants && product.variants.length > 0) {
-      setSelectedVariant(product.variants[0]);
-    } else {
-      setSelectedVariant(undefined);
-    }
+    setSelectedVariant(undefined);
     setSelectedImageIndex(0);
   }, [product]);
   if (!product) return null;
@@ -244,7 +240,9 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
                 onClick={async () => {
                   if (!selectedVariant) {
                     console.error("Cannot add to cart: No variant selected");
-                    // Could add a toast here too
+                    toast.error(
+                      "Vui lòng chọn phiên bản sản phẩm trước khi thêm vào giỏ hàng"
+                    );
                     return;
                   }
 

@@ -180,6 +180,16 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
           </div>
         </div>
       )}
+      {/* Selection Status */}
+      {(!selectedColor || !selectedSize) && (
+        <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-3">
+          {!selectedColor && !selectedSize
+            ? "Vui lòng chọn màu sắc và kích thước"
+            : !selectedColor
+            ? "Vui lòng chọn màu sắc"
+            : "Vui lòng chọn kích thước"}
+        </div>
+      )}
       {/* Selected Variant Info */}
       {selectedColor && selectedSize && (
         <div className="pt-2 border-t border-gray-200">
