@@ -164,7 +164,8 @@ function CheckoutContent() {
       // Only include userId if user is authenticated
       if (user?.id) {
         orderData.userId = user.id;
-      }      const response = await orderApi.createOrder(orderData);
+      }
+      const response = await orderApi.createOrder(orderData);
       const order = response.data || response;
 
       // Handle payment based on selected method
@@ -200,7 +201,8 @@ function CheckoutContent() {
         await clearCart();
         router.push(
           `/checkout/success?orderNumber=${order.orderNumber || order.id}`
-        );      } else if (paymentMethod === "paypal") {
+        );
+      } else if (paymentMethod === "paypal") {
         // PayPal payment will be handled by PayPalButton component
         setLoading(false);
         toast.info("Vui lòng hoàn tất thanh toán qua PayPal.");
@@ -218,7 +220,8 @@ function CheckoutContent() {
     toast.success("Thanh toán PayPal thành công!");
     await clearCart();
     router.push(`/checkout/success?orderNumber=${orderId}`);
-  };  const handlePayPalError = (error: any) => {
+  };
+  const handlePayPalError = (error: any) => {
     console.error("PayPal payment error:", error);
     toast.error("Lỗi thanh toán PayPal. Vui lòng thử lại.");
     setLoading(false);
@@ -316,7 +319,8 @@ function CheckoutContent() {
       } else {
         toast.error("Chưa cấu hình PayPal Client ID");
       }
-    } catch (error) {      toast.error("Lỗi kết nối PayPal");
+    } catch (error) {
+      toast.error("Lỗi kết nối PayPal");
     }
   };
 
