@@ -168,9 +168,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   {basePrice.toLocaleString("vi-VN")}₫
                 </span>
               )}
-            </div>
+            </div>{" "}
             {/* Colors Available */}
-            {product.variants && product.variants.length > 1 && (
+            {product.variants && product.variants.length > 0 && (
               <div className="flex items-center gap-1">
                 <span className="text-xs text-muted-foreground">Màu:</span>
                 <div className="flex gap-1">
