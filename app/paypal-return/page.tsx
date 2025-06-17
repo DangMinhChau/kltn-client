@@ -4,7 +4,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useCart } from "@/lib/context";
@@ -13,11 +13,7 @@ function PayPalReturnContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { clearCart } = useCart();
-
-  const [status, setStatus] = useState<"processing" | "success" | "error">(
-    "processing"
-  );
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const [status, setStatus] = useState<"processing" | "error">("processing");
   useEffect(() => {
     const handlePayPalReturn = async () => {
       const paypalOrderId = searchParams.get("token");
@@ -74,18 +70,13 @@ function PayPalReturnContent() {
           data: response.data,
           hasSuccess: "success" in response.data,
           dataType: typeof response.data,
-        }); // Backend returns BaseResponseDto format: { message, data, meta }
-        // Check if request was successful (status 2xx) since backend logs show success
+        }); // Backend returns BaseResponseDto format: { message, data, meta }        // Check if request was successful (status 2xx) since backend logs show success
         if (response.status >= 200 && response.status < 300) {
-          setStatus("success");
-          setOrderId(orderIdParam);
           clearCart();
-          toast.success("Thanh toán PayPal thành công!");
-
-          // Redirect to order success page after 2 seconds
-          setTimeout(() => {
-            router.push(`/order-success?orderId=${orderIdParam}`);
-          }, 2000);
+          // Redirect immediately to order success page
+          router.push(
+            `/order-success?orderId=${orderIdParam}&paymentMethod=paypal`
+          );
         } else {
           console.error("Non-2xx response status:", response.status);
           setStatus("error");
@@ -113,17 +104,12 @@ function PayPalReturnContent() {
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <Card>
         <CardHeader className="text-center">
+          {" "}
           <CardTitle className="flex items-center justify-center gap-2 text-2xl">
             {status === "processing" && (
               <>
                 <Loader2 className="h-6 w-6 animate-spin" />
                 Đang xử lý thanh toán...
-              </>
-            )}
-            {status === "success" && (
-              <>
-                <CheckCircle className="h-6 w-6 text-green-500" />
-                Thanh toán thành công!
               </>
             )}
             {status === "error" && (
@@ -135,33 +121,13 @@ function PayPalReturnContent() {
           </CardTitle>
         </CardHeader>
         <CardContent className="text-center space-y-4">
+          {" "}
           {status === "processing" && (
             <div>
               <p className="text-muted-foreground">
                 Vui lòng đợi trong khi chúng tôi xử lý thanh toán PayPal của
                 bạn...
-              </p>
-            </div>
-          )}{" "}
-          {status === "success" && (
-            <div className="space-y-4">
-              <p className="text-green-600 font-medium">
-                Cảm ơn bạn! Thanh toán đã được xử lý thành công.
-              </p>
-              {orderId && (
-                <p className="text-sm text-muted-foreground">
-                  Mã đơn hàng: <span className="font-mono">{orderId}</span>
-                </p>
-              )}
-              <p className="text-sm text-muted-foreground">
-                Bạn sẽ được chuyển hướng đến trang xác nhận đơn hàng...
-              </p>
-              <Button
-                onClick={() => router.push(`/order-success?orderId=${orderId}`)}
-                className="mt-4"
-              >
-                Xem chi tiết đơn hàng
-              </Button>
+              </p>{" "}
             </div>
           )}
           {status === "error" && (

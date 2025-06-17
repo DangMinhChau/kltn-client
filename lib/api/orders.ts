@@ -45,8 +45,12 @@ export const orderApi = {
   createOrder: async (orderData: CreateOrderData): Promise<OrderResponse> => {
     const response = await api.post("/orders", orderData);
     const responseBody = response.data;
-    // Backend returns BaseResponseDto format
-    return responseBody.data || responseBody;
+    // Backend returns BaseResponseDto format: { message, data: Order, meta }
+    return {
+      success: true,
+      order: responseBody.data,
+      message: responseBody.message,
+    };
   },
   createPayPalOrder: async (
     orderData: CreateOrderData

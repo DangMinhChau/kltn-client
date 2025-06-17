@@ -186,11 +186,12 @@ export default function CheckoutPage() {
       if (paymentMethod === "COD") {
         // Create COD order
         result = await orderApi.createOrder(orderData);
-
         if (result.success) {
           clearCart();
-          toast.success("Đặt hàng thành công!");
-          router.push(`/order-success?orderId=${result.order.id}`);
+          // Don't show toast here - will show on order-success page
+          router.push(
+            `/order-success?orderId=${result.order.id}&paymentMethod=cod`
+          );
         } else {
           toast.error("Có lỗi xảy ra khi đặt hàng");
         }
