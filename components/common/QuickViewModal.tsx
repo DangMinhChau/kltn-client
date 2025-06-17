@@ -40,19 +40,18 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
   onClose,
 }) => {
   const { addToCart } = useCart();
-  // Use useRef for initialization to avoid re-initializing state on every render
-  const initializedRef = React.useRef(false);
   const [selectedVariant, setSelectedVariant] = useState<
     ProductVariant | undefined
   >(undefined);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-
-  // Set initial variant only once when component mounts or product changes
+  // Set initial variant when product changes
   React.useEffect(() => {
-    if (product && !initializedRef.current) {
-      setSelectedVariant(product.variants?.[0]);
-      initializedRef.current = true;
+    if (product && product.variants && product.variants.length > 0) {
+      setSelectedVariant(product.variants[0]);
+    } else {
+      setSelectedVariant(undefined);
     }
+    setSelectedImageIndex(0);
   }, [product]);
   if (!product) return null;
   const basePrice =
@@ -243,20 +242,28 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
               {" "}
               <Button
                 onClick={async () => {
-                  if (selectedVariant) {
-                    try {
-                      await addToCart(selectedVariant.id, 1);
-                    } catch (error) {
-                      console.error("Error adding to cart:", error);
-                    }
+                  if (!selectedVariant) {
+                    console.error("Cannot add to cart: No variant selected");
+                    // Could add a toast here too
+                    return;
+                  }
+
+                  try {
+                    await addToCart(selectedVariant.id, 1);
+                  } catch (error) {
+                    console.error("Error adding to cart:", error);
                   }
                 }}
                 className="w-full h-12 text-base"
-                disabled={stockStatus.status === "out-of-stock"}
+                disabled={
+                  stockStatus.status === "out-of-stock" || !selectedVariant
+                }
               >
                 <ShoppingCart className="h-5 w-5 mr-2" />
                 {stockStatus.status === "out-of-stock"
                   ? "Hết hàng"
+                  : !selectedVariant
+                  ? "Chọn phiên bản"
                   : "Thêm vào giỏ hàng"}
               </Button>
               <div className="flex gap-3">

@@ -6,6 +6,7 @@ import { useCart } from "@/lib/context/LocalCartContext";
 import { CartItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface AddToCartButtonProps {
   item: Omit<CartItem, "quantity">;
@@ -29,8 +30,19 @@ export function AddToCartButton({
   const { addToCart, openCart } = useCart();
   const [isAdded, setIsAdded] = useState(false);
 
+  // Auto-disable if no variant is selected
+  const isDisabled = disabled || !item.variant || !item.variant.id;
   const handleAddToCart = async () => {
-    if (disabled) return;
+    if (isDisabled) return;
+
+    // Check if variant exists and is valid
+    if (!item.variant || !item.variant.id) {
+      console.error("Cannot add to cart: No variant selected");
+      toast.error(
+        "Vui lòng chọn phiên bản sản phẩm (màu sắc, kích thước) trước khi thêm vào giỏ hàng"
+      );
+      return;
+    }
 
     try {
       await addToCart(item.variant.id, quantity);
@@ -47,6 +59,7 @@ export function AddToCartButton({
       }, 500);
     } catch (error) {
       console.error("Error adding to cart:", error);
+      toast.error("Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng");
     }
   };
 
@@ -60,7 +73,7 @@ export function AddToCartButton({
         className
       )}
       onClick={handleAddToCart}
-      disabled={disabled}
+      disabled={isDisabled}
     >
       {isAdded ? (
         <>
@@ -70,7 +83,9 @@ export function AddToCartButton({
       ) : (
         <>
           <ShoppingCart className="mr-2 h-4 w-4" />
-          {children || "Thêm vào giỏ"}
+          {!item.variant || !item.variant.id
+            ? "Chọn phiên bản"
+            : children || "Thêm vào giỏ"}
         </>
       )}
     </Button>
