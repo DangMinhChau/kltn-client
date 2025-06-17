@@ -39,10 +39,13 @@ export default function UserAddressForm({
     district: initialData?.district || "",
     ward: initialData?.ward || "",
     isDefault: initialData?.isDefault || false,
-    // GHN IDs
-    provinceId: 0,
-    districtId: 0,
-    wardCode: "",
+    // GHN IDs - load from initialData if editing
+    provinceId: initialData?.ghnProvinceId || 0,
+    districtId: initialData?.ghnDistrictId || 0,
+    wardCode: initialData?.ghnWardCode || "",
+    // GHN Codes - load from initialData if editing
+    ghnProvinceCode: initialData?.ghnProvinceCode || "",
+    ghnDistrictCode: initialData?.ghnDistrictCode || "",
   });
 
   // GHN Data states
@@ -127,7 +130,6 @@ export default function UserAddressForm({
       [field]: value,
     }));
   };
-
   const handleProvinceChange = (provinceId: string) => {
     const selectedProvince = provinces.find(
       (p) => p.ProvinceID.toString() === provinceId
@@ -141,6 +143,8 @@ export default function UserAddressForm({
         districtId: 0,
         ward: "",
         wardCode: "",
+        // Add province code
+        ghnProvinceCode: selectedProvince.Code,
       }));
     }
   };
@@ -156,6 +160,8 @@ export default function UserAddressForm({
         districtId: selectedDistrict.DistrictID,
         ward: "",
         wardCode: "",
+        // Add district code
+        ghnDistrictCode: selectedDistrict.Code,
       }));
     }
   };
@@ -221,10 +227,13 @@ export default function UserAddressForm({
         province: formData.province,
         district: formData.district,
         ward: formData.ward,
-        isDefault: formData.isDefault, // Include GHN IDs for backend
+        isDefault: formData.isDefault,
+        // Include GHN IDs and codes for backend
         ghnProvinceId: formData.provinceId,
         ghnDistrictId: formData.districtId,
         ghnWardCode: formData.wardCode,
+        ghnProvinceCode: formData.ghnProvinceCode,
+        ghnDistrictCode: formData.ghnDistrictCode,
       };
 
       let result: Address;

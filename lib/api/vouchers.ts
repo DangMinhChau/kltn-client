@@ -10,7 +10,9 @@ export const voucherApi = {
       code,
       cartTotal,
     });
-    return response.data;
+    const responseBody = response.data;
+    // Backend returns: { message, data: VoucherValidationResult, meta: { timestamp } }
+    return responseBody.data;
   },
 };
 

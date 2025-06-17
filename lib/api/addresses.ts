@@ -12,6 +12,12 @@ export interface Address {
   isDefault: boolean;
   createdAt: string;
   updatedAt: string;
+  // GHN fields
+  ghnProvinceId?: number;
+  ghnDistrictId?: number;
+  ghnWardCode?: string;
+  ghnProvinceCode?: string;
+  ghnDistrictCode?: string;
 }
 
 // Create address request
@@ -37,37 +43,74 @@ export interface UpdateAddressRequest extends Partial<CreateAddressRequest> {}
 // Address API
 export const addressApi = {
   // Get all user addresses
-  getAddresses: (): Promise<Address[]> => api.get("/addresses"),
+  getAddresses: async (): Promise<Address[]> => {
+    const response = await api.get("/addresses");
+    const responseBody = response.data;
+    // Backend returns: { message, data: Address[], meta: { timestamp, total } }
+    return responseBody.data || [];
+  },
 
   // Get single address by ID
-  getAddress: (id: string): Promise<Address> => api.get(`/addresses/${id}`),
+  getAddress: async (id: string): Promise<Address> => {
+    const response = await api.get(`/addresses/${id}`);
+    const responseBody = response.data;
+    // Backend returns: { message, data: Address, meta: { timestamp } }
+    return responseBody.data;
+  },
 
   // Create new address
-  createAddress: (addressData: CreateAddressRequest): Promise<Address> =>
-    api.post("/addresses", addressData),
+  createAddress: async (
+    addressData: CreateAddressRequest
+  ): Promise<Address> => {
+    const response = await api.post("/addresses", addressData);
+    const responseBody = response.data;
+    // Backend returns: { message, data: Address, meta: { timestamp } }
+    return responseBody.data;
+  },
 
   // Update address
-  updateAddress: (
+  updateAddress: async (
     id: string,
     addressData: UpdateAddressRequest
-  ): Promise<Address> => api.patch(`/addresses/${id}`, addressData),
+  ): Promise<Address> => {
+    const response = await api.patch(`/addresses/${id}`, addressData);
+    const responseBody = response.data;
+    // Backend returns: { message, data: Address, meta: { timestamp } }
+    return responseBody.data;
+  },
 
   // Delete address
-  deleteAddress: (id: string): Promise<void> => api.delete(`/addresses/${id}`),
-  // Set default address
-  setDefaultAddress: (id: string): Promise<Address> =>
-    api.patch(`/addresses/${id}/set-default`),
+  deleteAddress: async (id: string): Promise<void> => {
+    const response = await api.delete(`/addresses/${id}`);
+    // Backend returns: { message, data: null, meta: { timestamp } }
+    // No need to return data for delete operation
+  },
+  // Set default address (using update endpoint)
+  setDefaultAddress: async (id: string): Promise<Address> => {
+    const response = await api.patch(`/addresses/${id}`, { isDefault: true });
+    const responseBody = response.data;
+    // Backend returns: { message, data: Address, meta: { timestamp } }
+    return responseBody.data;
+  },
 
   // Get default address
-  getDefaultAddress: (): Promise<Address | null> =>
-    api.get("/addresses/default"),
+  getDefaultAddress: async (): Promise<Address | null> => {
+    const response = await api.get("/addresses/default");
+    const responseBody = response.data;
+    // Backend returns: { message, data: Address | null, meta: { timestamp } }
+    return responseBody.data;
+  },
 };
 
 // Admin Address API (for admin access to user addresses)
 export const adminAddressApi = {
   // ✅ NEW: Get user addresses (Admin only)
-  getUserAddresses: (userId: string): Promise<Address[]> =>
-    api.get(`/addresses/user/${userId}`),
+  getUserAddresses: async (userId: string): Promise<Address[]> => {
+    const response = await api.get(`/addresses/user/${userId}`);
+    const responseBody = response.data;
+    // Backend returns: { message, data: Address[], meta: { timestamp, total } }
+    return responseBody.data || [];
+  },
 };
 
 export default addressApi;

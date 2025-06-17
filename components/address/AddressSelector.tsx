@@ -56,7 +56,6 @@ export default function AddressSelector({
       setLoading(false);
     }
   };
-
   const handleAddressSelection = (addressId: string) => {
     setSelectedAddressId(addressId);
 
@@ -66,6 +65,12 @@ export default function AddressSelector({
       setShowNewAddressForm(false);
       const address = addresses.find((addr) => addr.id === addressId);
       if (address) {
+        // Check if address has GHN data
+        if (!address.ghnDistrictId || !address.ghnWardCode) {
+          toast.warning(
+            "Địa chỉ này thiếu thông tin GHN. Phí vận chuyển có thể không chính xác."
+          );
+        }
         onAddressSelect(address);
       }
     }
@@ -110,11 +115,18 @@ export default function AddressSelector({
                   </div>
                   <div className="text-sm text-muted-foreground">
                     {address.phoneNumber}
-                  </div>
+                  </div>{" "}
                   <div className="text-sm text-muted-foreground">
                     {address.streetAddress}, {address.ward}, {address.district},{" "}
                     {address.province}
                   </div>
+                  {/* Warning if missing GHN data */}
+                  {(!address.ghnDistrictId || !address.ghnWardCode) && (
+                    <div className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                      ⚠️ Địa chỉ thiếu thông tin GHN (có thể ảnh hưởng tính phí
+                      ship)
+                    </div>
+                  )}
                 </div>
               </Label>
               <MapPin className="h-4 w-4 text-muted-foreground" />

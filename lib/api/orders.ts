@@ -44,19 +44,25 @@ export interface PayPalOrderResponse {
 export const orderApi = {
   createOrder: async (orderData: CreateOrderData): Promise<OrderResponse> => {
     const response = await api.post("/orders", orderData);
-    return response.data;
+    const responseBody = response.data;
+    // Backend returns BaseResponseDto format
+    return responseBody.data || responseBody;
   },
 
   createPayPalOrder: async (
     orderData: CreateOrderData
   ): Promise<PayPalOrderResponse> => {
     const response = await api.post("/orders/paypal", orderData);
-    return response.data;
+    const responseBody = response.data;
+    // Backend returns BaseResponseDto format
+    return responseBody.data || responseBody;
   },
 
   getOrder: async (orderId: string) => {
     const response = await api.get(`/orders/${orderId}`);
-    return response.data;
+    const responseBody = response.data;
+    // Backend returns: { message, data: Order, meta: { timestamp } }
+    return responseBody.data;
   },
 
   getUserOrders: async (params?: {
@@ -65,12 +71,16 @@ export const orderApi = {
     status?: string;
   }) => {
     const response = await api.get("/orders/user", { params });
-    return response.data;
+    const responseBody = response.data;
+    // Backend returns: { message, data: Order[], meta: { page, total, etc } }
+    return responseBody.data;
   },
 
   cancelOrder: async (orderId: string) => {
     const response = await api.patch(`/orders/${orderId}/cancel`);
-    return response.data;
+    const responseBody = response.data;
+    // Backend returns: { message, data: Order, meta: { timestamp } }
+    return responseBody.data;
   },
 };
 

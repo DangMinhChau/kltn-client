@@ -45,20 +45,27 @@ export const ghnApi = {
   // Lấy danh sách tỉnh/thành phố
   getProvinces: async (): Promise<GHNProvince[]> => {
     const response = await api.get("/ghn/provinces");
-    return response.data;
+    const responseBody = response.data;
+    // Backend returns: { message, data: GHNProvince[], meta: { timestamp } }
+    return responseBody.data || [];
   },
+
   // Lấy danh sách quận/huyện theo tỉnh
   getDistricts: async (provinceId: number): Promise<GHNDistrict[]> => {
     const response = await api.post("/ghn/districts", {
       province_id: provinceId,
     });
-    return response.data;
+    const responseBody = response.data;
+    // Backend returns: { message, data: GHNDistrict[], meta: { timestamp } }
+    return responseBody.data || [];
   },
 
   // Lấy danh sách phường/xã theo quận/huyện
   getWards: async (districtId: number): Promise<GHNWard[]> => {
     const response = await api.post("/ghn/wards", { district_id: districtId });
-    return response.data;
+    const responseBody = response.data;
+    // Backend returns: { message, data: GHNWard[], meta: { timestamp } }
+    return responseBody.data || [];
   },
 
   // Tính phí vận chuyển
@@ -66,7 +73,9 @@ export const ghnApi = {
     params: ShippingFeeParams
   ): Promise<ShippingFeeResult> => {
     const response = await api.post("/ghn/shipping-fee", params);
-    return response.data;
+    const responseBody = response.data;
+    // Backend returns: { message, data: ShippingFeeResult, meta: { timestamp } }
+    return responseBody.data;
   },
 
   // Lấy thông tin dịch vụ vận chuyển
@@ -75,7 +84,9 @@ export const ghnApi = {
     from_district?: number;
   }) => {
     const response = await api.post("/ghn/services", params);
-    return response.data;
+    const responseBody = response.data;
+    // Backend returns: { message, data: Service[], meta: { timestamp } }
+    return responseBody.data;
   },
 
   // Lấy thời gian giao hàng dự kiến
@@ -86,7 +97,9 @@ export const ghnApi = {
     service_id: number;
   }) => {
     const response = await api.post("/ghn/leadtime", params);
-    return response.data;
+    const responseBody = response.data;
+    // Backend returns: { message, data: LeadTimeResult, meta: { timestamp } }
+    return responseBody.data;
   },
 };
 

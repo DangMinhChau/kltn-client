@@ -28,6 +28,7 @@ import GuestAddressForm, {
 } from "@/components/address/GuestAddressForm";
 import { formatPrice } from "@/lib/utils";
 import { orderApi } from "@/lib/api/orders";
+import { ghnApi } from "@/lib/api/ghn";
 import { VoucherValidationResult } from "@/types";
 import { Address } from "@/lib/api/addresses";
 import { toast } from "sonner";
@@ -36,9 +37,10 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { items, totalAmount, totalItems, clearCart } = useCart();
-
   // Hydration fix - only render after client mount
-  const [isMounted, setIsMounted] = useState(false); // State management
+  const [isMounted, setIsMounted] = useState(false);
+
+  // State management
   const [selectedAddress, setSelectedAddress] = useState<
     Address | GuestAddressData | null
   >(null);
@@ -46,15 +48,15 @@ export default function CheckoutPage() {
   const [appliedVoucher, setAppliedVoucher] =
     useState<VoucherValidationResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [shippingFee, setShippingFee] = useState(30000); // Default fee
+  const [loadingShippingFee, setLoadingShippingFee] = useState(false);
 
   // Hydration effect
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
   // Calculations
   const subtotal = totalAmount;
-  const shippingFee = 30000; // Fixed shipping fee
   const voucherDiscount = appliedVoucher?.discountAmount || 0;
   const finalTotal = subtotal + shippingFee - voucherDiscount;
   // Redirect if cart is empty
@@ -76,11 +78,15 @@ export default function CheckoutPage() {
   };
   const handleAddressSelected = (address: Address | GuestAddressData) => {
     setSelectedAddress(address);
+    // Calculate shipping fee when address changes
+    calculateShippingFee(address);
   };
 
   const handleGuestAddressChange = (address: GuestAddressData | null) => {
     if (address) {
       setSelectedAddress(address);
+      // Calculate shipping fee when address changes
+      calculateShippingFee(address);
     }
   };
 
@@ -187,6 +193,74 @@ export default function CheckoutPage() {
       setIsProcessing(false);
     }
   };
+  // Calculate shipping fee based on address
+  const calculateShippingFee = async (address: Address | GuestAddressData) => {
+    if (!address) return;
+
+    // Get GHN district and ward info
+    let districtId: number = 0;
+    let wardCode: string = "";
+    if ("id" in address) {
+      // User saved address - get GHN data from address
+      districtId = Number(address.ghnDistrictId) || 1442; // Default district
+      wardCode = String(address.ghnWardCode) || "21211"; // Default ward
+    } else {
+      // Guest address - use GHN data from form
+      districtId = address.districtId || 1442;
+      wardCode = address.wardCode || "21211";
+    }
+
+    if (!districtId || !wardCode) {
+      console.warn(
+        "Missing GHN district/ward data, using default shipping fee"
+      );
+      return;
+    }
+
+    setLoadingShippingFee(true);
+    try {
+      // Calculate total weight and dimensions from cart items
+      const totalWeight = items.reduce((total, item) => {
+        // Assume each item weighs 500g by default
+        const itemWeight = 500; // grams
+        return total + itemWeight * item.quantity;
+      }, 0);
+
+      const result = await ghnApi.calculateShippingFee({
+        to_district_id: districtId,
+        to_ward_code: wardCode,
+        weight: Math.max(totalWeight, 250), // Minimum 250g
+        length: 20, // cm
+        width: 15, // cm
+        height: 10, // cm
+        service_type_id: 2, // Standard service
+      });
+
+      if (result && result.total) {
+        setShippingFee(result.total);
+        console.log("Calculated shipping fee:", result.total);
+        toast.success(`Phí vận chuyển: ${formatPrice(result.total)}`);
+      }
+    } catch (error) {
+      console.error("Error calculating shipping fee:", error);
+      toast.error("Không thể tính phí vận chuyển, sử dụng phí mặc định");
+      // Keep default shipping fee on error
+    } finally {
+      setLoadingShippingFee(false);
+    }
+  };
+
+  // Effect to show warning if address doesn't have GHN data
+  useEffect(() => {
+    if (selectedAddress && "id" in selectedAddress) {
+      // User saved address
+      if (!selectedAddress.ghnDistrictId || !selectedAddress.ghnWardCode) {
+        toast.warning(
+          "Địa chỉ này chưa có thông tin GHN, sử dụng phí vận chuyển mặc định"
+        );
+      }
+    }
+  }, [selectedAddress]);
 
   // Show loading until mounted to prevent hydration mismatch
   if (!isMounted) {
@@ -378,22 +452,29 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-sm">
                   <span>Tạm tính ({totalItems} sản phẩm)</span>
                   <span>{formatPrice(subtotal)}</span>
-                </div>
-
+                </div>{" "}
                 <div className="flex justify-between text-sm">
                   <span>Phí vận chuyển</span>
-                  <span>{formatPrice(shippingFee)}</span>
+                  <span className="flex items-center gap-2">
+                    {loadingShippingFee ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span className="text-muted-foreground">
+                          Đang tính...
+                        </span>
+                      </>
+                    ) : (
+                      formatPrice(shippingFee)
+                    )}
+                  </span>
                 </div>
-
                 {appliedVoucher && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>Giảm giá voucher</span>
                     <span>-{formatPrice(voucherDiscount)}</span>
                   </div>
                 )}
-
                 <Separator />
-
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Tổng cộng</span>
                   <span className="text-primary">
