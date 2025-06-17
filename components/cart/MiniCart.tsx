@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ShoppingBag, X } from "lucide-react";
-import { useCart } from "@/lib/context/UnifiedCartContext";
+import { useCart } from "@/lib/context/LocalCartContext";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -152,7 +152,7 @@ export function MiniCart() {
                 }}
               >
                 <Link href="/cart">Xem giỏ hàng</Link>
-              </Button>
+              </Button>{" "}
               <Button
                 asChild
                 onClick={() => {

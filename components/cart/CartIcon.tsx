@@ -3,7 +3,7 @@
 import React from "react";
 import { ShoppingBag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useCart } from "@/lib/context/UnifiedCartContext";
+import { useCart } from "@/lib/context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";

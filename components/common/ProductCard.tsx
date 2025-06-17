@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Product, Image as ImageType } from "@/types";
 import QuickViewModal from "@/components/common/QuickViewModal";
-import { Heart, Star, Eye } from "lucide-react";
+import { Star, Eye } from "lucide-react";
 
 // Helper function to get image URL from Image
 const getImageUrl = (image: ImageType | undefined): string | undefined => {
@@ -36,7 +36,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
   className = "",
   variant = "card",
 }) => {
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
@@ -57,11 +56,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
     variantImage || productMainImage || "/placeholder-image.jpg";
   const hoverImage =
     getImageUrl(firstVariantWithImages?.images?.[1]) || productMainImage;
-  const handleWishlistToggle = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsWishlisted(!isWishlisted);
-  };
 
   const handleQuickView = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -114,21 +108,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 </Badge>
               )}
             </div>{" "}
-            {/* Action Buttons */}
+            {/* Action Buttons */}{" "}
             <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
-                onClick={handleWishlistToggle}
-              >
-                <Heart
-                  className={`h-4 w-4 ${
-                    isWishlisted ? "fill-red-500 text-red-500" : "text-gray-600"
-                  }`}
-                />
-              </Button>
-
               <Button
                 size="sm"
                 variant="secondary"

@@ -18,7 +18,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { WishlistButton } from "@/components/common/WishlistButton";
 import { VariantSelector } from "@/components/common/VariantSelector";
 import { Product, ProductVariant, CartItem, Image as ImageType } from "@/types";
 import {
@@ -27,7 +26,7 @@ import {
   generateStarRating,
   getStockStatus,
 } from "@/lib/utils";
-import { useCart } from "@/lib/context/UnifiedCartContext";
+import { useCart } from "@/lib/context";
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -261,14 +260,6 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
                   : "Thêm vào giỏ hàng"}
               </Button>
               <div className="flex gap-3">
-                <WishlistButton
-                  product={product}
-                  variant="outline"
-                  size="default"
-                  showText={true}
-                  className="flex-1 h-10"
-                />
-
                 <Button
                   variant="outline"
                   className="flex-1 h-10"

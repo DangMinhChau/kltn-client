@@ -36,8 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VariantSelector } from "@/components/common/VariantSelector";
 import ProductCard from "@/components/common/ProductCard";
-import { WishlistButton } from "@/components/common/WishlistButton";
-import { useCart } from "@/lib/context/UnifiedCartContext";
+import { useCart } from "@/lib/context";
 import { cn } from "@/lib/utils";
 import { PageLoading } from "@/components/common/Loading";
 
@@ -912,14 +911,13 @@ export default function ProductDetailPage() {
                   size="lg"
                 >
                   {" "}
-                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  <ShoppingCart className="h-4 w-4 mr-2" />{" "}
                   {isNaN(priceInfo.price)
                     ? "Liên hệ"
                     : selectedVariant && selectedVariant.stockQuantity === 0
                     ? "Hết hàng"
                     : "Thêm vào giỏ hàng"}
                 </Button>
-                <WishlistButton product={product} size="lg" />
                 <Button variant="outline" size="lg">
                   <Share2 className="h-4 w-4" />
                 </Button>

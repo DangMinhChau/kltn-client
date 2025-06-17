@@ -391,8 +391,7 @@ export const filterApi = {
 export { api };
 export default api;
 
-// Import order APIs
-export { orderApi, voucherApi, shippingApi, paymentApi } from "./api/orders";
+// Order APIs - sẽ được xây dựng lại
 
 // Import cart APIs
 export { cartApi, cartItemsApi, cartHelpers } from "./api/cart";

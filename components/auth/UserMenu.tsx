@@ -112,15 +112,10 @@ export const UserMenu = () => {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
+              {" "}
               <Link href="/orders" className="flex items-center">
                 <Package className="mr-2 h-4 w-4" />
                 <span>Đơn hàng</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/wishlist" className="flex items-center">
-                <Heart className="mr-2 h-4 w-4" />
-                <span>Yêu thích</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>

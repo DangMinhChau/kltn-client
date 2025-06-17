@@ -3,8 +3,15 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Minus, Plus, X, ShoppingBag, Loader2 } from "lucide-react";
-import { useCart } from "@/lib/context/UnifiedCartContext";
+import {
+  Minus,
+  Plus,
+  X,
+  ShoppingBag,
+  Loader2,
+  AlertTriangle,
+} from "lucide-react";
+import { useCart } from "@/lib/context";
 import { formatPrice } from "@/lib/utils";
 import { CartItem } from "@/types";
 import {
@@ -17,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function CartSheet() {
   const {
@@ -29,6 +37,8 @@ export function CartSheet() {
     closeCart,
     isCartOpen,
     loading,
+    validateCart,
+    loading,
     error,
   } = useCart();
 
@@ -38,16 +48,12 @@ export function CartSheet() {
     console.log("CartSheet - totalItems:", totalItems);
     console.log("CartSheet - totalAmount:", totalAmount);
   }, [items, totalItems, totalAmount]);
-
-  const handleQuantityChange = async (
-    variantId: string,
-    newQuantity: number
-  ) => {
+  const handleQuantityChange = (variantId: string, newQuantity: number) => {
     try {
       if (newQuantity <= 0) {
-        await removeItem(variantId);
+        removeItem(variantId);
       } else {
-        await updateItemQuantity(variantId, newQuantity);
+        updateItemQuantity(variantId, newQuantity);
       }
     } catch (error) {
       console.error("Failed to update cart:", error);
@@ -97,7 +103,6 @@ export function CartSheet() {
             <Badge variant="secondary">{totalItems}</Badge>
           </SheetTitle>
         </SheetHeader>
-
         {/* Cart Items */}
         <div className="flex-1 overflow-y-auto py-4">
           <div className="space-y-4">
@@ -148,6 +153,23 @@ export function CartSheet() {
                     <p>Màu: {item.color || item.variant?.color?.name || ""}</p>
                     <p>Size: {item.size || item.variant?.size?.name || ""}</p>
                   </div>
+                  {/* Stock Warning */}
+                  {item.maxQuantity && item.quantity > item.maxQuantity && (
+                    <Alert className="py-2 px-3">
+                      <AlertTriangle className="h-3 w-3" />
+                      <AlertDescription className="text-xs">
+                        Chỉ còn {item.maxQuantity} sản phẩm
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {item.maxQuantity === 0 && (
+                    <Alert variant="destructive" className="py-2 px-3">
+                      <AlertTriangle className="h-3 w-3" />
+                      <AlertDescription className="text-xs">
+                        Sản phẩm đã hết hàng
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <div className="flex items-center justify-between">
                     {" "}
                     {/* Quantity Controls */}
@@ -217,12 +239,36 @@ export function CartSheet() {
               </div>
             ))}
           </div>
-        </div>
-
+        </div>{" "}
         {/* Cart Footer */}
         <div className="space-y-4 border-t pt-4">
-          {" "}
-          {/* Clear Cart */}{" "}
+          {/* Validate Stock Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                await validateCart();
+              } catch (error) {
+                console.error("Failed to validate cart:", error);
+              }
+            }}
+            className="w-full"
+            disabled={loading || items.length === 0}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Đang kiểm tra...
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Kiểm tra tồn kho
+              </>
+            )}
+          </Button>
+          {/* Clear Cart */}
           <Button
             variant="outline"
             size="sm"
@@ -266,7 +312,7 @@ export function CartSheet() {
               <Link href="/cart" onClick={closeCart}>
                 Xem giỏ hàng
               </Link>
-            </Button>
+            </Button>{" "}
             <Button asChild className="flex-1" disabled={loading}>
               <Link href="/checkout" onClick={closeCart}>
                 Thanh toán

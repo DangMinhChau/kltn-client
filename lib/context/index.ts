@@ -1,18 +1,10 @@
 "use client";
 
-// Re-export unified cart as the main cart hook for backward compatibility
+// Export the local cart as the main cart system
 export {
-  useUnifiedCart as useCart,
-  UnifiedCartProvider as CartProvider,
-} from "./UnifiedCartContext";
+  useLocalCart as useCart,
+  LocalCartProvider as CartProvider,
+} from "./LocalCartContext";
 
-// Also export the original for specific use cases
-export {
-  useCart as useLocalCart,
-  CartProvider as LocalCartProvider,
-} from "./CartContext";
-
-export { useApiCart, ApiCartProvider } from "./ApiCartContext";
-
-// Keep original types for compatibility
-export type { CartState, CartContextType } from "@/types";
+// Export auth context
+export { useAuth, AuthProvider } from "./AuthContext";

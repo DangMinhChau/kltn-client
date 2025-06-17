@@ -106,20 +106,9 @@ export const UserMenuHoverCard = () => {
                   >
                     <Link href="/orders" className="flex items-center">
                       <Package className="mr-2 h-4 w-4" />
-                      Đơn hàng
+                      Đơn hàng{" "}
                     </Link>
                   </Button>{" "}
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className="justify-start"
-                  >
-                    <Link href="/wishlist" className="flex items-center">
-                      <Heart className="mr-2 h-4 w-4" />
-                      Yêu thích
-                    </Link>
-                  </Button>
                   <Button
                     asChild
                     variant="ghost"

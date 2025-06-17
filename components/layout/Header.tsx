@@ -3,14 +3,13 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, User, Menu, Heart, ChevronDown, X } from "lucide-react";
+import { Search, User, Menu, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { CartIcon } from "@/components/cart/CartIcon";
 import { CartSheet } from "@/components/cart/CartSheet";
-import { useWishlist } from "@/lib/context/WishlistContext";
 import { UserMenuHoverCard } from "@/components/auth/UserMenuHoverCard";
 import { SearchBar } from "@/components/layout/SearchBar";
 import { useCategories } from "@/hooks/useCategories";
@@ -54,7 +53,6 @@ const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
   const { categoryTree, isLoading } = useCategories();
-  const { state: wishlistState } = useWishlist();
 
   // Debug logging for categories
   useEffect(() => {
@@ -304,7 +302,7 @@ const Header = () => {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Sale
-              </Link>
+              </Link>{" "}
               {/* Đơn hàng */}
               <Link
                 href="/orders"
@@ -312,25 +310,6 @@ const Header = () => {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Đơn hàng
-              </Link>
-              {/* Wishlist - Mobile only */}
-              <Link
-                href="/wishlist"
-                className="flex items-center py-3 px-4 text-base font-medium text-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <Heart className="h-4 w-4 mr-2" />
-                Yêu thích
-                {wishlistState.totalItems > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="ml-auto h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
-                  >
-                    {wishlistState.totalItems > 99
-                      ? "99+"
-                      : wishlistState.totalItems}
-                  </Badge>
-                )}
               </Link>
             </nav>
           </div>
@@ -409,38 +388,9 @@ const Header = () => {
                 }}
               >
                 <Search className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
-
-              {/* Wishlist */}
-              <div className="relative hidden sm:flex">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 lg:h-10 lg:w-10"
-                  asChild
-                >
-                  <Link
-                    href="/wishlist"
-                    className="flex items-center justify-center"
-                  >
-                    <Heart className="h-4 w-4 lg:h-5 lg:w-5" />
-                  </Link>
-                </Button>
-                {wishlistState.totalItems > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -right-2 -top-2 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
-                  >
-                    {wishlistState.totalItems > 99
-                      ? "99+"
-                      : wishlistState.totalItems}
-                  </Badge>
-                )}
-              </div>
-
+              </Button>{" "}
               {/* User account */}
               <UserMenuHoverCard />
-
               {/* Shopping cart */}
               <CartIcon
                 variant="ghost"

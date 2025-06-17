@@ -1,74 +1,75 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
-import {
-  ArrowLeft,
-  CreditCard,
-  Truck,
-  MapPin,
-  Tag,
-  Loader2,
-} from "lucide-react";
-import { useCart } from "@/lib/context/UnifiedCartContext";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/context/AuthContext";
-import { VoucherValidationResult } from "@/types";
-import { formatPrice } from "@/lib/utils";
+import { useCart } from "@/lib/context/UnifiedCartContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import VoucherInput from "@/components/cart/VoucherInput";
-import PayPalButton from "@/components/payments/PayPalButton";
-import { orderApi, voucherApi } from "@/lib/api/orders";
+import { Separator } from "@/components/ui/separator";
+import { formatPrice } from "@/lib/utils";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+import Image from "next/image";
+import PayPalProvider from "@/components/payments/PayPalProvider";
+import PayPalButton from "@/components/payments/PayPalButton";
+import { voucherApi } from "@/lib/api/orders";
+import {
+  EnhancedPayPalService,
+  PayPalOrderData,
+} from "@/lib/services/enhanced-paypal.service";
 
 interface ShippingForm {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
   shippingAddress: string;
-  note?: string;
+  note: string;
+}
+
+interface VoucherApplication {
+  voucher: any;
+  discount: number;
+  isValid: boolean;
 }
 
 export default function CheckoutPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p>Đang tải trang thanh toán...</p>
-          </div>
-        </div>
-      }
-    >
-      <CheckoutContent />
-    </Suspense>
-  );
-}
-
-function CheckoutContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { items, totalAmount, clearCart } = useCart();
   const { user, isAuthenticated } = useAuth();
-  const [appliedVoucher, setAppliedVoucher] =
-    useState<VoucherValidationResult | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const { items, totalAmount, clearCart, syncVariantData } = useCart();
   const [loading, setLoading] = useState(false);
-  const [autoApplyingVoucher, setAutoApplyingVoucher] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("COD");
+  const [voucherCode, setVoucherCode] = useState("");
+  const [appliedVoucher, setAppliedVoucher] =
+    useState<VoucherApplication | null>(null);
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
-    customerName: user?.fullName || "",
+    customerName: user?.name || "",
     customerEmail: user?.email || "",
-    customerPhone: user?.phoneNumber || "",
+    customerPhone: user?.phone || "",
     shippingAddress: "",
     note: "",
   });
+
+  // Sync variant data on page load
+  useEffect(() => {
+    syncVariantData();
+  }, [syncVariantData]);
+
+  // Update form when user data loads
+  useEffect(() => {
+    if (user) {
+      setShippingForm((prev) => ({
+        ...prev,
+        customerName: user.name || prev.customerName,
+        customerEmail: user.email || prev.customerEmail,
+        customerPhone: user.phone || prev.customerPhone,
+      }));
+    }
+  }, [user]);
 
   // Redirect if cart is empty
   useEffect(() => {
@@ -77,27 +78,57 @@ function CheckoutContent() {
     }
   }, [items, router]);
 
-  // Calculate totals
   const subtotal = totalAmount;
-  const shippingFee = 30000; // Fixed shipping fee for demo
-  const discount = appliedVoucher?.discountAmount || 0;
-  const finalTotal = subtotal + shippingFee - discount;
-
-  const handleVoucherApplied = (voucher: VoucherValidationResult) => {
-    setAppliedVoucher(voucher);
-    toast.success(`Áp dụng voucher ${voucher.voucher?.code} thành công!`);
-  };
-
-  const handleVoucherRemoved = () => {
-    setAppliedVoucher(null);
-    toast.info("Đã gỡ voucher");
-  };
+  const shippingFee = 30000; // Fixed shipping fee
+  const discount = appliedVoucher?.discount || 0;
+  const finalTotal = Math.max(0, subtotal + shippingFee - discount);
 
   const handleInputChange = (field: keyof ShippingForm, value: string) => {
-    setShippingForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setShippingForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleApplyVoucher = async () => {
+    if (!voucherCode.trim()) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/vouchers/validate`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            code: voucherCode,
+            orderValue: subtotal,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.data?.isValid) {
+        setAppliedVoucher({
+          voucher: data.data.voucher,
+          discount: data.data.discount,
+          isValid: true,
+        });
+        toast.success("Áp dụng voucher thành công!");
+      } else {
+        toast.error(data.message || "Voucher không hợp lệ");
+      }
+    } catch (error: any) {
+      toast.error("Có lỗi xảy ra khi áp dụng voucher");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherCode("");
+    toast.success("Đã hủy voucher");
   };
 
   const validateForm = (): boolean => {
@@ -119,603 +150,430 @@ function CheckoutContent() {
     }
     return true;
   };
-  const handlePlaceOrder = async () => {
+  const handleSubmitOrder = async () => {
     if (!validateForm()) return;
 
-    console.log("Creating order with payment method:", paymentMethod);
-    console.log("Order data:", {
-      customerName: shippingForm.customerName,
-      customerEmail: shippingForm.customerEmail,
-      customerPhone: shippingForm.customerPhone,
-      shippingAddress: shippingForm.shippingAddress,
-      items: items.map((item) => ({
-        variantId: item.variant.id,
-        quantity: item.quantity,
-        unitPrice: item.discountPrice || item.price,
-      })),
-      voucherId: appliedVoucher?.voucher?.id,
-      subTotal: subtotal,
-      shippingFee,
-      discount,
-      totalPrice: finalTotal,
-      note: shippingForm.note,
-    });
-
-    setLoading(true);
     try {
-      const orderData: any = {
-        customerName: shippingForm.customerName,
-        customerEmail: shippingForm.customerEmail,
-        customerPhone: shippingForm.customerPhone,
-        shippingAddress: shippingForm.shippingAddress,
+      setLoading(true);
+
+      // Sync variant data one more time before order creation
+      await syncVariantData();
+
+      const orderData: PayPalOrderData = {
+        customerName: shippingForm.customerName.trim(),
+        customerEmail: shippingForm.customerEmail.trim(),
+        customerPhone: shippingForm.customerPhone.trim(),
+        shippingAddress: shippingForm.shippingAddress.trim(),
         items: items.map((item) => ({
           variantId: item.variant.id,
           quantity: item.quantity,
           unitPrice: item.discountPrice || item.price,
         })),
-        voucherId: appliedVoucher?.voucher?.id,
         subTotal: subtotal,
         shippingFee,
         discount,
         totalPrice: finalTotal,
-        note: shippingForm.note,
+        note: shippingForm.note?.trim() || "",
+        userId: user?.id || null,
       };
 
-      // Only include userId if user is authenticated
-      if (user?.id) {
-        orderData.userId = user.id;
-      }
-      const response = await orderApi.createOrder(orderData);
-      const order = response.data || response;
-
-      // Handle payment based on selected method
-      if (paymentMethod === "cash") {
-        // Create COD payment record
-        const paymentHeaders: Record<string, string> = {
-          "Content-Type": "application/json",
-        };
-
-        // Add auth token only if user is authenticated
-        if (isAuthenticated) {
-          paymentHeaders.Authorization = `Bearer ${localStorage.getItem(
-            "accessToken"
-          )}`;
-        }
-
-        try {
-          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments`, {
-            method: "POST",
-            headers: paymentHeaders,
-            body: JSON.stringify({
-              orderId: order.id,
-              method: "COD",
-              amount: finalTotal,
-              note: "Cash on Delivery",
-            }),
-          });
-        } catch (paymentError) {
-          // Don't fail the order for this
-        }
-
-        toast.success("Đặt hàng thành công!");
-        await clearCart();
-        router.push(
-          `/checkout/success?orderNumber=${order.orderNumber || order.id}`
+      if (paymentMethod === "COD") {
+        // Handle COD payment using enhanced service
+        const result = await EnhancedPayPalService.createOrderWithFallback(
+          orderData,
+          {
+            fallbackToCOD: false, // Force COD
+            showSuccessToast: true,
+          }
         );
-      } else if (paymentMethod === "paypal") {
-        // PayPal payment will be handled by PayPalButton component
-        setLoading(false);
-        toast.info("Vui lòng hoàn tất thanh toán qua PayPal.");
+
+        // Clear cart and redirect
+        clearCart();
+        router.push(`/order-success?orderNumber=${result.orderId}`);
+      } else if (paymentMethod === "PAYPAL") {
+        // Handle PayPal payment using enhanced service
+        const result = await EnhancedPayPalService.createOrderWithFallback(
+          orderData,
+          {
+            fallbackToCOD: true,
+            autoRedirect: false,
+            showSuccessToast: false,
+          }
+        );
+
+        if (result.paymentMethod === "PAYPAL") {
+          // PayPal payment - let PayPalButton handle the flow
+          toast.success("Chuyển đến PayPal để thanh toán");
+        } else {
+          // Fallback to COD
+          clearCart();
+          router.push(`/order-success?orderNumber=${result.orderId}`);
+        }
       }
     } catch (error: any) {
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Có lỗi xảy ra khi đặt hàng";
-      toast.error(errorMessage);
+      console.error("Order creation failed:", error);
+      toast.error(error.message || "Có lỗi xảy ra khi tạo đơn hàng");
+    } finally {
       setLoading(false);
     }
   };
-  const handlePayPalSuccess = async (orderId?: string) => {
-    toast.success("Thanh toán PayPal thành công!");
-    await clearCart();
-    router.push(`/checkout/success?orderNumber=${orderId}`);
-  };
-  const handlePayPalError = (error: any) => {
-    console.error("PayPal payment error:", error);
-    toast.error("Lỗi thanh toán PayPal. Vui lòng thử lại.");
-    setLoading(false);
-  };
 
-  // Auto-load voucher from URL params (from cart)
-  useEffect(() => {
-    const voucherCode = searchParams.get("voucherCode");
-    if (voucherCode && !appliedVoucher && !autoApplyingVoucher) {
-      const autoApplyVoucher = async () => {
-        setAutoApplyingVoucher(true);
-        try {
-          const validation = await voucherApi.validateVoucher(
-            voucherCode,
-            subtotal
-          );
-          if (validation.isValid && validation.voucher) {
-            setAppliedVoucher({
-              isValid: true,
-              voucher: validation.voucher,
-              discountAmount:
-                typeof validation.discountAmount === "number"
-                  ? validation.discountAmount
-                  : parseFloat(validation.discountAmount?.toString() || "0"),
-              message: "Voucher applied successfully",
-            });
-            toast.success(
-              `Voucher ${voucherCode} đã được áp dụng từ giỏ hàng!`
-            );
-
-            // Clear voucher code from URL after successful application
-            const url = new URL(window.location.href);
-            url.searchParams.delete("voucherCode");
-            window.history.replaceState({}, "", url.toString());
-          } else {
-            toast.error(
-              validation.error ||
-                `Voucher ${voucherCode} không hợp lệ hoặc đã hết hạn`
-            );
-          }
-        } catch (error) {
-          toast.error(`Không thể áp dụng voucher ${voucherCode}`);
-        } finally {
-          setAutoApplyingVoucher(false);
+  const handleCODPayment = async (orderId: string) => {
+    try {
+      const paymentResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/payments`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(isAuthenticated && {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            }),
+          },
+          body: JSON.stringify({
+            orderId,
+            method: "COD",
+            amount: finalTotal,
+            note: "Cash on Delivery",
+          }),
         }
-      };
+      );
 
-      autoApplyVoucher();
-    }
-  }, [searchParams, subtotal, appliedVoucher, autoApplyingVoucher]);
-
-  // Test API connection function
-  const testApiConnection = async () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const response = await fetch(`${apiUrl}/health`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        return true;
-      } else {
-        return false;
+      if (!paymentResponse.ok) {
+        throw new Error("Failed to create COD payment");
       }
+
+      toast.success("Đặt hàng thành công! Bạn sẽ thanh toán khi nhận hàng.");
     } catch (error) {
-      return false;
+      console.error("COD payment creation failed:", error);
+      // Don't throw error as order was created successfully
+      toast.warning(
+        "Đơn hàng đã được tạo nhưng có lỗi trong việc ghi nhận thanh toán"
+      );
     }
   };
-  // Test API connection on component mount
-  useEffect(() => {
-    testApiConnection().then((connected) => {
-      if (!connected) {
-        console.warn(
-          "API connection test failed. Check NEXT_PUBLIC_API_URL environment variable."
-        );
-      }
-    });
-  }, []);
 
-  // Debug function for testing PayPal connection
-  const testPayPalConnection = async () => {
+  const handlePayPalPayment = async (orderId: string, amount: number) => {
     try {
-      const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
-      if (clientId) {
-        toast.success("PayPal Client ID đã được cấu hình!");
-      } else {
-        toast.error("Chưa cấu hình PayPal Client ID");
+      // Convert VND to USD (approximate rate: 1 USD = 24,000 VND)
+      const amountUSD = Math.ceil((amount / 24000) * 100) / 100; // Round up to 2 decimal places
+
+      const paypalResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/payments/paypal/create-order`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(isAuthenticated && {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            }),
+          },
+          body: JSON.stringify({
+            orderId,
+            amount: amountUSD,
+            currency: "USD",
+          }),
+        }
+      );
+
+      if (!paypalResponse.ok) {
+        throw new Error("Failed to create PayPal order");
       }
-    } catch (error) {
-      toast.error("Lỗi kết nối PayPal");
+
+      const paypalData = await paypalResponse.json();
+
+      if (paypalData.data?.paypalOrderId) {
+        // Open PayPal checkout in new window
+        const paypalCheckoutUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${paypalData.data.paypalOrderId}`;
+        window.open(paypalCheckoutUrl, "_blank");
+
+        toast.success("Chuyển đến PayPal để thanh toán");
+
+        // Clear cart (order was created successfully)
+        clearCart();
+
+        // Redirect to pending payment page
+        router.push(
+          `/order-pending?orderNumber=${orderId}&paypalOrderId=${paypalData.data.paypalOrderId}`
+        );
+      } else {
+        throw new Error("No PayPal order ID received");
+      }
+    } catch (error: any) {
+      console.error("PayPal payment creation failed:", error);
+      toast.error("Có lỗi xảy ra khi tạo thanh toán PayPal");
+      throw error;
     }
   };
 
   if (items.length === 0) {
-    return null;
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Giỏ hàng trống</h1>
+          <p className="text-muted-foreground mb-4">
+            Bạn chưa có sản phẩm nào trong giỏ hàng
+          </p>
+          <Button onClick={() => router.push("/products")}>
+            Tiếp tục mua sắm
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4">
-        {/* Header */}
-        <div className="flex items-center space-x-4 mb-6">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.back()}
-            className="shrink-0"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Thanh toán</h1>
-            <p className="text-gray-600">Hoàn tất đơn hàng của bạn</p>
-          </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Thanh toán</h1>
+        <p className="text-muted-foreground">Hoàn tất đơn hàng của bạn</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Shipping Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Thông tin giao hàng</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="customerName">Họ và tên *</Label>
+                  <Input
+                    id="customerName"
+                    value={shippingForm.customerName}
+                    onChange={(e) =>
+                      handleInputChange("customerName", e.target.value)
+                    }
+                    placeholder="Nhập họ và tên"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="customerPhone">Số điện thoại *</Label>
+                  <Input
+                    id="customerPhone"
+                    value={shippingForm.customerPhone}
+                    onChange={(e) =>
+                      handleInputChange("customerPhone", e.target.value)
+                    }
+                    placeholder="Nhập số điện thoại"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="customerEmail">Email *</Label>
+                <Input
+                  id="customerEmail"
+                  type="email"
+                  value={shippingForm.customerEmail}
+                  onChange={(e) =>
+                    handleInputChange("customerEmail", e.target.value)
+                  }
+                  placeholder="Nhập địa chỉ email"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="shippingAddress">Địa chỉ giao hàng *</Label>
+                <Textarea
+                  id="shippingAddress"
+                  value={shippingForm.shippingAddress}
+                  onChange={(e) =>
+                    handleInputChange("shippingAddress", e.target.value)
+                  }
+                  placeholder="Nhập địa chỉ chi tiết để giao hàng"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="note">Ghi chú</Label>
+                <Textarea
+                  id="note"
+                  value={shippingForm.note}
+                  onChange={(e) => handleInputChange("note", e.target.value)}
+                  placeholder="Ghi chú đặc biệt cho đơn hàng (không bắt buộc)"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Payment Method */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Phương thức thanh toán</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup
+                value={paymentMethod}
+                onValueChange={setPaymentMethod}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="COD" id="cod" />
+                  <Label htmlFor="cod" className="flex-1 cursor-pointer">
+                    <div className="font-medium">
+                      Thanh toán khi nhận hàng (COD)
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Thanh toán bằng tiền mặt khi nhận được hàng
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="PAYPAL" id="paypal" />
+                  <Label htmlFor="paypal" className="flex-1 cursor-pointer">
+                    <div className="font-medium">PayPal</div>
+                    <div className="text-sm text-muted-foreground">
+                      Thanh toán trực tuyến qua PayPal (chuyển đổi từ VND sang
+                      USD)
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Left - Forms */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Shipping Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <MapPin className="mr-2 h-5 w-5" />
-                  Thông tin giao hàng
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Họ và tên *</Label>
-                    <Input
-                      id="name"
-                      value={shippingForm.customerName}
-                      onChange={(e) =>
-                        handleInputChange("customerName", e.target.value)
-                      }
-                      placeholder="Nhập họ và tên"
+        {/* Order Summary */}
+        <div className="space-y-6">
+          {/* Cart Items */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Đơn hàng của bạn</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {items.map((item) => (
+                <div key={item.id} className="flex gap-3">
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden">
+                    <Image
+                      src={item.imageUrl || "/placeholder-image.jpg"}
+                      alt={item.name}
+                      fill
+                      className="object-cover"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="phone">Số điện thoại *</Label>
-                    <Input
-                      id="phone"
-                      value={shippingForm.customerPhone}
-                      onChange={(e) =>
-                        handleInputChange("customerPhone", e.target.value)
-                      }
-                      placeholder="Nhập số điện thoại"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={shippingForm.customerEmail}
-                    onChange={(e) =>
-                      handleInputChange("customerEmail", e.target.value)
-                    }
-                    placeholder="Nhập email"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="address">Địa chỉ giao hàng *</Label>
-                  <Textarea
-                    id="address"
-                    value={shippingForm.shippingAddress}
-                    onChange={(e) =>
-                      handleInputChange("shippingAddress", e.target.value)
-                    }
-                    placeholder="Nhập địa chỉ chi tiết"
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="note">Ghi chú (tùy chọn)</Label>
-                  <Textarea
-                    id="note"
-                    value={shippingForm.note}
-                    onChange={(e) => handleInputChange("note", e.target.value)}
-                    placeholder="Ghi chú cho đơn hàng"
-                    rows={2}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Payment Method */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <CreditCard className="mr-2 h-5 w-5" />
-                  Phương thức thanh toán
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {" "}
-                <RadioGroup
-                  value={paymentMethod}
-                  onValueChange={setPaymentMethod}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="cash" id="cash" />
-                    <Label htmlFor="cash">Thanh toán khi nhận hàng (COD)</Label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="paypal" id="paypal" />
-                    <Label
-                      htmlFor="paypal"
-                      className="flex items-center cursor-pointer"
-                    >
-                      <div className="flex items-center">
-                        <div className="flex items-center space-x-2">
-                          <svg
-                            className="w-8 h-5"
-                            viewBox="0 0 32 20"
-                            fill="none"
-                          >
-                            <rect
-                              width="32"
-                              height="20"
-                              rx="4"
-                              fill="#0070BA"
-                            />
-                            <text
-                              x="16"
-                              y="12"
-                              textAnchor="middle"
-                              fill="white"
-                              fontSize="7"
-                              fontWeight="bold"
-                            >
-                              PayPal
-                            </text>
-                          </svg>
-                          <span>Thanh toán qua PayPal</span>
-                        </div>
-                        <div className="ml-2 text-xs text-blue-600">
-                          (PayPal Balance, Credit Card, Debit Card)
-                        </div>
-                      </div>
-                    </Label>
-                  </div>
-                </RadioGroup>
-                {/* PayPal Security Notice */}
-                {paymentMethod === "paypal" && (
-                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-start space-x-2">
-                      <div className="w-5 h-5 text-blue-600 mt-0.5">
-                        <svg
-                          className="w-full h-full"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      <div className="text-sm text-blue-800">
-                        <p className="font-medium">
-                          Thanh toán an toàn với PayPal
-                        </p>
-                        <p className="mt-1">
-                          • Bảo vệ người mua với PayPal Purchase Protection
-                          <br />
-                          • Hỗ trợ thẻ tín dụng, thẻ ghi nợ và tài khoản PayPal
-                          <br />• Giao dịch được mã hóa SSL 256-bit
-                        </p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={testPayPalConnection}
-                          className="mt-2 text-xs"
-                        >
-                          Kiểm tra cấu hình PayPal
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Voucher */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Tag className="mr-2 h-5 w-5" />
-                  Mã giảm giá
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {autoApplyingVoucher && (
-                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                      <span className="text-sm text-blue-800">
-                        Đang áp dụng voucher từ giỏ hàng...
+                  <div className="flex-1">
+                    <h4 className="font-medium text-sm line-clamp-2">
+                      {item.name}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {item.color} / {item.size}
+                    </p>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-sm text-muted-foreground">
+                        x{item.quantity}
+                      </span>
+                      <span className="font-medium">
+                        {formatPrice(item.discountPrice || item.price)}
                       </span>
                     </div>
                   </div>
-                )}
-                <VoucherInput
-                  cartTotal={subtotal}
-                  onVoucherApplied={handleVoucherApplied}
-                  onVoucherRemoved={handleVoucherRemoved}
-                  appliedVoucher={appliedVoucher}
-                  disabled={autoApplyingVoucher}
-                />
-              </CardContent>
-            </Card>
-          </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
 
-          {/* Right - Order Summary */}
-          <div>
-            <Card className="sticky top-8">
-              <CardHeader>
-                <CardTitle>Tóm tắt đơn hàng</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Items */}
+          {/* Voucher */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Mã giảm giá</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!appliedVoucher ? (
                 <div className="space-y-3">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex items-center space-x-3">
-                      <div className="relative w-12 h-12 rounded overflow-hidden">
-                        <Image
-                          src={item.imageUrl || "/placeholder-image.jpg"}
-                          alt={item.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {item.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {item.variant?.color?.name} •{" "}
-                          {item.variant?.size?.name} • x{item.quantity}
-                        </p>
-                      </div>
-                      <p className="text-sm font-medium">
-                        {formatPrice(
-                          (item.discountPrice || item.price) * item.quantity
-                        )}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Nhập mã giảm giá"
+                      value={voucherCode}
+                      onChange={(e) => setVoucherCode(e.target.value)}
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={handleApplyVoucher}
+                      disabled={loading || !voucherCode.trim()}
+                    >
+                      {loading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Áp dụng"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                    <div>
+                      <span className="font-medium text-green-800">
+                        {appliedVoucher.voucher.code}
+                      </span>
+                      <p className="text-sm text-green-600">
+                        Giảm {formatPrice(appliedVoucher.discount)}
                       </p>
                     </div>
-                  ))}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemoveVoucher}
+                    >
+                      Hủy
+                    </Button>
+                  </div>
                 </div>
-                <Separator />
-                {/* Calculations */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Tạm tính</span>
-                    <span>{formatPrice(subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Phí vận chuyển</span>
-                    <span>{formatPrice(shippingFee)}</span>
-                  </div>
-                  {appliedVoucher && discount > 0 && (
-                    <div className="flex justify-between text-sm text-green-600">
-                      <span>Giảm giá ({appliedVoucher.voucher?.code})</span>
-                      <span>-{formatPrice(discount)}</span>
-                    </div>
-                  )}
-                  <Separator />
-                  <div className="flex justify-between font-medium text-lg">
-                    <span>Tổng cộng</span>
-                    <span>{formatPrice(finalTotal)}</span>
-                  </div>
-                </div>{" "}
-                <Button
-                  onClick={handlePlaceOrder}
-                  disabled={
-                    loading || items.length === 0 || paymentMethod === "paypal"
-                  }
-                  className="w-full"
-                  size="lg"
-                >
-                  {loading ? (
-                    <div className="flex items-center">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      "Đang xử lý..."
-                    </div>
-                  ) : paymentMethod === "paypal" ? (
-                    "Vui lòng thanh toán qua PayPal"
-                  ) : (
-                    "Đặt hàng"
-                  )}
-                </Button>{" "}
-                {/* PayPal Button - Show when PayPal is selected */}
-                {paymentMethod === "paypal" && (
-                  <div className="mt-4">
-                    {(() => {
-                      // Debug logging
-                      console.log("=== PayPal Checkout Debug ===");
-                      console.log("Subtotal:", subtotal);
-                      console.log("Shipping Fee:", shippingFee);
-                      console.log("Discount:", discount);
-                      console.log("Final Total:", finalTotal);
-                      console.log("Shipping Form:", shippingForm);
-                      console.log("Items:", items);
-                      console.log("Applied Voucher:", appliedVoucher);
-                      console.log("User:", user);
+              )}
+            </CardContent>
+          </Card>
 
-                      // Validation checks
-                      const validationErrors = [];
-
-                      if (finalTotal <= 0) {
-                        validationErrors.push("Tổng tiền phải lớn hơn 0");
-                      }
-
-                      if (!shippingForm.customerName.trim()) {
-                        validationErrors.push("Vui lòng nhập tên khách hàng");
-                      }
-
-                      if (!shippingForm.customerEmail.trim()) {
-                        validationErrors.push("Vui lòng nhập email");
-                      }
-
-                      if (!shippingForm.shippingAddress.trim()) {
-                        validationErrors.push(
-                          "Vui lòng nhập địa chỉ giao hàng"
-                        );
-                      }
-
-                      if (items.length === 0) {
-                        validationErrors.push("Giỏ hàng trống");
-                      }
-
-                      if (validationErrors.length > 0) {
-                        return (
-                          <div className="p-4 border border-red-200 bg-red-50 rounded-lg">
-                            <p className="text-sm text-red-600 font-medium mb-2">
-                              Vui lòng sửa các lỗi sau:
-                            </p>
-                            <ul className="text-sm text-red-600 list-disc list-inside">
-                              {validationErrors.map((error, index) => (
-                                <li key={index}>{error}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <PayPalButton
-                          amount={Math.max(0, finalTotal)} // Ensure positive amount
-                          orderData={{
-                            customerName: shippingForm.customerName.trim(),
-                            customerEmail: shippingForm.customerEmail.trim(),
-                            customerPhone: shippingForm.customerPhone.trim(),
-                            shippingAddress:
-                              shippingForm.shippingAddress.trim(),
-                            items: items.map((item) => ({
-                              variantId: item.variant.id,
-                              quantity: item.quantity,
-                              unitPrice: item.discountPrice || item.price,
-                            })),
-                            voucherId: appliedVoucher?.voucher?.id || null,
-                            subTotal: subtotal,
-                            shippingFee,
-                            discount,
-                            totalPrice: Math.max(0, finalTotal),
-                            note: shippingForm.note?.trim() || "",
-                            userId: user?.id || null,
-                          }}
-                          onSuccess={handlePayPalSuccess}
-                          onError={handlePayPalError}
-                        />
-                      );
-                    })()}
-                  </div>
+          {/* Order Total */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Tổng cộng</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between">
+                <span>Tạm tính</span>
+                <span>{formatPrice(subtotal)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Phí giao hàng</span>
+                <span>{formatPrice(shippingFee)}</span>
+              </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Giảm giá</span>
+                  <span>-{formatPrice(discount)}</span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex justify-between font-bold text-lg">
+                <span>Tổng cộng</span>
+                <span>{formatPrice(finalTotal)}</span>
+              </div>
+              {paymentMethod === "PAYPAL" && (
+                <p className="text-sm text-muted-foreground">
+                  ≈ ${Math.ceil((finalTotal / 24000) * 100) / 100} USD
+                </p>
+              )}
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleSubmitOrder}
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  `Đặt hàng ${formatPrice(finalTotal)}`
                 )}
-              </CardContent>
-            </Card>
-          </div>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

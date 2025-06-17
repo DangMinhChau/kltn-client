@@ -266,16 +266,7 @@ export default function CollectionDetailPage({
                   size="lg"
                   className="bg-white text-black hover:bg-gray-100"
                 >
-                  <ShoppingBag className="h-5 w-5 mr-2" />
-                  Shop Collection
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-white text-white hover:bg-white hover:text-black"
-                >
-                  <Heart className="h-5 w-5 mr-2" />
-                  Add to Wishlist
+                  <ShoppingBag className="h-5 w-5 mr-2" /> Shop Collection
                 </Button>
                 <Button
                   size="lg"

@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { UnifiedCartProvider } from "@/lib/context/UnifiedCartContext";
-import { WishlistProvider } from "@/lib/context/WishlistContext";
+import { LocalCartProvider } from "@/lib/context/LocalCartContext";
 import { AuthProvider } from "@/lib/context/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import ScrollToTop from "@/components/common/ScrollToTop";
-import PayPalProvider from "@/components/payments/PayPalProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -54,15 +52,11 @@ export default function RootLayout({
         className={`${inter.variable} font-sans antialiased bg-background text-foreground`}
       >
         <AuthProvider>
-          <PayPalProvider>
-            <UnifiedCartProvider>
-              <WishlistProvider>
-                <ConditionalLayout>{children}</ConditionalLayout>
-                <ScrollToTop />
-                <Toaster />
-              </WishlistProvider>
-            </UnifiedCartProvider>
-          </PayPalProvider>
+          <LocalCartProvider>
+            <ConditionalLayout>{children}</ConditionalLayout>
+            <ScrollToTop />
+            <Toaster />
+          </LocalCartProvider>
         </AuthProvider>
       </body>
     </html>

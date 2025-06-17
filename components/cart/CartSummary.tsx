@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useCart } from "@/lib/context/UnifiedCartContext";
+import { useCart } from "@/lib/context/LocalCartContext";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,8 +55,7 @@ export function CartSummary({
               {formatPrice(totalAmount)}
             </span>
           </div>
-        </div>
-
+        </div>{" "}
         {showCheckoutButton && (
           <div className="space-y-2">
             <Button asChild className="w-full" size="lg">
