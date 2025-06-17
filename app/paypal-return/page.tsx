@@ -18,12 +18,18 @@ function PayPalReturnContent() {
     "processing"
   );
   const [orderId, setOrderId] = useState<string | null>(null);
-
   useEffect(() => {
     const handlePayPalReturn = async () => {
       const paypalOrderId = searchParams.get("token");
       const payerId = searchParams.get("PayerID");
       const orderIdParam = searchParams.get("orderId");
+
+      console.log("PayPal return URL params:", {
+        paypalOrderId,
+        payerId,
+        orderIdParam,
+        allParams: Object.fromEntries(searchParams.entries()),
+      });
 
       if (!paypalOrderId) {
         setStatus("error");
@@ -31,10 +37,23 @@ function PayPalReturnContent() {
         return;
       }
 
+      if (!payerId) {
+        setStatus("error");
+        toast.error("Thiếu PayerID từ PayPal");
+        return;
+      }
+
+      if (!orderIdParam) {
+        setStatus("error");
+        toast.error("Thiếu Order ID");
+        return;
+      }
+
       try {
         // Capture PayPal payment
         const response = await api.post("/payments/paypal/capture-order", {
           paypalOrderId,
+          payerId,
           orderId: orderIdParam,
         });
 
