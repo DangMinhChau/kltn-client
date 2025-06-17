@@ -69,19 +69,16 @@ function PayPalReturnContent() {
           payerId,
           orderId: orderIdParam,
         });
-
         console.log("Capture response received:", {
           status: response.status,
           data: response.data,
           hasSuccess: "success" in response.data,
           dataType: typeof response.data,
-        });
-
-        // Backend returns BaseResponseDto format: { message, data, meta }
+        }); // Backend returns BaseResponseDto format: { message, data, meta }
         // Check if request was successful (status 2xx) since backend logs show success
         if (response.status >= 200 && response.status < 300) {
           setStatus("success");
-          setOrderId(orderIdParam); // Use the order ID we already have
+          setOrderId(orderIdParam);
           clearCart();
           toast.success("Thanh toán PayPal thành công!");
 
@@ -145,8 +142,7 @@ function PayPalReturnContent() {
                 bạn...
               </p>
             </div>
-          )}
-
+          )}{" "}
           {status === "success" && (
             <div className="space-y-4">
               <p className="text-green-600 font-medium">
@@ -160,9 +156,14 @@ function PayPalReturnContent() {
               <p className="text-sm text-muted-foreground">
                 Bạn sẽ được chuyển hướng đến trang xác nhận đơn hàng...
               </p>
+              <Button
+                onClick={() => router.push(`/order-success?orderId=${orderId}`)}
+                className="mt-4"
+              >
+                Xem chi tiết đơn hàng
+              </Button>
             </div>
           )}
-
           {status === "error" && (
             <div className="space-y-4">
               <p className="text-red-600">
