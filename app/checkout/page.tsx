@@ -124,10 +124,12 @@ export default function CheckoutPage() {
       const numericShippingFee = Number(shippingFee);
       const numericDiscount = Number(voucherDiscount || 0);
       const numericTotal = Number(finalTotal);
-
       if (user && selectedAddress && !isGuestAddress(selectedAddress)) {
         // Authenticated user order with saved address
         orderData = {
+          customerName: user.fullName || user.email,
+          customerEmail: user.email,
+          customerPhone: user.phoneNumber || "",
           items: items.map((item) => ({
             variantId: item.variant.id,
             quantity: Number(item.quantity),
