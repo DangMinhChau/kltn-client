@@ -182,3 +182,30 @@ export interface Ward {
   name: string;
   districtId: number;
 }
+
+// Voucher Types
+export interface Voucher {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountValue: number;
+  minOrderAmount?: number;
+  maxDiscountAmount?: number;
+  isActive: boolean;
+  startDate: string;
+  endDate: string;
+  usageLimit?: number;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VoucherValidationResult {
+  isValid: boolean;
+  voucher?: Voucher;
+  discountAmount?: number;
+  message?: string;
+  error?: string;
+}

@@ -17,7 +17,7 @@ import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import PayPalProvider from "@/components/payments/PayPalProvider";
 import PayPalButton from "@/components/payments/PayPalButton";
-import { voucherApi } from "@/lib/api/orders";
+import { voucherApi } from "@/lib/api/vouchers";
 import {
   EnhancedPayPalService,
   PayPalOrderData,

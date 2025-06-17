@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, Tag, X, Check, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { VoucherValidationResult } from "@/types";
-import { voucherApi } from "@/lib/api/orders";
+import { voucherApi } from "@/lib/api/vouchers";
 import { formatPrice } from "@/lib/utils";
 
 interface VoucherInputProps {
