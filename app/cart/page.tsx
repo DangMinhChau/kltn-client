@@ -210,7 +210,8 @@ function CartContent({
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Tiếp tục mua sắm
                   </Link>
-                </Button>                <Button
+                </Button>{" "}
+                <Button
                   variant="destructive"
                   size="sm"
                   onClick={clearCart}
@@ -305,7 +306,8 @@ function CartContent({
                                     );
                                   }
                                 }}
-                                disabled={loading}                              >
+                                disabled={loading}
+                              >
                                 {loading ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
@@ -327,7 +329,8 @@ function CartContent({
                                   item.variant.id,
                                   item.quantity - 1
                                 )
-                              }                              disabled={item.quantity <= 1 || loading}
+                              }
+                              disabled={item.quantity <= 1 || loading}
                             >
                               {loading ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -347,7 +350,8 @@ function CartContent({
                                   item.variant.id,
                                   item.quantity + 1
                                 )
-                              }                              disabled={
+                              }
+                              disabled={
                                 item.quantity >= item.maxQuantity || loading
                               }
                             >

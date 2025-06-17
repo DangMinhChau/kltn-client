@@ -123,7 +123,8 @@ export function CartSheet() {
                   <div className="flex justify-between">
                     <h4 className="text-sm font-medium leading-none">
                       {item.name}
-                    </h4>{" "}                    <Button
+                    </h4>{" "}
+                    <Button
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 text-muted-foreground hover:text-destructive"
@@ -150,7 +151,9 @@ export function CartSheet() {
                   <div className="flex items-center justify-between">
                     {" "}
                     {/* Quantity Controls */}
-                    <div className="flex items-center gap-2">                      <Button
+                    <div className="flex items-center gap-2">
+                      {" "}
+                      <Button
                         variant="outline"
                         size="icon"
                         className="h-7 w-7"
@@ -170,7 +173,8 @@ export function CartSheet() {
                       </Button>
                       <span className="min-w-[2rem] text-center text-sm">
                         {item.quantity}
-                      </span>                      <Button
+                      </span>{" "}
+                      <Button
                         variant="outline"
                         size="icon"
                         className="h-7 w-7"
@@ -218,7 +222,8 @@ export function CartSheet() {
         {/* Cart Footer */}
         <div className="space-y-4 border-t pt-4">
           {" "}
-          {/* Clear Cart */}          <Button
+          {/* Clear Cart */}{" "}
+          <Button
             variant="outline"
             size="sm"
             onClick={async () => {

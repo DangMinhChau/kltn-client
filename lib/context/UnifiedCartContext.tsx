@@ -425,7 +425,8 @@ export function UnifiedCartProvider({
           // Add to API cart
           await cartItemsApi.addToCart({ variantId, quantity });
           await fetchApiCart();
-          toast.success("Đã thêm sản phẩm vào giỏ hàng!");        } else {
+          toast.success("Đã thêm sản phẩm vào giỏ hàng!");
+        } else {
           // Add to local cart
           const updatedItems = [...localItems];
           const existingIndex = updatedItems.findIndex(
@@ -435,24 +436,26 @@ export function UnifiedCartProvider({
           if (existingIndex >= 0) {
             const existingItem = updatedItems[existingIndex];
             const newQuantity = existingItem.quantity + quantity;
-            
+
             // Check stock before updating
             if (newQuantity > existingItem.maxQuantity) {
-              toast.error(`Chỉ còn ${existingItem.maxQuantity} sản phẩm trong kho`);
+              toast.error(
+                `Chỉ còn ${existingItem.maxQuantity} sản phẩm trong kho`
+              );
               throw new Error("Vượt quá số lượng tồn kho");
             }
-            
+
             updatedItems[existingIndex].quantity = newQuantity;
             toast.success("Đã cập nhật số lượng sản phẩm trong giỏ hàng!");
           } else {
             const newItem = await createLocalCartItem(variantId, quantity);
-            
+
             // Check stock for new item
             if (quantity > newItem.maxQuantity) {
               toast.error(`Chỉ còn ${newItem.maxQuantity} sản phẩm trong kho`);
               throw new Error("Vượt quá số lượng tồn kho");
             }
-            
+
             updatedItems.push(newItem);
             toast.success("Đã thêm sản phẩm vào giỏ hàng!");
           }
@@ -499,7 +502,7 @@ export function UnifiedCartProvider({
                 return sum + price * item.quantity;
               }, 0),
             };
-            setCart(updatedCart);            // Then update API in background (no loading state)
+            setCart(updatedCart); // Then update API in background (no loading state)
             try {
               if (quantity <= 0) {
                 await cartItemsApi.removeByVariant(variantId);
@@ -515,7 +518,8 @@ export function UnifiedCartProvider({
               setError("Failed to update cart");
               toast.error("Có lỗi xảy ra khi cập nhật giỏ hàng");
             }
-          }        } else {
+          }
+        } else {
           // Update local cart with validation
           const updatedItems = (localItems || [])
             .map((item) => {
@@ -532,7 +536,8 @@ export function UnifiedCartProvider({
             .filter((item) => item.quantity > 0);
 
           saveLocalCart(updatedItems);
-        }} catch (err: any) {
+        }
+      } catch (err: any) {
         setError(err.message);
         toast.error("Có lỗi xảy ra khi cập nhật giỏ hàng");
         // Revert optimistic update on error
