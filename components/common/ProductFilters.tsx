@@ -35,11 +35,16 @@ export function ProductFiltersComponent({
     filters.category
   );
 
-  // State for slider
+  // State for slider - use backend price range if available
   const [sliderValues, setSliderValues] = useState<number[]>([
-    filters.minPrice || 0,
-    filters.maxPrice || 5000000, // Default max 5M VND
+    filters.minPrice || filterOptions?.priceRange?.min || 0,
+    filters.maxPrice || filterOptions?.priceRange?.max || 5000000,
   ]);
+
+  // State for expanded categories
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set()
+  );
 
   // Memoize sections array to prevent recreation on every render
   const initialSections = useMemo<FilterSection[]>(
@@ -56,16 +61,23 @@ export function ProductFiltersComponent({
     []
   );
   const [sections, setSections] = useState<FilterSection[]>(initialSections);
-
-  // Sync slider values with filters
+  // Sync slider values with filters and backend price range
   useEffect(() => {
-    const newSliderMin = filters.minPrice || 0;
-    const newSliderMax = filters.maxPrice || 5000000;
+    const backendMin = filterOptions?.priceRange?.min || 0;
+    const backendMax = filterOptions?.priceRange?.max || 5000000;
+
+    const newSliderMin = filters.minPrice || backendMin;
+    const newSliderMax = filters.maxPrice || backendMax;
+
     if (sliderValues[0] !== newSliderMin || sliderValues[1] !== newSliderMax) {
       setSliderValues([newSliderMin, newSliderMax]);
     }
-  }, [filters.minPrice, filters.maxPrice, sliderValues]);
-
+  }, [
+    filters.minPrice,
+    filters.maxPrice,
+    filterOptions?.priceRange,
+    sliderValues,
+  ]);
   const toggleSection = useCallback((sectionId: string) => {
     setSections((prev) =>
       prev.map((section) =>
@@ -75,18 +87,30 @@ export function ProductFiltersComponent({
       )
     );
   }, []);
+
+  // Toggle category expansion
+  const toggleCategoryExpansion = useCallback((categoryId: string) => {
+    setExpandedCategories((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryId)) {
+        newSet.delete(categoryId);
+      } else {
+        newSet.add(categoryId);
+      }
+      return newSet;
+    });
+  }, []);
   const handleCategoryChange = useCallback(
     (categorySlug: string) => {
       const newCategory =
-        filters.category === categorySlug ? undefined : categorySlug;
-
-      // When category changes, reset other filters to avoid conflicts
+        filters.category === categorySlug ? undefined : categorySlug;      // When category changes, reset other filters to avoid conflicts
       const newFilters: ProductFilters = {
         category: newCategory,
-        // Keep search and price filters, reset others
+        // Keep search and price filters, reset others including size
         search: filters.search,
         minPrice: filters.minPrice,
         maxPrice: filters.maxPrice,
+        // Reset size and other category-specific filters
       };
 
       console.log("🏷️ Category changed:", {
@@ -139,8 +163,11 @@ export function ProductFiltersComponent({
   };
   const clearAllFilters = useCallback(() => {
     onFiltersChange({});
-    setSliderValues([0, 5000000]);
-  }, [onFiltersChange]);
+    const backendMin = filterOptions?.priceRange?.min || 0;
+    const backendMax = filterOptions?.priceRange?.max || 5000000;
+    setSliderValues([backendMin, backendMax]);
+    setExpandedCategories(new Set());
+  }, [onFiltersChange, filterOptions?.priceRange]);
   const removeFilter = useCallback(
     (filterType: string, value?: string) => {
       if (filterType === "category") {
@@ -151,7 +178,9 @@ export function ProductFiltersComponent({
           minPrice: undefined,
           maxPrice: undefined,
         });
-        setSliderValues([0, 5000000]);
+        const backendMin = filterOptions?.priceRange?.min || 0;
+        const backendMax = filterOptions?.priceRange?.max || 5000000;
+        setSliderValues([backendMin, backendMax]);
       } else if (
         filterType === "collection" ||
         filterType === "material" ||
@@ -336,6 +365,7 @@ export function ProductFiltersComponent({
           </div>
         )}{" "}
         <div className="space-y-6">
+          {" "}
           {/* Categories - Only show when NOT filtering by category */}
           {filterOptions?.categories && !categoryFromUrl && (
             <div>
@@ -352,27 +382,88 @@ export function ProductFiltersComponent({
                 )}
               </Button>
               {sections.find((s) => s.id === "category")?.isOpen && (
-                <div className="mt-3 space-y-2">
-                  {filterOptions.categories.map((category) => (
-                    <label
-                      key={category.slug}
-                      className="flex items-center justify-between space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          name="category"
-                          checked={filters.category === category.slug}
-                          onChange={() => handleCategoryChange(category.slug)}
-                          className="rounded border-gray-300"
-                        />
-                        <span className="text-sm">{category.name}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        ({category.productCount})
-                      </span>
-                    </label>
-                  ))}
+                <div className="mt-3 space-y-1">
+                  {/* Group categories by parent */}
+                  {(() => {
+                    const parentCategories = filterOptions.categories.filter(
+                      (cat) => !cat.parent && !cat.parentId
+                    );
+                    const childCategories = filterOptions.categories.filter(
+                      (cat) => cat.parent || cat.parentId
+                    );
+
+                    return parentCategories.map((parentCategory) => {
+                      const children = childCategories.filter(
+                        (child) =>
+                          child.parentId === parentCategory.id ||
+                          child.parent?.id === parentCategory.id
+                      );
+                      const isExpanded = expandedCategories.has(
+                        parentCategory.id
+                      );
+
+                      return (
+                        <div key={parentCategory.id} className="space-y-1">
+                          {/* Parent Category - Non-selectable, clickable to expand */}
+                          <div
+                            className="flex items-center justify-between p-2 rounded cursor-pointer hover:bg-gray-50"
+                            onClick={() =>
+                              toggleCategoryExpansion(parentCategory.id)
+                            }
+                          >
+                            <div className="flex items-center space-x-2">
+                              <div className="w-4 h-4 flex items-center justify-center">
+                                {children.length > 0 &&
+                                  (isExpanded ? (
+                                    <ChevronUp className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronDown className="h-3 w-3" />
+                                  ))}
+                              </div>
+                              <span className="text-sm font-medium text-gray-700">
+                                {parentCategory.name}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              ({parentCategory.productCount || 0})
+                            </span>
+                          </div>
+
+                          {/* Child Categories - Selectable */}
+                          {isExpanded && children.length > 0 && (
+                            <div className="ml-6 space-y-1">
+                              {children.map((childCategory) => (
+                                <label
+                                  key={childCategory.slug}
+                                  className="flex items-center justify-between space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <input
+                                      type="radio"
+                                      name="category"
+                                      checked={
+                                        filters.category === childCategory.slug
+                                      }
+                                      onChange={() =>
+                                        handleCategoryChange(childCategory.slug)
+                                      }
+                                      className="rounded border-gray-300"
+                                    />
+                                    <span className="text-sm">
+                                      {childCategory.name}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-gray-500">
+                                    ({childCategory.productCount || 0})
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </div>
@@ -476,25 +567,28 @@ export function ProductFiltersComponent({
               </div>
               <Separator />
             </>
-          )}
-          {/* Sizes */}
-          {filterOptions?.sizes && filterOptions.sizes.length > 0 && (
-            <>
-              <div>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-between p-0 h-auto text-left"
-                  onClick={() => toggleSection("sizes")}
-                >
-                  <span className="font-medium">Kích thước</span>
-                  {sections.find((s) => s.id === "sizes")?.isOpen ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </Button>{" "}
-                {sections.find((s) => s.id === "sizes")?.isOpen && (
-                  <div className="mt-3 grid grid-cols-3 gap-2">
+          )}          {/* Sizes */}
+          <div>
+            <Button
+              variant="ghost"
+              className="w-full justify-between p-0 h-auto text-left"
+              onClick={() => toggleSection("sizes")}
+            >
+              <span className="font-medium">Kích thước</span>
+              {sections.find((s) => s.id === "sizes")?.isOpen ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+            {sections.find((s) => s.id === "sizes")?.isOpen && (
+              <div className="mt-3">
+                {isLoading ? (
+                  <div className="flex justify-center py-4">
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                ) : filterOptions?.sizes && filterOptions.sizes.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2">
                     {filterOptions.sizes.map((size) => (
                       <button
                         key={size.name}
@@ -507,7 +601,6 @@ export function ProductFiltersComponent({
                           handleSingleFilterChange("size", size.name)
                         }
                       >
-                        {" "}
                         <span>{size.name}</span>
                         <span className="text-xs text-gray-500">
                           ({size.productCount})
@@ -515,11 +608,19 @@ export function ProductFiltersComponent({
                       </button>
                     ))}
                   </div>
+                ) : filters.category ? (
+                  <div className="text-sm text-gray-500 text-center py-4">
+                    Không có kích thước cho danh mục này
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 text-center py-4">
+                    Chọn danh mục để xem kích thước
+                  </div>
                 )}
               </div>
-              <Separator />
-            </>
-          )}
+            )}
+          </div>
+          <Separator />
           {/* Materials */}
           {filterOptions?.materials && filterOptions.materials.length > 0 && (
             <>
@@ -685,15 +786,30 @@ export function ProductFiltersComponent({
                   <Slider
                     value={sliderValues}
                     onValueChange={handleSliderChange}
-                    min={0}
-                    max={5000000}
-                    step={50000}
+                    min={filterOptions?.priceRange?.min || 0}
+                    max={filterOptions?.priceRange?.max || 5000000}
+                    step={Math.max(
+                      Math.floor(
+                        (filterOptions?.priceRange?.max || 5000000) / 100
+                      ),
+                      1000
+                    )}
                     className="w-full"
                   />
                 </div>
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>{formatPrice(sliderValues[0])}</span>
                   <span>{formatPrice(sliderValues[1])}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>
+                    Tối thiểu:{" "}
+                    {formatPrice(filterOptions?.priceRange?.min || 0)}
+                  </span>
+                  <span>
+                    Tối đa:{" "}
+                    {formatPrice(filterOptions?.priceRange?.max || 5000000)}
+                  </span>
                 </div>
               </div>
             )}
