@@ -3,7 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Minus, Plus, X, ShoppingBag } from "lucide-react";
+import { Minus, Plus, X, ShoppingBag, Loader2 } from "lucide-react";
 import { useCart } from "@/lib/context/UnifiedCartContext";
 import { formatPrice } from "@/lib/utils";
 import { CartItem } from "@/types";
@@ -123,8 +123,7 @@ export function CartSheet() {
                   <div className="flex justify-between">
                     <h4 className="text-sm font-medium leading-none">
                       {item.name}
-                    </h4>{" "}
-                    <Button
+                    </h4>{" "}                    <Button
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 text-muted-foreground hover:text-destructive"
@@ -137,7 +136,11 @@ export function CartSheet() {
                       }}
                       disabled={loading}
                     >
-                      <X className="h-4 w-4" />
+                      {loading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <X className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>{" "}
                   <div className="text-xs text-muted-foreground">
@@ -147,8 +150,7 @@ export function CartSheet() {
                   <div className="flex items-center justify-between">
                     {" "}
                     {/* Quantity Controls */}
-                    <div className="flex items-center gap-2">
-                      <Button
+                    <div className="flex items-center gap-2">                      <Button
                         variant="outline"
                         size="icon"
                         className="h-7 w-7"
@@ -160,12 +162,15 @@ export function CartSheet() {
                         }
                         disabled={item.quantity <= 1 || loading}
                       >
-                        <Minus className="h-3 w-3" />
+                        {loading ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Minus className="h-3 w-3" />
+                        )}
                       </Button>
                       <span className="min-w-[2rem] text-center text-sm">
                         {item.quantity}
-                      </span>
-                      <Button
+                      </span>                      <Button
                         variant="outline"
                         size="icon"
                         className="h-7 w-7"
@@ -177,7 +182,11 @@ export function CartSheet() {
                         }
                         disabled={item.quantity >= item.maxQuantity || loading}
                       >
-                        <Plus className="h-3 w-3" />
+                        {loading ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Plus className="h-3 w-3" />
+                        )}
                       </Button>
                     </div>{" "}
                     {/* Price */}
@@ -209,8 +218,7 @@ export function CartSheet() {
         {/* Cart Footer */}
         <div className="space-y-4 border-t pt-4">
           {" "}
-          {/* Clear Cart */}
-          <Button
+          {/* Clear Cart */}          <Button
             variant="outline"
             size="sm"
             onClick={async () => {
@@ -223,7 +231,14 @@ export function CartSheet() {
             className="w-full"
             disabled={loading}
           >
-            {loading ? "Đang xóa..." : "Xóa tất cả"}
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Đang xóa...
+              </>
+            ) : (
+              "Xóa tất cả"
+            )}
           </Button>
           {/* Total */}
           <div className="space-y-2">

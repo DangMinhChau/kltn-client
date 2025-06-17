@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Minus, Plus, X, ArrowLeft, ShoppingBag } from "lucide-react";
+import { Minus, Plus, X, ArrowLeft, ShoppingBag, Loader2 } from "lucide-react";
 import { useCart } from "@/lib/context/UnifiedCartContext";
 import { CartState, CartItem, VoucherValidationResult } from "@/types";
 import { formatPrice } from "@/lib/utils";
@@ -210,14 +210,20 @@ function CartContent({
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Tiếp tục mua sắm
                   </Link>
-                </Button>
-                <Button
+                </Button>                <Button
                   variant="destructive"
                   size="sm"
                   onClick={clearCart}
                   disabled={loading}
                 >
-                  {loading ? "Đang xóa..." : "Xóa tất cả"}
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Đang xóa...
+                    </>
+                  ) : (
+                    "Xóa tất cả"
+                  )}
                 </Button>
               </div>
               {/* Items List */}
@@ -299,9 +305,12 @@ function CartContent({
                                     );
                                   }
                                 }}
-                                disabled={loading}
-                              >
-                                <X className="h-4 w-4" />
+                                disabled={loading}                              >
+                                {loading ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <X className="h-4 w-4" />
+                                )}
                               </Button>
                             </div>
                           </div>
@@ -318,10 +327,13 @@ function CartContent({
                                   item.variant.id,
                                   item.quantity - 1
                                 )
-                              }
-                              disabled={item.quantity <= 1 || loading}
+                              }                              disabled={item.quantity <= 1 || loading}
                             >
-                              <Minus className="h-3 w-3" />
+                              {loading ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Minus className="h-3 w-3" />
+                              )}
                             </Button>
                             <span className="min-w-[3rem] text-center text-sm font-medium">
                               {item.quantity}
@@ -335,12 +347,15 @@ function CartContent({
                                   item.variant.id,
                                   item.quantity + 1
                                 )
-                              }
-                              disabled={
+                              }                              disabled={
                                 item.quantity >= item.maxQuantity || loading
                               }
                             >
-                              <Plus className="h-3 w-3" />
+                              {loading ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Plus className="h-3 w-3" />
+                              )}
                             </Button>
                           </div>{" "}
                           {/* Item Total */}

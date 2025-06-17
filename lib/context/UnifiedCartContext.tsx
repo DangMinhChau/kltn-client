@@ -17,6 +17,7 @@ import type {
   MergeGuestCartRequest,
 } from "@/types/api-cart";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 // Conversion utility function to convert CartItemResponse to CartItem
 const convertCartItemResponseToCartItem = (
@@ -413,8 +414,7 @@ export function UnifiedCartProvider({
       }
       setPrevAuth(isAuthenticated);
     }
-  }, [isAuthenticated, prevAuth]); // Removed localItems, mergeLocalToApiCart, handleLogout
-  // Add item to cart
+  }, [isAuthenticated, prevAuth]); // Removed localItems, mergeLocalToApiCart, handleLogout  // Add item to cart
   const addToCart = useCallback(
     async (variantId: string, quantity: number = 1) => {
       try {
@@ -425,7 +425,7 @@ export function UnifiedCartProvider({
           // Add to API cart
           await cartItemsApi.addToCart({ variantId, quantity });
           await fetchApiCart();
-        } else {
+          toast.success("Đã thêm sản phẩm vào giỏ hàng!");        } else {
           // Add to local cart
           const updatedItems = [...localItems];
           const existingIndex = updatedItems.findIndex(
@@ -433,16 +433,35 @@ export function UnifiedCartProvider({
           );
 
           if (existingIndex >= 0) {
-            updatedItems[existingIndex].quantity += quantity;
+            const existingItem = updatedItems[existingIndex];
+            const newQuantity = existingItem.quantity + quantity;
+            
+            // Check stock before updating
+            if (newQuantity > existingItem.maxQuantity) {
+              toast.error(`Chỉ còn ${existingItem.maxQuantity} sản phẩm trong kho`);
+              throw new Error("Vượt quá số lượng tồn kho");
+            }
+            
+            updatedItems[existingIndex].quantity = newQuantity;
+            toast.success("Đã cập nhật số lượng sản phẩm trong giỏ hàng!");
           } else {
             const newItem = await createLocalCartItem(variantId, quantity);
+            
+            // Check stock for new item
+            if (quantity > newItem.maxQuantity) {
+              toast.error(`Chỉ còn ${newItem.maxQuantity} sản phẩm trong kho`);
+              throw new Error("Vượt quá số lượng tồn kho");
+            }
+            
             updatedItems.push(newItem);
+            toast.success("Đã thêm sản phẩm vào giỏ hàng!");
           }
 
           saveLocalCart(updatedItems);
         }
       } catch (err: any) {
         setError(err.message);
+        toast.error("Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng");
         throw err;
       } finally {
         setLoading(false);
@@ -480,9 +499,7 @@ export function UnifiedCartProvider({
                 return sum + price * item.quantity;
               }, 0),
             };
-            setCart(updatedCart);
-
-            // Then update API in background (no loading state)
+            setCart(updatedCart);            // Then update API in background (no loading state)
             try {
               if (quantity <= 0) {
                 await cartItemsApi.removeByVariant(variantId);
@@ -496,22 +513,28 @@ export function UnifiedCartProvider({
               console.error("Failed to update cart on server:", apiError);
               await fetchApiCart(); // Fetch fresh data to revert
               setError("Failed to update cart");
+              toast.error("Có lỗi xảy ra khi cập nhật giỏ hàng");
             }
-          }
-        } else {
-          // Update local cart (already fast)
+          }        } else {
+          // Update local cart with validation
           const updatedItems = (localItems || [])
-            .map((item) =>
-              item.variant?.id === variantId
-                ? { ...item, quantity: Math.max(0, quantity) }
-                : item
-            )
+            .map((item) => {
+              if (item.variant?.id === variantId) {
+                // Check stock validation
+                if (quantity > item.maxQuantity) {
+                  toast.error(`Chỉ còn ${item.maxQuantity} sản phẩm trong kho`);
+                  throw new Error("Vượt quá số lượng tồn kho");
+                }
+                return { ...item, quantity: Math.max(0, quantity) };
+              }
+              return item;
+            })
             .filter((item) => item.quantity > 0);
 
           saveLocalCart(updatedItems);
-        }
-      } catch (err: any) {
+        }} catch (err: any) {
         setError(err.message);
+        toast.error("Có lỗi xảy ra khi cập nhật giỏ hàng");
         // Revert optimistic update on error
         if (isAuthenticated) {
           await fetchApiCart();
@@ -520,7 +543,6 @@ export function UnifiedCartProvider({
     },
     [isAuthenticated, cart, localItems] // Removed fetchApiCart and saveLocalCart dependencies
   );
-
   // Remove item
   const removeItem = useCallback(
     async (variantId: string) => {
@@ -532,15 +554,18 @@ export function UnifiedCartProvider({
           // Remove from API cart
           await cartItemsApi.removeByVariant(variantId);
           await fetchApiCart();
+          toast.success("Đã xóa sản phẩm khỏi giỏ hàng!");
         } else {
           // Remove from local cart
           const updatedItems = localItems.filter(
             (item) => item.variant.id !== variantId
           );
           saveLocalCart(updatedItems);
+          toast.success("Đã xóa sản phẩm khỏi giỏ hàng!");
         }
       } catch (err: any) {
         setError(err.message);
+        toast.error("Có lỗi xảy ra khi xóa sản phẩm");
         throw err;
       } finally {
         setLoading(false);
@@ -548,7 +573,6 @@ export function UnifiedCartProvider({
     },
     [isAuthenticated, localItems] // Removed fetchApiCart and saveLocalCart dependencies
   );
-
   // Clear cart
   const clearCart = useCallback(async () => {
     try {
@@ -559,13 +583,16 @@ export function UnifiedCartProvider({
         // Clear API cart
         await cartApi.clearMyCart();
         await fetchApiCart();
+        toast.success("Đã xóa tất cả sản phẩm khỏi giỏ hàng!");
       } else {
         // Clear local cart
         localStorage.removeItem("cart");
         setLocalItems([]);
+        toast.success("Đã xóa tất cả sản phẩm khỏi giỏ hàng!");
       }
     } catch (err: any) {
       setError(err.message);
+      toast.error("Có lỗi xảy ra khi xóa giỏ hàng");
       throw err;
     } finally {
       setLoading(false);
