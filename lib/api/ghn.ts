@@ -46,26 +46,31 @@ export const ghnApi = {
   getProvinces: async (): Promise<GHNProvince[]> => {
     const response = await api.get("/ghn/provinces");
     const responseBody = response.data;
+    console.log("GHN Provinces response:", responseBody);
     // Backend returns: { message, data: GHNProvince[], meta: { timestamp } }
-    return responseBody.data || [];
+    // Fallback to direct response if not in BaseResponseDto format
+    return responseBody.data || responseBody || [];
   },
-
   // Lấy danh sách quận/huyện theo tỉnh
   getDistricts: async (provinceId: number): Promise<GHNDistrict[]> => {
     const response = await api.post("/ghn/districts", {
       province_id: provinceId,
     });
     const responseBody = response.data;
+    console.log("GHN Districts response:", responseBody);
     // Backend returns: { message, data: GHNDistrict[], meta: { timestamp } }
-    return responseBody.data || [];
+    // Fallback to direct response if not in BaseResponseDto format
+    return responseBody.data || responseBody || [];
   },
 
   // Lấy danh sách phường/xã theo quận/huyện
   getWards: async (districtId: number): Promise<GHNWard[]> => {
     const response = await api.post("/ghn/wards", { district_id: districtId });
     const responseBody = response.data;
+    console.log("GHN Wards response:", responseBody);
     // Backend returns: { message, data: GHNWard[], meta: { timestamp } }
-    return responseBody.data || [];
+    // Fallback to direct response if not in BaseResponseDto format
+    return responseBody.data || responseBody || [];
   },
 
   // Tính phí vận chuyển

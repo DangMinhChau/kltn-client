@@ -58,11 +58,15 @@ export default function UserAddressForm({
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   // Load provinces on mount
   useEffect(() => {
     loadProvinces();
   }, []);
+
+  // Debug log for provinces
+  useEffect(() => {
+    console.log("Provinces state updated:", provinces.length, provinces);
+  }, [provinces]);
 
   // Load districts when province changes
   useEffect(() => {
@@ -85,11 +89,21 @@ export default function UserAddressForm({
   const loadProvinces = async () => {
     try {
       setLoadingProvinces(true);
+      console.log("Loading provinces...");
       const provinces = await ghnApi.getProvinces();
-      setProvinces(provinces || []);
+      console.log("Provinces loaded:", provinces);
+
+      if (Array.isArray(provinces)) {
+        setProvinces(provinces);
+      } else {
+        console.error("Invalid provinces data:", provinces);
+        setProvinces([]);
+        toast.error("Dữ liệu tỉnh/thành phố không hợp lệ");
+      }
     } catch (error) {
       console.error("Error loading provinces:", error);
       toast.error("Không thể tải danh sách tỉnh/thành phố");
+      setProvinces([]);
     } finally {
       setLoadingProvinces(false);
     }
@@ -318,31 +332,51 @@ export default function UserAddressForm({
         </div>{" "}
         {/* Location Section */}
         <div className="space-y-4">
+          {" "}
           <div className="border-b pb-2">
             <h3 className="text-lg font-medium">Địa chỉ giao hàng</h3>
             <p className="text-sm text-muted-foreground">
               Chọn địa chỉ từ hệ thống Giao Hàng Nhanh
             </p>
+            {/* Temporary debug button */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                console.log("Debug - Current provinces state:", provinces);
+                console.log("Debug - Loading provinces:", loadingProvinces);
+              }}
+            >
+              Debug Provinces ({provinces.length})
+            </Button>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="province">
                 Tỉnh/Thành phố <span className="text-red-500">*</span>
-              </Label>
+              </Label>{" "}
               <Select
-                value={formData.provinceId.toString()}
+                value={
+                  formData.provinceId > 0 ? formData.provinceId.toString() : ""
+                }
                 onValueChange={handleProvinceChange}
                 disabled={loadingProvinces || isSubmitting}
               >
                 <SelectTrigger className="h-11">
                   <SelectValue placeholder="Chọn tỉnh/thành phố" />
-                </SelectTrigger>
+                </SelectTrigger>{" "}
                 <SelectContent>
                   {loadingProvinces ? (
                     <div className="flex items-center justify-center py-4">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span className="ml-2">Đang tải...</span>
+                    </div>
+                  ) : provinces.length === 0 ? (
+                    <div className="flex items-center justify-center py-4">
+                      <span className="text-muted-foreground">
+                        Không có dữ liệu tỉnh/thành phố
+                      </span>
                     </div>
                   ) : (
                     provinces.map((province) => (
@@ -360,9 +394,11 @@ export default function UserAddressForm({
             <div className="space-y-2">
               <Label htmlFor="district">
                 Quận/Huyện <span className="text-red-500">*</span>
-              </Label>
+              </Label>{" "}
               <Select
-                value={formData.districtId.toString()}
+                value={
+                  formData.districtId > 0 ? formData.districtId.toString() : ""
+                }
                 onValueChange={handleDistrictChange}
                 disabled={
                   !formData.provinceId || loadingDistricts || isSubmitting
@@ -393,9 +429,9 @@ export default function UserAddressForm({
             <div className="space-y-2">
               <Label htmlFor="ward">
                 Phường/Xã <span className="text-red-500">*</span>
-              </Label>
+              </Label>{" "}
               <Select
-                value={formData.wardCode}
+                value={formData.wardCode || ""}
                 onValueChange={handleWardChange}
                 disabled={!formData.districtId || loadingWards || isSubmitting}
               >
@@ -419,7 +455,6 @@ export default function UserAddressForm({
               </Select>
             </div>
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="streetAddress">
               Địa chỉ chi tiết <span className="text-red-500">*</span>
