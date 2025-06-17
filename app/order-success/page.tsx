@@ -50,16 +50,18 @@ function OrderSuccessContent() {
 
 export default function OrderSuccessPage() {
   return (
-    <Suspense fallback={
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        <Card>
-          <CardContent className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
-            <span className="ml-2">Đang tải...</span>
-          </CardContent>
-        </Card>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="container mx-auto px-4 py-8 max-w-2xl">
+          <Card>
+            <CardContent className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Đang tải...</span>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
       <OrderSuccessContent />
     </Suspense>
   );
