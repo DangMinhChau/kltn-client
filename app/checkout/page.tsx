@@ -119,22 +119,31 @@ export default function CheckoutPage() {
       // Build order data based on user type and address type
       let orderData;
 
+      // Ensure all numeric values are numbers, not strings
+      const numericSubtotal = Number(subtotal);
+      const numericShippingFee = Number(shippingFee);
+      const numericDiscount = Number(voucherDiscount || 0);
+      const numericTotal = Number(finalTotal);
+
       if (user && selectedAddress && !isGuestAddress(selectedAddress)) {
         // Authenticated user order with saved address
         orderData = {
           items: items.map((item) => ({
             variantId: item.variant.id,
-            quantity: item.quantity,
-            price: item.price,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.price), // Changed from 'price' to 'unitPrice'
           })),
           shippingAddress: `${selectedAddress.streetAddress}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.province}`,
           paymentMethod,
-          voucherCode: appliedVoucher?.voucher?.code,
-          subTotal: subtotal,
-          shippingFee,
-          discount: voucherDiscount,
-          totalPrice: finalTotal,
+          subTotal: numericSubtotal,
+          shippingFee: numericShippingFee,
+          discount: numericDiscount,
+          totalPrice: numericTotal,
           note: "",
+          // Only include voucher fields if voucher exists
+          ...(appliedVoucher?.voucher?.code && {
+            voucherCode: appliedVoucher.voucher.code,
+          }),
           // userId will be set by backend from JWT
         };
       } else if (selectedAddress && isGuestAddress(selectedAddress)) {
@@ -146,21 +155,29 @@ export default function CheckoutPage() {
           shippingAddress: `${selectedAddress.streetAddress}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.province}`,
           items: items.map((item) => ({
             variantId: item.variant.id,
-            quantity: item.quantity,
-            price: item.price,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.price), // Changed from 'price' to 'unitPrice'
           })),
           paymentMethod,
-          subTotal: subtotal,
-          shippingFee,
-          discount: voucherDiscount,
-          totalPrice: finalTotal,
+          subTotal: numericSubtotal,
+          shippingFee: numericShippingFee,
+          discount: numericDiscount,
+          totalPrice: numericTotal,
           note: "",
-          voucherId: appliedVoucher?.voucher?.id,
+          // Only include voucher fields if voucher exists
+          ...(appliedVoucher?.voucher?.id && {
+            voucherId: appliedVoucher.voucher.id,
+          }),
         };
       } else {
         toast.error("Dữ liệu không hợp lệ");
         return;
       }
+
+      console.log(
+        "Final order data being sent:",
+        JSON.stringify(orderData, null, 2)
+      );
 
       let result;
 

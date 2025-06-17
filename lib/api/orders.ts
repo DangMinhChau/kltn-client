@@ -4,7 +4,7 @@ export interface CreateOrderData {
   items: Array<{
     variantId: string;
     quantity: number;
-    price: number;
+    unitPrice: number; // Changed from 'price' to 'unitPrice' to match backend
   }>;
   shippingAddress: any;
   paymentMethod: "COD" | "PAYPAL";
