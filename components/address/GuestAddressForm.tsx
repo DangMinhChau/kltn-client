@@ -300,13 +300,10 @@ export default function GuestAddressForm({
         ward: selectedWard.WardName,
         wardCode: selectedWard.WardCode,
       };
-      setFormData(newFormData);
-
-      // Trigger validation
+      setFormData(newFormData); // Trigger validation
       validateAndNotifyParent(newFormData);
     }
   };
-
   return (
     <Card>
       <CardHeader>

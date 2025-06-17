@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { addressApi, Address } from "@/lib/api/addresses";
 import { useAuth } from "@/lib/context/AuthContext";
-import AddressForm from "@/components/address/AddressForm";
+import AddressForm from "@/components/address/UserAddressForm";
 import AuthDebug from "@/components/debug/AuthDebug";
 import {
   Dialog,
@@ -27,7 +27,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-export default function AddressesPage() {  const [addresses, setAddresses] = useState<Address[]>([]);
+export default function AddressesPage() {
+  const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
@@ -83,7 +84,8 @@ export default function AddressesPage() {  const [addresses, setAddresses] = use
         localStorage.removeItem("user");
         router.push("/auth/login");
         return;
-      }      toast.error("Failed to load addresses. Please try again.");
+      }
+      toast.error("Failed to load addresses. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -94,7 +96,8 @@ export default function AddressesPage() {  const [addresses, setAddresses] = use
       await addressApi.setDefaultAddress(addressId);
       await loadAddresses(); // Reload to update default status      toast.success("Default address updated successfully.");
     } catch (error) {
-      console.error("Failed to set default address:", error);      toast.error("Failed to set default address. Please try again.");
+      console.error("Failed to set default address:", error);
+      toast.error("Failed to set default address. Please try again.");
     }
   };
 
@@ -104,13 +107,15 @@ export default function AddressesPage() {  const [addresses, setAddresses] = use
     try {
       await addressApi.deleteAddress(deletingAddress.id);
       setAddresses(addresses.filter((addr) => addr.id !== deletingAddress.id));
-      setDeletingAddress(null);      toast.success("Address deleted successfully.");
+      setDeletingAddress(null);
+      toast.success("Address deleted successfully.");
     } catch (error) {
-      console.error("Failed to delete address:", error);      toast.error("Failed to delete address. Please try again.");
+      console.error("Failed to delete address:", error);
+      toast.error("Failed to delete address. Please try again.");
     }
   };
-
-  const handleFormSuccess = () => {
+  const handleFormSuccess = (address: Address) => {
+    console.log("Address saved:", address);
     loadAddresses();
     setShowAddForm(false);
     setEditingAddress(null);
@@ -269,8 +274,9 @@ export default function AddressesPage() {  const [addresses, setAddresses] = use
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Address</DialogTitle>
-          </DialogHeader>
+          </DialogHeader>{" "}
           <AddressForm
+            mode="create"
             onSuccess={handleFormSuccess}
             onCancel={() => setShowAddForm(false)}
           />
@@ -285,10 +291,11 @@ export default function AddressesPage() {  const [addresses, setAddresses] = use
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Address</DialogTitle>
-          </DialogHeader>
+          </DialogHeader>{" "}
           {editingAddress && (
             <AddressForm
-              address={editingAddress}
+              initialData={editingAddress}
+              mode="edit"
               onSuccess={handleFormSuccess}
               onCancel={() => setEditingAddress(null)}
             />

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useCart } from "@/lib/context";
 
-export default function PayPalReturnPage() {
+function PayPalReturnContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { clearCart } = useCart();
@@ -127,6 +127,7 @@ export default function PayPalReturnPage() {
                 Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại.
               </p>
               <div className="flex gap-4 justify-center">
+                {" "}
                 <Button onClick={handleRetryCheckout} variant="default">
                   Thử lại thanh toán
                 </Button>
@@ -139,5 +140,22 @@ export default function PayPalReturnPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function PayPalReturnPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p>Đang xử lý thanh toán...</p>
+          </div>
+        </div>
+      }
+    >
+      <PayPalReturnContent />
+    </Suspense>
   );
 }

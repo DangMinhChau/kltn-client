@@ -23,6 +23,10 @@ export interface CreateAddressRequest {
   district: string;
   province: string;
   isDefault?: boolean;
+  // GHN fields
+  provinceId?: number;
+  districtId?: number;
+  wardCode?: string;
 }
 
 // Update address request
