@@ -9,19 +9,15 @@ export interface CreateOrderData {
   shippingAddress: any;
   paymentMethod: "COD" | "PAYPAL";
   voucherCode?: string;
-  subtotal?: number;
+  subTotal: number;
   shippingFee: number;
-  voucherDiscount?: number;
-  totalAmount?: number;
-  notes?: string;
+  discount?: number;
+  totalPrice: number;
+  note?: string;
   // Guest order fields
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
-  subTotal?: number;
-  discount?: number;
-  totalPrice?: number;
-  note?: string;
   voucherId?: string;
 }
 
@@ -38,9 +34,11 @@ export interface OrderResponse {
 
 export interface PayPalOrderResponse {
   success: boolean;
-  approvalUrl?: string;
-  orderId?: string;
   message?: string;
+  data?: {
+    orderId: string;
+    approvalUrl: string;
+  };
 }
 
 export const orderApi = {

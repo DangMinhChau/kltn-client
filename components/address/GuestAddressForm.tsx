@@ -175,31 +175,32 @@ export default function GuestAddressForm({
       }));
     }
 
-    // Validate and notify parent
-    const tempErrors: Partial<GuestAddressData> = {}; // Simple validation for real-time feedback
-    if (
-      field === "recipientName" &&
-      typeof value === "string" &&
-      !value.trim()
-    ) {
+    // Trigger validation
+    validateAndNotifyParent(newFormData);
+  };
+
+  // Helper function to validate and notify parent
+  const validateAndNotifyParent = (newFormData: GuestAddressData) => {
+    // Simple validation for real-time feedback
+    const tempErrors: Partial<GuestAddressData> = {};
+
+    if (!newFormData.recipientName?.trim()) {
       tempErrors.recipientName = "Vui lòng nhập tên người nhận";
     }
     if (
-      field === "phoneNumber" &&
-      typeof value === "string" &&
-      value &&
-      !/^[0-9\s]{10,}$/.test(value)
+      newFormData.phoneNumber &&
+      !/^[0-9\s]{10,}$/.test(newFormData.phoneNumber)
     ) {
       tempErrors.phoneNumber = "Số điện thoại không hợp lệ";
     }
     if (
-      field === "email" &&
-      typeof value === "string" &&
-      value &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+      newFormData.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newFormData.email)
     ) {
       tempErrors.email = "Email không hợp lệ";
-    } // Only notify parent if form is complete and valid
+    }
+
+    // Only notify parent if form is complete and valid
     const isComplete = Object.entries(newFormData).every(([key, val]) => {
       // Skip optional ID fields
       if (key.includes("Id") || key.includes("Code")) return true;
@@ -207,12 +208,20 @@ export default function GuestAddressForm({
     });
     const hasErrors = Object.keys(tempErrors).length > 0;
 
+    console.log("GuestAddressForm validation:", {
+      isComplete,
+      hasErrors,
+      formData: newFormData,
+      tempErrors,
+    });
+
     if (isComplete && !hasErrors) {
       onAddressChange(newFormData);
     } else {
       onAddressChange(null);
     }
   };
+
   // Handler for province selection
   const handleProvinceChange = (value: string) => {
     // Ignore disabled values
@@ -226,12 +235,26 @@ export default function GuestAddressForm({
         ...prev,
         provinceId: selectedProvince.ProvinceID,
       }));
-      handleInputChange("province", selectedProvince.ProvinceName);
-      handleInputChange("provinceId", selectedProvince.ProvinceID);
+
+      // Update form data in one go
+      const newFormData = {
+        ...formData,
+        province: selectedProvince.ProvinceName,
+        provinceId: selectedProvince.ProvinceID,
+        // Reset dependent fields
+        district: "",
+        ward: "",
+        districtId: undefined,
+        wardCode: undefined,
+      };
+      setFormData(newFormData);
+
       loadDistricts(selectedProvince.ProvinceID);
+
+      // Trigger validation
+      validateAndNotifyParent(newFormData);
     }
   };
-
   // Handler for district selection
   const handleDistrictChange = (value: string) => {
     // Ignore disabled values
@@ -245,12 +268,24 @@ export default function GuestAddressForm({
         ...prev,
         districtId: selectedDistrict.DistrictID,
       }));
-      handleInputChange("district", selectedDistrict.DistrictName);
-      handleInputChange("districtId", selectedDistrict.DistrictID);
+
+      // Update form data in one go
+      const newFormData = {
+        ...formData,
+        district: selectedDistrict.DistrictName,
+        districtId: selectedDistrict.DistrictID,
+        // Reset dependent fields
+        ward: "",
+        wardCode: undefined,
+      };
+      setFormData(newFormData);
+
       loadWards(selectedDistrict.DistrictID);
+
+      // Trigger validation
+      validateAndNotifyParent(newFormData);
     }
-  };
-  // Handler for ward selection
+  }; // Handler for ward selection
   const handleWardChange = (value: string) => {
     // Ignore disabled values
     if (value === "loading" || value === "no-data") return;
@@ -258,8 +293,17 @@ export default function GuestAddressForm({
     const selectedWard = wards.find((w) => w.WardCode === value);
     if (selectedWard) {
       setSelectedIds((prev) => ({ ...prev, wardCode: selectedWard.WardCode }));
-      handleInputChange("ward", selectedWard.WardName);
-      handleInputChange("wardCode", selectedWard.WardCode);
+
+      // Update form data in one go
+      const newFormData = {
+        ...formData,
+        ward: selectedWard.WardName,
+        wardCode: selectedWard.WardCode,
+      };
+      setFormData(newFormData);
+
+      // Trigger validation
+      validateAndNotifyParent(newFormData);
     }
   };
 

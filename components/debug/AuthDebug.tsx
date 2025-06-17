@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/context/AuthContext";
 import { useEffect, useState } from "react";
 
 // API Base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://abc-123-production.up.railway.app";
 
 export default function AuthDebug() {
   const auth = useAuth();

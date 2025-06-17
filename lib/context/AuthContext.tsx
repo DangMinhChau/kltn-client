@@ -4,7 +4,9 @@ import React, { createContext, useContext, useReducer, useEffect } from "react";
 import { User } from "@/types";
 
 // API Base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://abc-123-production.up.railway.app";
 
 interface AuthState {
   user: User | null;

@@ -16,7 +16,9 @@ import {
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
+  baseURL:
+    process.env.NEXT_PUBLIC_API_URL ||
+    "https://abc-123-production.up.railway.app",
   timeout: 30000, // Increased timeout to 30 seconds
   headers: {
     "Content-Type": "application/json",
