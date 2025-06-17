@@ -29,25 +29,38 @@ function PayPalReturnContent() {
         payerId,
         orderIdParam,
         allParams: Object.fromEntries(searchParams.entries()),
+        fullUrl: window.location.href,
       });
 
-      if (!paypalOrderId) {
+      // Check if this is a cancelled payment
+      if (searchParams.get("cancelled") === "true") {
         setStatus("error");
-        toast.error("Thiếu thông tin thanh toán PayPal");
+        toast.error("Thanh toán PayPal đã bị hủy");
+        return;
+      }
+
+      if (!paypalOrderId) {
+        console.error("Missing PayPal token (order ID)");
+        setStatus("error");
+        toast.error("Thiếu thông tin thanh toán PayPal - token");
         return;
       }
 
       if (!payerId) {
+        console.error("Missing PayerID - payment may not be completed");
         setStatus("error");
-        toast.error("Thiếu PayerID từ PayPal");
+        toast.error("Thanh toán chưa được hoàn thành - thiếu PayerID");
         return;
       }
 
       if (!orderIdParam) {
+        console.error("Missing internal order ID");
         setStatus("error");
-        toast.error("Thiếu Order ID");
+        toast.error("Thiếu Order ID nội bộ");
         return;
       }
+
+      console.log("All validation passed, proceeding with capture...");
 
       try {
         // Capture PayPal payment
