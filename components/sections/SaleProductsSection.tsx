@@ -127,7 +127,6 @@ export function SaleProductsSection({
             </Button>
           </div>
         </div>
-
         {/* Products Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {loading ? (
@@ -165,37 +164,7 @@ export function SaleProductsSection({
             </div>
           )}
         </div>
-
-        {/* Call to Action */}
-        {!loading && saleProducts.length > 0 && (
-          <div className="text-center mt-10">
-            <Card className="inline-block bg-gradient-to-r from-red-50 to-orange-50 border-red-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-center gap-2 text-red-600 mb-2">
-                  <Clock className="h-5 w-5" />
-                  <span className="font-semibold">Ưu đãi có thời hạn!</span>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Đừng bỏ lỡ cơ hội sở hữu những sản phẩm yêu thích với giá ưu
-                  đãi
-                </p>
-                <Button
-                  asChild
-                  variant="outline"
-                  className="border-red-200 text-red-600 hover:bg-red-50"
-                >
-                  <Link
-                    href="/products/sale"
-                    className="flex items-center gap-2"
-                  >
-                    Khám phá thêm
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {/* Call to Action */}{" "}
       </div>
     </section>
   );

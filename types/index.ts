@@ -209,3 +209,17 @@ export interface VoucherValidationResult {
   message?: string;
   error?: string;
 }
+
+// Address Types
+export interface Address {
+  id: string;
+  fullName: string;
+  phoneNumber: string;
+  street: string;
+  ward: string;
+  district: string;
+  province: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
