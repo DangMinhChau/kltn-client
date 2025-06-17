@@ -221,11 +221,10 @@ export default function UserAddressForm({
         province: formData.province,
         district: formData.district,
         ward: formData.ward,
-        isDefault: formData.isDefault,
-        // Include GHN IDs for backend
-        provinceId: formData.provinceId,
-        districtId: formData.districtId,
-        wardCode: formData.wardCode,
+        isDefault: formData.isDefault, // Include GHN IDs for backend
+        ghnProvinceId: formData.provinceId,
+        ghnDistrictId: formData.districtId,
+        ghnWardCode: formData.wardCode,
       };
 
       let result: Address;
@@ -263,165 +262,206 @@ export default function UserAddressForm({
           <MapPin className="h-5 w-5" />
           {mode === "create" ? "Thêm địa chỉ mới" : "Chỉnh sửa địa chỉ"}
         </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="recipientName">
-              Tên người nhận <span className="text-red-500">*</span>
+      </CardHeader>{" "}
+      <CardContent className="space-y-6">
+        {/* Personal Information Section */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-medium">Thông tin người nhận</h3>
+            <p className="text-sm text-muted-foreground">
+              Nhập đầy đủ thông tin để giao hàng chính xác
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="recipientName">
+                Tên người nhận <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="recipientName"
+                value={formData.recipientName}
+                onChange={(e) =>
+                  handleInputChange("recipientName", e.target.value)
+                }
+                placeholder="Nhập họ và tên đầy đủ"
+                disabled={isSubmitting}
+                className="h-11"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">
+                Số điện thoại <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={(e) =>
+                  handleInputChange("phoneNumber", e.target.value)
+                }
+                placeholder="Ví dụ: 0901234567"
+                disabled={isSubmitting}
+                className="h-11"
+              />
+            </div>
+          </div>
+        </div>{" "}
+        {/* Location Section */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-medium">Địa chỉ giao hàng</h3>
+            <p className="text-sm text-muted-foreground">
+              Chọn địa chỉ từ hệ thống Giao Hàng Nhanh
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="province">
+                Tỉnh/Thành phố <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.provinceId.toString()}
+                onValueChange={handleProvinceChange}
+                disabled={loadingProvinces || isSubmitting}
+              >
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Chọn tỉnh/thành phố" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loadingProvinces ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="ml-2">Đang tải...</span>
+                    </div>
+                  ) : (
+                    provinces.map((province) => (
+                      <SelectItem
+                        key={province.ProvinceID}
+                        value={province.ProvinceID.toString()}
+                      >
+                        {province.ProvinceName}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>{" "}
+            <div className="space-y-2">
+              <Label htmlFor="district">
+                Quận/Huyện <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.districtId.toString()}
+                onValueChange={handleDistrictChange}
+                disabled={
+                  !formData.provinceId || loadingDistricts || isSubmitting
+                }
+              >
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Chọn quận/huyện" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loadingDistricts ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="ml-2">Đang tải...</span>
+                    </div>
+                  ) : (
+                    districts.map((district) => (
+                      <SelectItem
+                        key={district.DistrictID}
+                        value={district.DistrictID.toString()}
+                      >
+                        {district.DistrictName}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ward">
+                Phường/Xã <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.wardCode}
+                onValueChange={handleWardChange}
+                disabled={!formData.districtId || loadingWards || isSubmitting}
+              >
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Chọn phường/xã" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loadingWards ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="ml-2">Đang tải...</span>
+                    </div>
+                  ) : (
+                    wards.map((ward) => (
+                      <SelectItem key={ward.WardCode} value={ward.WardCode}>
+                        {ward.WardName}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="streetAddress">
+              Địa chỉ chi tiết <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="recipientName"
-              value={formData.recipientName}
+              id="streetAddress"
+              value={formData.streetAddress}
               onChange={(e) =>
-                handleInputChange("recipientName", e.target.value)
+                handleInputChange("streetAddress", e.target.value)
               }
-              placeholder="Nhập tên người nhận"
+              placeholder="Số nhà, tên đường, ngõ, ngách..."
+              disabled={isSubmitting}
+              className="h-11"
+            />{" "}
+            <p className="text-xs text-muted-foreground">
+              Ví dụ: Số 123, Đường Nguyễn Văn A, Ngõ 45
+            </p>
+          </div>
+        </div>
+        {/* Settings Section */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-medium">Cài đặt</h3>
+          </div>
+
+          <div className="flex items-center space-x-3 p-4 bg-muted/30 rounded-lg">
+            <Checkbox
+              id="isDefault"
+              checked={formData.isDefault}
+              onCheckedChange={(checked) =>
+                handleInputChange("isDefault", checked)
+              }
               disabled={isSubmitting}
             />
-          </div>
-
-          <div>
-            <Label htmlFor="phoneNumber">
-              Số điện thoại <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="phoneNumber"
-              value={formData.phoneNumber}
-              onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
-              placeholder="Nhập số điện thoại"
-              disabled={isSubmitting}
-            />
+            <div className="space-y-1">
+              <Label htmlFor="isDefault" className="cursor-pointer font-medium">
+                Đặt làm địa chỉ mặc định
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Địa chỉ này sẽ được chọn tự động khi đặt hàng
+              </p>
+            </div>
           </div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Label htmlFor="province">
-              Tỉnh/Thành phố <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              value={formData.provinceId.toString()}
-              onValueChange={handleProvinceChange}
-              disabled={loadingProvinces || isSubmitting}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Chọn tỉnh/thành phố" />
-              </SelectTrigger>
-              <SelectContent>
-                {loadingProvinces ? (
-                  <div className="flex items-center justify-center py-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="ml-2">Đang tải...</span>
-                  </div>
-                ) : (
-                  provinces.map((province) => (
-                    <SelectItem
-                      key={province.ProvinceID}
-                      value={province.ProvinceID.toString()}
-                    >
-                      {province.ProvinceName}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="district">
-              Quận/Huyện <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              value={formData.districtId.toString()}
-              onValueChange={handleDistrictChange}
-              disabled={
-                !formData.provinceId || loadingDistricts || isSubmitting
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Chọn quận/huyện" />
-              </SelectTrigger>
-              <SelectContent>
-                {loadingDistricts ? (
-                  <div className="flex items-center justify-center py-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="ml-2">Đang tải...</span>
-                  </div>
-                ) : (
-                  districts.map((district) => (
-                    <SelectItem
-                      key={district.DistrictID}
-                      value={district.DistrictID.toString()}
-                    >
-                      {district.DistrictName}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="ward">
-              Phường/Xã <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              value={formData.wardCode}
-              onValueChange={handleWardChange}
-              disabled={!formData.districtId || loadingWards || isSubmitting}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Chọn phường/xã" />
-              </SelectTrigger>
-              <SelectContent>
-                {loadingWards ? (
-                  <div className="flex items-center justify-center py-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="ml-2">Đang tải...</span>
-                  </div>
-                ) : (
-                  wards.map((ward) => (
-                    <SelectItem key={ward.WardCode} value={ward.WardCode}>
-                      {ward.WardName}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="streetAddress">
-            Địa chỉ chi tiết <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="streetAddress"
-            value={formData.streetAddress}
-            onChange={(e) => handleInputChange("streetAddress", e.target.value)}
-            placeholder="Số nhà, tên đường..."
-            disabled={isSubmitting}
-          />
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="isDefault"
-            checked={formData.isDefault}
-            onCheckedChange={(checked) =>
-              handleInputChange("isDefault", checked)
-            }
-            disabled={isSubmitting}
-          />
-          <Label htmlFor="isDefault">Đặt làm địa chỉ mặc định</Label>
-        </div>
-
-        <div className="flex gap-2 pt-4">
+        {/* Action Buttons */}
+        <div className="flex gap-3 pt-6 border-t">
           <Button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex-1"
+            className="flex-1 h-11"
+            size="lg"
           >
             {isSubmitting ? (
               <>
@@ -431,7 +471,7 @@ export default function UserAddressForm({
             ) : (
               <>
                 <Save className="h-4 w-4 mr-2" />
-                {mode === "create" ? "Thêm địa chỉ" : "Cập nhật"}
+                {mode === "create" ? "Thêm địa chỉ" : "Cập nhật địa chỉ"}
               </>
             )}
           </Button>
@@ -440,8 +480,10 @@ export default function UserAddressForm({
               variant="outline"
               onClick={onCancel}
               disabled={isSubmitting}
+              className="h-11"
+              size="lg"
             >
-              Hủy
+              Hủy bỏ
             </Button>
           )}
         </div>

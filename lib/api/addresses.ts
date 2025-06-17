@@ -23,10 +23,12 @@ export interface CreateAddressRequest {
   district: string;
   province: string;
   isDefault?: boolean;
-  // GHN fields
-  provinceId?: number;
-  districtId?: number;
-  wardCode?: string;
+  // GHN fields - match backend DTO
+  ghnProvinceId?: number;
+  ghnDistrictId?: number;
+  ghnWardCode?: string;
+  ghnProvinceCode?: string;
+  ghnDistrictCode?: string;
 }
 
 // Update address request
