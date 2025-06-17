@@ -78,34 +78,18 @@ const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
               {" "}
               {/* Parent Category */}
               <div className="border-b border-border/50 pb-2">
-                {/* Check if parent has children - if yes, make it non-clickable */}
-                {parentCategory.children &&
-                parentCategory.children.length > 0 ? (
-                  <div
-                    className={cn(
-                      "font-bold text-foreground cursor-default transition-all duration-200",
-                      "block py-2 lg:py-3 text-sm lg:text-base uppercase tracking-wide text-center",
-                      "hover:bg-accent/30 rounded-lg px-2 lg:px-3 -mx-2 lg:-mx-3",
-                      "opacity-80 select-none" // Make it look non-clickable
-                    )}
-                  >
-                    <span className="inline-block">{parentCategory.name}</span>
-                  </div>
-                ) : (
-                  <Link
-                    href={`/products?category=${parentCategory.slug}`}
-                    className={cn(
-                      "font-bold text-foreground hover:text-primary transition-all duration-200",
-                      "block py-2 lg:py-3 text-sm lg:text-base uppercase tracking-wide group text-center",
-                      "hover:bg-accent/70 rounded-lg px-2 lg:px-3 -mx-2 lg:-mx-3"
-                    )}
-                  >
-                    <span className="group-hover:scale-105 transition-transform duration-200 inline-block">
-                      {parentCategory.name}
-                    </span>
-                  </Link>
-                )}
-              </div>
+                {/* All parent categories are non-clickable */}
+                <div
+                  className={cn(
+                    "font-bold text-foreground cursor-default transition-all duration-200",
+                    "block py-2 lg:py-3 text-sm lg:text-base uppercase tracking-wide text-center",
+                    "hover:bg-accent/30 rounded-lg px-2 lg:px-3 -mx-2 lg:-mx-3",
+                    "opacity-80 select-none" // Make it look non-clickable
+                  )}
+                >
+                  <span className="inline-block">{parentCategory.name}</span>
+                </div>
+              </div>{" "}
               {/* Subcategories */}
               {parentCategory.children &&
                 parentCategory.children.length > 0 && (

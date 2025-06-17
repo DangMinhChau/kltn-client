@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 import { FilterOptions, ProductFilters } from "@/types";
 import { filterApi } from "@/lib/api";
 import { useProductFilters } from "@/hooks/useProductFilters";
@@ -14,6 +15,7 @@ interface ProductFiltersProps {
   filters: ProductFilters;
   onFiltersChange: (filters: ProductFilters) => void;
   className?: string;
+  categoryFromUrl?: string; // Add this prop to control filter visibility
 }
 
 interface FilterSection {
@@ -26,16 +28,18 @@ export function ProductFiltersComponent({
   filters,
   onFiltersChange,
   className = "",
+  categoryFromUrl,
 }: ProductFiltersProps) {
   // Use the new hook to get filter options based on selected category
   const { filterOptions, isLoading, error } = useProductFilters(
     filters.category
   );
 
-  const [priceRange, setPriceRange] = useState({
-    min: filters.minPrice?.toString() || "",
-    max: filters.maxPrice?.toString() || "",
-  });
+  // State for slider
+  const [sliderValues, setSliderValues] = useState<number[]>([
+    filters.minPrice || 0,
+    filters.maxPrice || 5000000, // Default max 5M VND
+  ]);
 
   // Memoize sections array to prevent recreation on every render
   const initialSections = useMemo<FilterSection[]>(
@@ -51,21 +55,16 @@ export function ProductFiltersComponent({
     ],
     []
   );
-
   const [sections, setSections] = useState<FilterSection[]>(initialSections);
 
-  // Sync priceRange with filters to avoid conflicts
+  // Sync slider values with filters
   useEffect(() => {
-    const newMinPrice = filters.minPrice?.toString() || "";
-    const newMaxPrice = filters.maxPrice?.toString() || "";
-
-    if (priceRange.min !== newMinPrice || priceRange.max !== newMaxPrice) {
-      setPriceRange({
-        min: newMinPrice,
-        max: newMaxPrice,
-      });
+    const newSliderMin = filters.minPrice || 0;
+    const newSliderMax = filters.maxPrice || 5000000;
+    if (sliderValues[0] !== newSliderMin || sliderValues[1] !== newSliderMax) {
+      setSliderValues([newSliderMin, newSliderMax]);
     }
-  }, [filters.minPrice, filters.maxPrice, priceRange.min, priceRange.max]);
+  }, [filters.minPrice, filters.maxPrice, sliderValues]);
 
   const toggleSection = useCallback((sectionId: string) => {
     setSections((prev) =>
@@ -117,20 +116,30 @@ export function ProductFiltersComponent({
     },
     [filters, onFiltersChange]
   );
-  const handlePriceRangeChange = useCallback(() => {
-    const minPrice = priceRange.min ? parseFloat(priceRange.min) : undefined;
-    const maxPrice = priceRange.max ? parseFloat(priceRange.max) : undefined;
 
-    onFiltersChange({
-      ...filters,
-      minPrice,
-      maxPrice,
-    });
-  }, [filters, onFiltersChange, priceRange.min, priceRange.max]);
+  // Handle slider value change
+  const handleSliderChange = useCallback(
+    (values: number[]) => {
+      setSliderValues(values);
+      onFiltersChange({
+        ...filters,
+        minPrice: values[0],
+        maxPrice: values[1],
+      });
+    },
+    [filters, onFiltersChange]
+  );
 
+  // Format price for display
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(price);
+  };
   const clearAllFilters = useCallback(() => {
     onFiltersChange({});
-    setPriceRange({ min: "", max: "" });
+    setSliderValues([0, 5000000]);
   }, [onFiltersChange]);
   const removeFilter = useCallback(
     (filterType: string, value?: string) => {
@@ -142,7 +151,7 @@ export function ProductFiltersComponent({
           minPrice: undefined,
           maxPrice: undefined,
         });
-        setPriceRange({ min: "", max: "" });
+        setSliderValues([0, 5000000]);
       } else if (
         filterType === "collection" ||
         filterType === "material" ||
@@ -177,27 +186,6 @@ export function ProductFiltersComponent({
     () => getActiveFiltersCount() > 0,
     [getActiveFiltersCount]
   );
-
-  const handlePriceMinChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setPriceRange((prev) => ({
-        ...prev,
-        min: e.target.value,
-      }));
-    },
-    []
-  );
-
-  const handlePriceMaxChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setPriceRange((prev) => ({
-        ...prev,
-        max: e.target.value,
-      }));
-    },
-    []
-  );
-
   if (isLoading) {
     return (
       <Card className={className}>
@@ -236,7 +224,6 @@ export function ProductFiltersComponent({
             </Button>
           )}
         </div>
-
         {/* Active Filters */}
         {hasActiveFilters && (
           <div className="mb-6">
@@ -347,11 +334,10 @@ export function ProductFiltersComponent({
             </div>
             <Separator className="mt-4" />
           </div>
-        )}
-
+        )}{" "}
         <div className="space-y-6">
-          {/* Categories */}
-          {filterOptions?.categories && (
+          {/* Categories - Only show when NOT filtering by category */}
+          {filterOptions?.categories && !categoryFromUrl && (
             <div>
               <Button
                 variant="ghost"
@@ -364,7 +350,7 @@ export function ProductFiltersComponent({
                 ) : (
                   <ChevronDown className="h-4 w-4" />
                 )}
-              </Button>{" "}
+              </Button>
               {sections.find((s) => s.id === "category")?.isOpen && (
                 <div className="mt-3 space-y-2">
                   {filterOptions.categories.map((category) => (
@@ -391,7 +377,8 @@ export function ProductFiltersComponent({
               )}
             </div>
           )}
-          <Separator />
+          {/* Add separator only if categories section is shown */}
+          {filterOptions?.categories && !categoryFromUrl && <Separator />}
           {/* Collections */}
           {filterOptions?.collections &&
             filterOptions.collections.length > 0 && (
@@ -490,7 +477,6 @@ export function ProductFiltersComponent({
               <Separator />
             </>
           )}
-
           {/* Sizes */}
           {filterOptions?.sizes && filterOptions.sizes.length > 0 && (
             <>
@@ -534,7 +520,6 @@ export function ProductFiltersComponent({
               <Separator />
             </>
           )}
-
           {/* Materials */}
           {filterOptions?.materials && filterOptions.materials.length > 0 && (
             <>
@@ -634,7 +619,6 @@ export function ProductFiltersComponent({
               <Separator />
             </>
           )}
-
           {/* Tags */}
           {filterOptions?.tags && filterOptions.tags.length > 0 && (
             <>
@@ -680,8 +664,7 @@ export function ProductFiltersComponent({
               </div>
               <Separator />
             </>
-          )}
-
+          )}{" "}
           {/* Price Range */}
           <div>
             <Button
@@ -695,34 +678,23 @@ export function ProductFiltersComponent({
               ) : (
                 <ChevronDown className="h-4 w-4" />
               )}
-            </Button>
+            </Button>{" "}
             {sections.find((s) => s.id === "price")?.isOpen && (
-              <div className="mt-3 space-y-3">
-                {" "}
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    placeholder="Từ"
-                    value={priceRange.min}
-                    onChange={handlePriceMinChange}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  />
-                  <span className="self-center text-gray-500">-</span>
-                  <input
-                    type="number"
-                    placeholder="Đến"
-                    value={priceRange.max}
-                    onChange={handlePriceMaxChange}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+              <div className="mt-3 space-y-4">
+                <div className="px-2">
+                  <Slider
+                    value={sliderValues}
+                    onValueChange={handleSliderChange}
+                    min={0}
+                    max={5000000}
+                    step={50000}
+                    className="w-full"
                   />
                 </div>
-                <Button
-                  size="sm"
-                  className="w-full"
-                  onClick={handlePriceRangeChange}
-                >
-                  Áp dụng
-                </Button>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{formatPrice(sliderValues[0])}</span>
+                  <span>{formatPrice(sliderValues[1])}</span>
+                </div>
               </div>
             )}
           </div>

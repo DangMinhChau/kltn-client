@@ -113,17 +113,16 @@ function ProductsContent() {
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
               {/* Mobile filters and controls */}
               <div className="flex gap-2 items-center">
-                {/* Mobile filter button */}
+                {/* Mobile filter button */}{" "}
                 <MobileFilters
                   isOpen={mobileFiltersOpen}
                   onOpenChange={setMobileFiltersOpen}
                   filters={filters}
                   onFiltersChange={setFilters}
+                  categoryFromUrl={categoryFromUrl || undefined}
                 />
-
                 {/* Sort */}
                 <SortSelect sortBy={sortBy} onSortChange={setSortBy} />
-
                 {/* View mode */}
                 <ViewModeToggle
                   viewMode={viewMode}
@@ -147,7 +146,12 @@ function ProductsContent() {
           {" "}
           <div className="hidden lg:block w-80 shrink-0">
             <div className="sticky top-8">
-              <ProductFilters filters={filters} onFiltersChange={setFilters} />
+              {" "}
+              <ProductFilters
+                filters={filters}
+                onFiltersChange={setFilters}
+                categoryFromUrl={categoryFromUrl || undefined}
+              />
             </div>
           </div>
           {/* Main Products Area */}

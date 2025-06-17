@@ -10,6 +10,7 @@ interface MobileFiltersProps {
   onOpenChange: (open: boolean) => void;
   filters: ProductFiltersType;
   onFiltersChange: (filters: ProductFiltersType) => void;
+  categoryFromUrl?: string;
 }
 
 export function MobileFilters({
@@ -17,6 +18,7 @@ export function MobileFilters({
   onOpenChange,
   filters,
   onFiltersChange,
+  categoryFromUrl,
 }: MobileFiltersProps) {
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -28,12 +30,14 @@ export function MobileFilters({
       </SheetTrigger>
       <SheetContent side="left" className="w-80 p-0">
         <div className="p-6">
+          {" "}
           <ProductFilters
             filters={filters}
             onFiltersChange={(newFilters: ProductFiltersType) => {
               onFiltersChange(newFilters);
               onOpenChange(false);
             }}
+            categoryFromUrl={categoryFromUrl}
           />
         </div>
       </SheetContent>
