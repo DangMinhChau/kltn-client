@@ -168,6 +168,60 @@ export default function PayPalButton({
     } catch (error) {
       console.error("PayPal order creation error:", error);
 
+      // Check if this is a backend PayPal API error (500)
+      if (
+        error instanceof Error &&
+        (error.message.includes("Internal server error") ||
+          error.message.includes("HTTP 500"))
+      ) {
+        // Offer fallback to cash on delivery
+        const userChoice = confirm(
+          "PayPal hiện đang gặp sự cố. Bạn có muốn thanh toán khi nhận hàng không?\n\n" +
+            "✅ Nhấn OK: Thanh toán khi nhận hàng\n" +
+            "❌ Nhấn Cancel: Thử PayPal lại"
+        );
+
+        if (userChoice) {
+          try {
+            // Create cash order and redirect
+            const fallbackHeaders: Record<string, string> = {
+              "Content-Type": "application/json",
+            };
+            const token = localStorage.getItem("accessToken");
+            if (token) {
+              fallbackHeaders.Authorization = `Bearer ${token}`;
+            }
+
+            const cashOrderResponse = await fetch(
+              `${process.env.NEXT_PUBLIC_API_URL}/orders`,
+              {
+                method: "POST",
+                headers: fallbackHeaders,
+                body: JSON.stringify({
+                  ...orderData,
+                  paymentMethod: "cash",
+                }),
+              }
+            );
+
+            if (cashOrderResponse.ok) {
+              const cashOrder = await cashOrderResponse.json();
+              const cashOrderId = cashOrder.data?.id || cashOrder.id;
+              toast.success("Đã chuyển sang thanh toán khi nhận hàng!");
+
+              // Trigger success callback and redirect
+              setTimeout(() => {
+                onSuccess(cashOrderId);
+              }, 1000);
+
+              return "FALLBACK_CASH_ORDER"; // Return something for PayPal
+            }
+          } catch (fallbackError) {
+            console.error("Cash order fallback failed:", fallbackError);
+          }
+        }
+      }
+
       // More user-friendly error messages
       let userMessage = "Không thể tạo đơn thanh toán PayPal";
       if (error instanceof Error) {
@@ -182,7 +236,8 @@ export default function PayPalButton({
         } else if (error.message.includes("HTTP 400")) {
           userMessage = "Dữ liệu đơn hàng không hợp lệ";
         } else if (error.message.includes("HTTP 500")) {
-          userMessage = "Lỗi server. Vui lòng thử lại sau";
+          userMessage =
+            "Lỗi server. Vui lòng thử lại sau hoặc chọn thanh toán khi nhận hàng";
         }
       }
 
@@ -251,6 +306,19 @@ export default function PayPalButton({
 
   const onCancel = () => {
     toast.info("Đã hủy thanh toán PayPal");
+  };
+  // Add a fallback handler for backend PayPal errors
+  const handlePayPalFailure = () => {
+    const userChoice = confirm(
+      "PayPal hiện đang gặp sự cố. Bạn có muốn thanh toán khi nhận hàng không?\n\n" +
+        "✅ Nhấn OK: Thanh toán khi nhận hàng\n" +
+        "❌ Nhấn Cancel: Thử PayPal lại"
+    );
+
+    if (userChoice) {
+      // Reset payment method to cash in checkout page
+      window.location.href = "/checkout?payment=cash&paypal_failed=1";
+    }
   };
 
   if (isPending || !isResolved) {
