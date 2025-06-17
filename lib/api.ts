@@ -392,6 +392,3 @@ export { api };
 export default api;
 
 // Order APIs - sẽ được xây dựng lại
-
-// Import cart APIs
-export { cartApi, cartItemsApi, cartHelpers } from "./api/cart";

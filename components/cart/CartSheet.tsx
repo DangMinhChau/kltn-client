@@ -38,7 +38,6 @@ export function CartSheet() {
     isCartOpen,
     loading,
     validateCart,
-    loading,
     error,
   } = useCart();
 

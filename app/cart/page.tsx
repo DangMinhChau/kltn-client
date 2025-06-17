@@ -4,7 +4,7 @@ import React, { useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, X, ArrowLeft, ShoppingBag, Loader2 } from "lucide-react";
-import { useCart } from "@/lib/context/UnifiedCartContext";
+import { useCart } from "@/lib/context";
 import { CartState, CartItem, VoucherValidationResult } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
