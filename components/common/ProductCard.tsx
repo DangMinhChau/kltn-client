@@ -46,6 +46,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
     ? basePrice * (1 - (product.discountPercent || 0) / 100)
     : basePrice;
 
+  // Check if product is out of stock (all variants are out of stock)
+  const isOutOfStock =
+    product.variants && product.variants.length > 0
+      ? product.variants.every((variant) => variant.stockQuantity === 0)
+      : false;
+
   // Get product images - prioritize variant images first
   const firstVariantWithImages = product.variants?.find(
     (v) => v.images && v.images.length > 0
@@ -102,7 +108,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   -{product.discountPercent}%
                 </Badge>
               )}
-              {product.variants?.[0]?.stockQuantity === 0 && (
+              {isOutOfStock && (
                 <Badge className="bg-gray-500 text-white text-xs px-2 py-1">
                   Hết hàng
                 </Badge>

@@ -192,22 +192,34 @@ export default function CheckoutPage() {
     } finally {
       setIsProcessing(false);
     }
-  };
-  // Calculate shipping fee based on address
+  }; // Calculate shipping fee based on address
   const calculateShippingFee = async (address: Address | GuestAddressData) => {
     if (!address) return;
 
     // Get GHN district and ward info
     let districtId: number = 0;
     let wardCode: string = "";
+
     if ("id" in address) {
       // User saved address - get GHN data from address
       districtId = Number(address.ghnDistrictId) || 1442; // Default district
       wardCode = String(address.ghnWardCode) || "21211"; // Default ward
+      console.log("User address GHN data:", {
+        ghnDistrictId: address.ghnDistrictId,
+        ghnWardCode: address.ghnWardCode,
+        parsedDistrictId: districtId,
+        parsedWardCode: wardCode,
+      });
     } else {
       // Guest address - use GHN data from form
       districtId = address.districtId || 1442;
       wardCode = address.wardCode || "21211";
+      console.log("Guest address GHN data:", {
+        districtId: address.districtId,
+        wardCode: address.wardCode,
+        parsedDistrictId: districtId,
+        parsedWardCode: wardCode,
+      });
     }
 
     if (!districtId || !wardCode) {
@@ -226,6 +238,16 @@ export default function CheckoutPage() {
         return total + itemWeight * item.quantity;
       }, 0);
 
+      console.log("Shipping fee calculation params:", {
+        to_district_id: districtId,
+        to_ward_code: wardCode,
+        weight: Math.max(totalWeight, 250),
+        length: 20,
+        width: 15,
+        height: 10,
+        service_type_id: 2,
+      });
+
       const result = await ghnApi.calculateShippingFee({
         to_district_id: districtId,
         to_ward_code: wardCode,
@@ -236,10 +258,15 @@ export default function CheckoutPage() {
         service_type_id: 2, // Standard service
       });
 
+      console.log("Shipping fee calculation result:", result);
+
       if (result && result.total) {
         setShippingFee(result.total);
         console.log("Calculated shipping fee:", result.total);
         toast.success(`Phí vận chuyển: ${formatPrice(result.total)}`);
+      } else {
+        console.warn("Invalid shipping fee result:", result);
+        toast.warning("Không thể tính phí vận chuyển, sử dụng phí mặc định");
       }
     } catch (error) {
       console.error("Error calculating shipping fee:", error);

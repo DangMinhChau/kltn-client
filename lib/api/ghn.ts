@@ -72,15 +72,26 @@ export const ghnApi = {
     // Fallback to direct response if not in BaseResponseDto format
     return responseBody.data || responseBody || [];
   },
-
   // Tính phí vận chuyển
   calculateShippingFee: async (
     params: ShippingFeeParams
   ): Promise<ShippingFeeResult> => {
     const response = await api.post("/ghn/shipping-fee", params);
     const responseBody = response.data;
+    console.log("GHN Shipping Fee response:", responseBody);
+
     // Backend returns: { message, data: ShippingFeeResult, meta: { timestamp } }
-    return responseBody.data;
+    // If there's an error, data might be null
+    if (responseBody.data) {
+      return responseBody.data;
+    } else {
+      // Check if it's an error response
+      if (responseBody.message && !responseBody.data) {
+        throw new Error(responseBody.message);
+      }
+      // Fallback to direct response if not in BaseResponseDto format
+      return responseBody;
+    }
   },
 
   // Lấy thông tin dịch vụ vận chuyển
