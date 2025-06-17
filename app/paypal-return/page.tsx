@@ -61,26 +61,36 @@ function PayPalReturnContent() {
       }
 
       console.log("All validation passed, proceeding with capture...");
-
       try {
         // Capture PayPal payment
+        console.log("Sending capture request...");
         const response = await api.post("/payments/paypal/capture-order", {
           paypalOrderId,
           payerId,
           orderId: orderIdParam,
         });
 
-        if (response.data.success) {
+        console.log("Capture response received:", {
+          status: response.status,
+          data: response.data,
+          hasSuccess: "success" in response.data,
+          dataType: typeof response.data,
+        });
+
+        // Backend returns BaseResponseDto format: { message, data, meta }
+        // Check if request was successful (status 2xx) since backend logs show success
+        if (response.status >= 200 && response.status < 300) {
           setStatus("success");
-          setOrderId(response.data.data.orderId);
+          setOrderId(orderIdParam); // Use the order ID we already have
           clearCart();
           toast.success("Thanh toán PayPal thành công!");
 
           // Redirect to order success page after 2 seconds
           setTimeout(() => {
-            router.push(`/order-success?orderId=${response.data.data.orderId}`);
+            router.push(`/order-success?orderId=${orderIdParam}`);
           }, 2000);
         } else {
+          console.error("Non-2xx response status:", response.status);
           setStatus("error");
           toast.error("Thanh toán PayPal thất bại");
         }
