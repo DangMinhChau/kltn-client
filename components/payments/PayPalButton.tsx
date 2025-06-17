@@ -7,14 +7,16 @@ import { Loader2 } from "lucide-react";
 
 interface PayPalButtonProps {
   amount: number;
-  orderId: string;
-  onSuccess: () => void;
+  orderId?: string;
+  orderData?: any;
+  onSuccess: (orderId?: string) => void;
   onError: (error: any) => void;
 }
 
 export default function PayPalButton({
   amount,
   orderId,
+  orderData,
   onSuccess,
   onError,
 }: PayPalButtonProps) {
@@ -32,6 +34,30 @@ export default function PayPalButton({
         headers.Authorization = `Bearer ${token}`;
       }
 
+      // If orderData is provided, create order first, then create PayPal order
+      let orderIdToUse = orderId;
+
+      if (orderData && !orderId) {
+        // Create order first
+        const orderResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/orders`,
+          {
+            method: "POST",
+            headers,
+            body: JSON.stringify(orderData),
+          }
+        );
+
+        if (!orderResponse.ok) {
+          const errorData = await orderResponse.json().catch(() => ({}));
+          throw new Error(errorData.message || "Failed to create order");
+        }
+
+        const orderResult = await orderResponse.json();
+        orderIdToUse = orderResult.data?.id || orderResult.id;
+        console.log("Order created:", orderIdToUse);
+      }
+
       // Create PayPal order on backend
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/payments/paypal/create-order`,
@@ -39,7 +65,7 @@ export default function PayPalButton({
           method: "POST",
           headers,
           body: JSON.stringify({
-            orderId: orderId,
+            orderId: orderIdToUse,
             amount: amount,
             currency: "VND",
           }),

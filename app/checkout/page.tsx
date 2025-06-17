@@ -61,7 +61,6 @@ function CheckoutContent() {
     useState<VoucherValidationResult | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [loading, setLoading] = useState(false);
-  const [orderCreated, setOrderCreated] = useState<any>(null);
   const [autoApplyingVoucher, setAutoApplyingVoucher] = useState(false);
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
     customerName: user?.fullName || "",
@@ -165,13 +164,10 @@ function CheckoutContent() {
       // Only include userId if user is authenticated
       if (user?.id) {
         orderData.userId = user.id;
-      }
-
-      const response = await orderApi.createOrder(orderData);
+      }      const response = await orderApi.createOrder(orderData);
       const order = response.data || response;
-      console.log("Order created successfully:", order);
 
-      setOrderCreated(order); // Handle payment based on selected method
+      // Handle payment based on selected method
       if (paymentMethod === "cash") {
         // Create COD payment record
         const paymentHeaders: Record<string, string> = {
@@ -204,11 +200,10 @@ function CheckoutContent() {
         await clearCart();
         router.push(
           `/checkout/success?orderNumber=${order.orderNumber || order.id}`
-        );
-      } else if (paymentMethod === "paypal") {
+        );      } else if (paymentMethod === "paypal") {
         // PayPal payment will be handled by PayPalButton component
-        setLoading(false); // Stop loading to show PayPal button
-        toast.success("Đơn hàng đã được tạo! Vui lòng thanh toán qua PayPal.");
+        setLoading(false);
+        toast.info("Vui lòng hoàn tất thanh toán qua PayPal.");
       }
     } catch (error: any) {
       const errorMessage =
@@ -219,19 +214,11 @@ function CheckoutContent() {
       setLoading(false);
     }
   };
-
-  const handlePayPalSuccess = async () => {
+  const handlePayPalSuccess = async (orderId?: string) => {
     toast.success("Thanh toán PayPal thành công!");
     await clearCart();
-    router.push(
-      `/checkout/success?orderNumber=${
-        orderCreated?.orderNumber || orderCreated?.id
-      }`
-    );
-    setLoading(false);
-  };
-
-  const handlePayPalError = (error: any) => {
+    router.push(`/checkout/success?orderNumber=${orderId}`);
+  };  const handlePayPalError = (error: any) => {
     console.error("PayPal payment error:", error);
     toast.error("Lỗi thanh toán PayPal. Vui lòng thử lại.");
     setLoading(false);
@@ -329,8 +316,7 @@ function CheckoutContent() {
       } else {
         toast.error("Chưa cấu hình PayPal Client ID");
       }
-    } catch (error) {
-      toast.error("Lỗi kết nối PayPal");
+    } catch (error) {      toast.error("Lỗi kết nối PayPal");
     }
   };
 
@@ -623,9 +609,7 @@ function CheckoutContent() {
                 <Button
                   onClick={handlePlaceOrder}
                   disabled={
-                    loading ||
-                    items.length === 0 ||
-                    (paymentMethod === "paypal" && orderCreated)
+                    loading || items.length === 0 || paymentMethod === "paypal"
                   }
                   className="w-full"
                   size="lg"
@@ -633,26 +617,37 @@ function CheckoutContent() {
                   {loading ? (
                     <div className="flex items-center">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      {paymentMethod === "paypal"
-                        ? "Đang tạo đơn hàng..."
-                        : "Đang xử lý..."}
+                      "Đang xử lý..."
                     </div>
                   ) : paymentMethod === "paypal" ? (
-                    orderCreated ? (
-                      "Đơn hàng đã tạo"
-                    ) : (
-                      "Tạo đơn hàng"
-                    )
+                    "Vui lòng thanh toán qua PayPal"
                   ) : (
                     "Đặt hàng"
                   )}
                 </Button>
-                {/* PayPal Button - Show after order is created and PayPal is selected */}
-                {orderCreated && paymentMethod === "paypal" && (
+                {/* PayPal Button - Show when PayPal is selected */}
+                {paymentMethod === "paypal" && (
                   <div className="mt-4">
                     <PayPalButton
                       amount={finalTotal}
-                      orderId={orderCreated.id}
+                      orderData={{
+                        customerName: shippingForm.customerName,
+                        customerEmail: shippingForm.customerEmail,
+                        customerPhone: shippingForm.customerPhone,
+                        shippingAddress: shippingForm.shippingAddress,
+                        items: items.map((item) => ({
+                          variantId: item.variant.id,
+                          quantity: item.quantity,
+                          unitPrice: item.discountPrice || item.price,
+                        })),
+                        voucherId: appliedVoucher?.voucher?.id,
+                        subTotal: subtotal,
+                        shippingFee,
+                        discount,
+                        totalPrice: finalTotal,
+                        note: shippingForm.note,
+                        userId: user?.id,
+                      }}
                       onSuccess={handlePayPalSuccess}
                       onError={handlePayPalError}
                     />
