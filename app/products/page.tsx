@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { ProductFilters as ProductFiltersType } from "@/types";
 import ProductFilters from "@/components/common/ProductFilters";
+import { SearchBar } from "@/components/layout/SearchBar";
 import {
   ViewModeToggle,
   SortSelect,
-  ActiveFilters,
   ProductsPagination,
   ProductsGrid,
   ProductsSkeleton,
@@ -18,6 +18,10 @@ import {
   ViewMode,
 } from "@/components/products";
 import { useProducts } from "@/hooks/useProducts";
+import {
+  parseFiltersFromURL,
+  updateURLWithFilters,
+} from "@/lib/utils/filter-utils";
 
 function ProductsContent() {
   const searchParams = useSearchParams();
@@ -26,8 +30,8 @@ function ProductsContent() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  // Initialize filters with category from URL if present
-  const initialFilters = categoryFromUrl ? { category: categoryFromUrl } : {};
+  // Initialize filters from URL params
+  const initialFilters = parseFiltersFromURL(searchParams);
   const {
     products,
     isLoading,
@@ -45,28 +49,22 @@ function ProductsContent() {
 
   // Effect to handle URL params changes
   useEffect(() => {
-    if (categoryFromUrl && categoryFromUrl !== filters.category) {
-      setFilters((prev) => ({ ...prev, category: categoryFromUrl }));
+    const urlFilters = parseFiltersFromURL(searchParams);
+
+    // Only update if filters are different
+    const isDifferent = JSON.stringify(urlFilters) !== JSON.stringify(filters);
+    if (isDifferent) {
+      setFilters(urlFilters);
       setCurrentPage(1);
     }
-  }, [categoryFromUrl, filters.category, setFilters, setCurrentPage]);
+  }, [searchParams]);
 
-  const handleRemoveFilter = (filterKey: keyof ProductFiltersType) => {
-    setFilters((prev) => {
-      const newFilters = { ...prev };
-      delete newFilters[filterKey];
-      return newFilters;
-    });
-
-    // Update URL to remove category param if needed
-    if (filterKey === "category") {
-      window.history.pushState({}, "", "/products");
-    }
-  };
-
+  // Update URL when filters change
+  useEffect(() => {
+    updateURLWithFilters(filters);
+  }, [filters]);
   const handleClearAllFilters = () => {
     setFilters({});
-    window.history.pushState({}, "", "/products");
   }; // Debug pagination values
   console.log("🔍 Main Component Pagination Debug:", {
     currentPage,
@@ -127,15 +125,9 @@ function ProductsContent() {
                 <ViewModeToggle
                   viewMode={viewMode}
                   onViewModeChange={setViewMode}
-                />
+                />{" "}
               </div>
-            </div>{" "}
-            {/* Active filters display */}
-            <ActiveFilters
-              filters={filters}
-              onRemoveFilter={handleRemoveFilter}
-              onClearAllFilters={handleClearAllFilters}
-            />
+            </div>
           </div>
         </div>
       </div>{" "}

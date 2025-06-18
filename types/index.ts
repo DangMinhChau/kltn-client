@@ -260,49 +260,108 @@ export interface Order {
   id: string;
   orderNumber: string;
   status: OrderStatus;
-  totalAmount: number;
-  discountAmount?: number;
-  finalAmount: number;
-  shippingFee?: number;
-  paymentMethod: "COD" | "PAYPAL";
-  paymentStatus: PaymentStatus;
-  shippingAddress: Address;
-  orderItems: OrderItem[];
-  user?: User;
-  createdAt: string;
-  updatedAt: string;
-  // Additional properties for UI
+  subTotal: number;
+  shippingFee: number;
+  discount?: number;
+  totalAmount: number; // This should map to totalPrice from backend
+  totalPrice?: number; // Backend field name
+  note?: string;
   customerName?: string;
   customerEmail?: string;
-  totalPrice?: number;
+  customerPhone?: string;
+  shippingAddress?: any; // Full address object
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  canceledAt?: string;
+  orderedAt?: string;
+  // Relationships
   items?: OrderItem[];
+  orderItems?: OrderItem[]; // Alternative field name
   payment?: {
+    id: string;
+    method: string;
     status: PaymentStatus;
+    paidAt?: string;
   };
+  shipping?: {
+    id: string;
+    method: string;
+    status: string;
+    trackingNumber?: string;
+    estimatedDelivery?: string;
+    address?: {
+      fullName: string;
+      phone: string;
+      email?: string;
+      address: string;
+      ward: string;
+      district: string;
+      province: string;
+    };
+  };
+  user?: {
+    id: string;
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+  };
+  // Legacy fields for backward compatibility
+  paymentMethod?: "COD" | "PAYPAL";
+  paymentStatus?: PaymentStatus;
+  discountAmount?: number;
+  finalAmount?: number;
 }
 
 export interface OrderItem {
   id: string;
   quantity: number;
   unitPrice: number;
-  totalPrice: number;
-  productVariant: ProductVariant;
-  product: Product;
+  totalPrice?: number;
+  // Backend response structure
   productName?: string;
   variantSku?: string;
   colorName?: string;
   sizeName?: string;
+  // Full object structure (from relations)
+  variant?: {
+    id: string;
+    sku: string;
+    product: {
+      id: string;
+      name: string;
+      slug: string;
+    };
+    color?: {
+      id: string;
+      name: string;
+    };
+    size?: {
+      id: string;
+      name: string;
+    };
+    images?: Array<{
+      id: string;
+      url: string;
+    }>;
+  };
+  // Legacy fields for backward compatibility
+  productVariant?: ProductVariant;
+  product?: Product;
 }
 
 export enum OrderStatus {
   PENDING = "PENDING",
   CONFIRMED = "CONFIRMED",
-  PROCESSING = "PROCESSING",
-  SHIPPED = "SHIPPED",
+  PREPARING = "PREPARING", // Added to match backend
+  PROCESSING = "PROCESSING", // Keep for backward compatibility
+  SHIPPING = "SHIPPING", // Added to match backend
+  SHIPPED = "SHIPPED", // Keep for backward compatibility
   DELIVERED = "DELIVERED",
   COMPLETED = "COMPLETED",
   CANCELLED = "CANCELLED",
   RETURNED = "RETURNED",
+  REFUNDED = "REFUNDED", // Added to match backend
 }
 
 export enum PaymentStatus {
@@ -324,13 +383,13 @@ export interface OrderListItem {
 // Product Filter Types
 export interface ProductFilters {
   search?: string;
-  category?: string;
-  collection?: string;
-  color?: string;
-  size?: string;
-  material?: string;
-  style?: string;
-  tag?: string;
+  category?: string; // Single category selection only
+  collection?: string | string[]; // Support multiple collections
+  color?: string | string[]; // Support multiple colors
+  size?: string | string[]; // Support multiple sizes
+  material?: string | string[]; // Support multiple materials
+  style?: string | string[]; // Support multiple styles
+  tag?: string | string[]; // Support multiple tags
   minPrice?: number;
   maxPrice?: number;
   inStock?: boolean;

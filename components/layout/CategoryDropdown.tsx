@@ -57,21 +57,7 @@ const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
     <div className="w-full bg-background/98 backdrop-blur-sm border-t border-border/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Header with link to all products */}{" "}
-        <div className="text-center mb-6 lg:mb-8">
-          <Link
-            href="/products"
-            className={cn(
-              "inline-block text-lg lg:text-xl font-bold text-primary hover:text-primary/80",
-              "transition-all duration-200 py-2 lg:py-3 px-4 lg:px-6 rounded-lg hover:bg-primary/10",
-              "group"
-            )}
-          >
-            <span className="group-hover:scale-105 transition-transform duration-200 inline-block">
-              TẤT CẢ SẢN PHẨM
-            </span>
-          </Link>
-        </div>{" "}
-        {/* Categories Grid - Desktop optimized */}{" "}
+        {/* Categories Grid - Desktop optimized */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-6 lg:gap-8">
           {parentCategories.map((parentCategory) => (
             <div key={parentCategory.id} className="space-y-3 min-h-[200px]">

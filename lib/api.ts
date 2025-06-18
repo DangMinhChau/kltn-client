@@ -104,11 +104,39 @@ api.interceptors.response.use(
 
 // Product API
 export const productApi = {
+  // Helper function to transform filters for API
+  transformFiltersForAPI: (filters?: ProductFilters): Record<string, any> => {
+    if (!filters) return {};
+
+    const transformed: Record<string, any> = {};
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+
+      if (Array.isArray(value)) {
+        // Convert arrays to comma-separated strings for backend
+        transformed[key] = value.join(",");
+        console.log(
+          `🔄 Transforming array ${key}:`,
+          value,
+          "→",
+          transformed[key]
+        );
+      } else {
+        transformed[key] = value;
+      }
+    });
+
+    console.log("🔄 Final transformed filters:", transformed);
+    return transformed;
+  },
   // Get all products with filters (public endpoint)
   getProducts: async (
     filters?: ProductFilters
   ): Promise<PaginationResult<Product>> => {
-    const response = await api.get("/products", { params: filters });
+    console.log("🔍 getProducts called with filters:", filters);
+    const transformedFilters = productApi.transformFiltersForAPI(filters);
+    const response = await api.get("/products", { params: transformedFilters });
     const responseBody = response.data; // { message, data, meta }
 
     // Backend returns: { message, data: Product[], meta: { page, limit, total, totalPages, timestamp } }
@@ -177,17 +205,17 @@ export const productApi = {
     console.log("getSaleProducts processed result:", result);
     return result;
   },
-
   // Get products by category
   getProductsByCategory: async (
     categorySlug: string,
     filters?: ProductFilters
   ): Promise<PaginationResult<Product>> => {
+    const transformedFilters = productApi.transformFiltersForAPI({
+      category: categorySlug,
+      ...filters,
+    });
     const response = await api.get("/products", {
-      params: {
-        category: categorySlug,
-        ...filters,
-      },
+      params: transformedFilters,
     });
     const responseBody = response.data;
 
@@ -202,17 +230,17 @@ export const productApi = {
       },
     };
   },
-
   // Search products
   searchProducts: async (
     query: string,
     filters?: ProductFilters
   ): Promise<PaginationResult<Product>> => {
+    const transformedFilters = productApi.transformFiltersForAPI({
+      search: query,
+      ...filters,
+    });
     const response = await api.get("/products", {
-      params: {
-        search: query,
-        ...filters,
-      },
+      params: transformedFilters,
     });
     const responseBody = response.data;
 

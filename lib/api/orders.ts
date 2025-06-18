@@ -71,16 +71,18 @@ export const orderApi = {
     // Backend returns: { message, data: Order, meta: { timestamp } }
     return responseBody.data;
   },
-
   getUserOrders: async (params?: {
     page?: number;
     limit?: number;
     status?: string;
   }) => {
-    const response = await api.get("/orders/user", { params });
+    const response = await api.get("/orders/user/me", { params });
     const responseBody = response.data;
     // Backend returns: { message, data: Order[], meta: { page, total, etc } }
-    return responseBody.data;
+    return {
+      data: responseBody.data,
+      meta: responseBody.meta,
+    };
   },
 
   cancelOrder: async (orderId: string) => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/context/AuthContext";
 import { updateProfile } from "@/lib/api/auth";
 import { Button } from "@/components/ui/button";
@@ -70,7 +71,6 @@ export default function UserProfile() {
           <TabsTrigger value="security">Bảo mật</TabsTrigger>
           <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
         </TabsList>
-
         <TabsContent value="profile">
           <Card>
             <CardHeader>
@@ -126,8 +126,11 @@ export default function UserProfile() {
                       <Label className="flex items-center gap-2 text-sm font-medium">
                         <Shield className="h-4 w-4" />
                         Vai trò
-                      </Label>                      <div className="p-3 bg-gray-50 rounded-md">
-                        {user.role?.toUpperCase() === "ADMIN" ? "Quản trị viên" : "Khách hàng"}
+                      </Label>{" "}
+                      <div className="p-3 bg-gray-50 rounded-md">
+                        {user.role?.toUpperCase() === "ADMIN"
+                          ? "Quản trị viên"
+                          : "Khách hàng"}
                       </div>
                     </div>
 
@@ -208,7 +211,6 @@ export default function UserProfile() {
             </CardContent>
           </Card>
         </TabsContent>
-
         <TabsContent value="security">
           <Card>
             <CardHeader>
@@ -229,25 +231,24 @@ export default function UserProfile() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
+        </TabsContent>{" "}
         <TabsContent value="orders">
           <Card>
             <CardHeader>
               <CardTitle>Lịch sử đơn hàng</CardTitle>
               <CardDescription>
-                Xem và quản lý các đơn hàng của bạn
+                Xem chi tiết tất cả đơn hàng của bạn
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                Chưa có đơn hàng nào.
-                <a
-                  href="/products"
-                  className="text-blue-600 hover:underline ml-1"
-                >
-                  Bắt đầu mua sắm ngay!
-                </a>
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">
+                  Để xem chi tiết lịch sử đơn hàng, vui lòng truy cập trang đơn
+                  hàng chuyên dụng.
+                </p>
+                <Button asChild>
+                  <Link href="/orders">Xem tất cả đơn hàng</Link>
+                </Button>
               </div>
             </CardContent>
           </Card>

@@ -21,8 +21,18 @@ export const searchProducts = async (
   if (params.page) searchParams.append("page", params.page.toString());
   if (params.limit) searchParams.append("limit", params.limit.toString());
   if (params.category) searchParams.append("category", params.category);
-  if (params.color) searchParams.append("color", params.color);
-  if (params.size) searchParams.append("size", params.size);
+  if (params.color) {
+    const colorValue = Array.isArray(params.color)
+      ? params.color.join(",")
+      : params.color;
+    searchParams.append("color", colorValue);
+  }
+  if (params.size) {
+    const sizeValue = Array.isArray(params.size)
+      ? params.size.join(",")
+      : params.size;
+    searchParams.append("size", sizeValue);
+  }
   if (params.minPrice)
     searchParams.append("priceMin", params.minPrice.toString());
   if (params.maxPrice)

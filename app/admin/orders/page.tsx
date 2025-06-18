@@ -282,9 +282,19 @@ function AdminOrdersContent() {
         variant: "default",
         icon: CheckCircle,
       },
+      [OrderStatus.PREPARING]: {
+        label: "Preparing",
+        variant: "default",
+        icon: Package,
+      },
       [OrderStatus.PROCESSING]: {
         label: "Processing",
         variant: "default",
+        icon: Package,
+      },
+      [OrderStatus.SHIPPING]: {
+        label: "Shipping",
+        variant: "outline",
         icon: Package,
       },
       [OrderStatus.SHIPPED]: {
@@ -310,6 +320,11 @@ function AdminOrdersContent() {
       [OrderStatus.RETURNED]: {
         label: "Returned",
         variant: "outline",
+        icon: XCircle,
+      },
+      [OrderStatus.REFUNDED]: {
+        label: "Refunded",
+        variant: "secondary",
         icon: XCircle,
       },
     };

@@ -41,15 +41,9 @@ export function ProductFiltersComponent({
     filters.maxPrice || filterOptions?.priceRange?.max || 5000000,
   ]);
 
-  // State for expanded categories
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set()
-  );
-
   // Memoize sections array to prevent recreation on every render
   const initialSections = useMemo<FilterSection[]>(
     () => [
-      { id: "category", title: "Danh mục", isOpen: true },
       { id: "collections", title: "Bộ sưu tập", isOpen: false },
       { id: "colors", title: "Màu sắc", isOpen: true },
       { id: "sizes", title: "Kích thước", isOpen: true },
@@ -88,41 +82,7 @@ export function ProductFiltersComponent({
     );
   }, []);
 
-  // Toggle category expansion
-  const toggleCategoryExpansion = useCallback((categoryId: string) => {
-    setExpandedCategories((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(categoryId)) {
-        newSet.delete(categoryId);
-      } else {
-        newSet.add(categoryId);
-      }
-      return newSet;
-    });
-  }, []);
-  const handleCategoryChange = useCallback(
-    (categorySlug: string) => {
-      const newCategory =
-        filters.category === categorySlug ? undefined : categorySlug;      // When category changes, reset other filters to avoid conflicts
-      const newFilters: ProductFilters = {
-        category: newCategory,
-        // Keep search and price filters, reset others including size
-        search: filters.search,
-        minPrice: filters.minPrice,
-        maxPrice: filters.maxPrice,
-        // Reset size and other category-specific filters
-      };
-
-      console.log("🏷️ Category changed:", {
-        old: filters.category,
-        new: newCategory,
-      });
-      onFiltersChange(newFilters);
-    },
-    [filters, onFiltersChange]
-  );
-
-  const handleSingleFilterChange = useCallback(
+  const handleMultiFilterChange = useCallback(
     (
       filterType:
         | "collection"
@@ -133,12 +93,59 @@ export function ProductFiltersComponent({
         | "size",
       value: string
     ) => {
+      const currentValues = filters[filterType];
+      let newValues: string | string[] | undefined;
+
+      if (Array.isArray(currentValues)) {
+        // If current value is array, toggle the value
+        const valueIndex = currentValues.indexOf(value);
+        if (valueIndex > -1) {
+          // Remove value
+          newValues = currentValues.filter((v) => v !== value);
+          if (newValues.length === 0) {
+            newValues = undefined;
+          }
+        } else {
+          // Add value
+          newValues = [...currentValues, value];
+        }
+      } else if (currentValues === value) {
+        // If single value and same, remove it
+        newValues = undefined;
+      } else if (currentValues) {
+        // If single value and different, make it array with both values
+        newValues = [currentValues, value];
+      } else {
+        // If no current value, set as single value
+        newValues = value;
+      }
+
       onFiltersChange({
         ...filters,
-        [filterType]: filters[filterType] === value ? undefined : value,
+        [filterType]: newValues,
       });
     },
     [filters, onFiltersChange]
+  );
+
+  const isFilterSelected = useCallback(
+    (
+      filterType:
+        | "collection"
+        | "material"
+        | "style"
+        | "tag"
+        | "color"
+        | "size",
+      value: string
+    ) => {
+      const currentValues = filters[filterType];
+      if (Array.isArray(currentValues)) {
+        return currentValues.includes(value);
+      }
+      return currentValues === value;
+    },
+    [filters]
   );
 
   // Handle slider value change
@@ -166,13 +173,10 @@ export function ProductFiltersComponent({
     const backendMin = filterOptions?.priceRange?.min || 0;
     const backendMax = filterOptions?.priceRange?.max || 5000000;
     setSliderValues([backendMin, backendMax]);
-    setExpandedCategories(new Set());
   }, [onFiltersChange, filterOptions?.priceRange]);
   const removeFilter = useCallback(
     (filterType: string, value?: string) => {
-      if (filterType === "category") {
-        onFiltersChange({ ...filters, category: undefined });
-      } else if (filterType === "price") {
+      if (filterType === "price") {
         onFiltersChange({
           ...filters,
           minPrice: undefined,
@@ -189,24 +193,57 @@ export function ProductFiltersComponent({
         filterType === "color" ||
         filterType === "size"
       ) {
-        onFiltersChange({
-          ...filters,
-          [filterType]: undefined,
-        });
+        if (value) {
+          // Remove specific value from array
+          const currentValues = filters[filterType as keyof typeof filters];
+          if (Array.isArray(currentValues)) {
+            const newValues = currentValues.filter((v) => v !== value);
+            onFiltersChange({
+              ...filters,
+              [filterType]: newValues.length === 0 ? undefined : newValues,
+            });
+          } else if (currentValues === value) {
+            onFiltersChange({
+              ...filters,
+              [filterType]: undefined,
+            });
+          }
+        } else {
+          // Remove entire filter
+          onFiltersChange({
+            ...filters,
+            [filterType]: undefined,
+          });
+        }
       }
     },
-    [filters, onFiltersChange]
+    [filters, onFiltersChange, filterOptions?.priceRange]
   );
-
   const getActiveFiltersCount = useCallback(() => {
     let count = 0;
-    if (filters.category) count++;
-    if (filters.collection) count++;
-    if (filters.material) count++;
-    if (filters.style) count++;
-    if (filters.tag) count++;
-    if (filters.color) count++;
-    if (filters.size) count++;
+
+    // Count arrays properly
+    if (filters.collection) {
+      count += Array.isArray(filters.collection)
+        ? filters.collection.length
+        : 1;
+    }
+    if (filters.material) {
+      count += Array.isArray(filters.material) ? filters.material.length : 1;
+    }
+    if (filters.style) {
+      count += Array.isArray(filters.style) ? filters.style.length : 1;
+    }
+    if (filters.tag) {
+      count += Array.isArray(filters.tag) ? filters.tag.length : 1;
+    }
+    if (filters.color) {
+      count += Array.isArray(filters.color) ? filters.color.length : 1;
+    }
+    if (filters.size) {
+      count += Array.isArray(filters.size) ? filters.size.length : 1;
+    }
+
     if (filters.minPrice || filters.maxPrice) count++;
     return count;
   }, [filters]);
@@ -256,96 +293,203 @@ export function ProductFiltersComponent({
         {/* Active Filters */}
         {hasActiveFilters && (
           <div className="mb-6">
-            <h4 className="text-sm font-medium mb-3">Đang áp dụng:</h4>
+            <h4 className="text-sm font-medium mb-3">Đang áp dụng:</h4>{" "}
             <div className="flex flex-wrap gap-2">
-              {filters.category && (
-                <Badge variant="outline" className="gap-1">
-                  Danh mục:{" "}
-                  {filterOptions?.categories.find(
-                    (c) => c.slug === filters.category
-                  )?.name || filters.category}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 text-xs"
-                    onClick={() => removeFilter("category")}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              )}{" "}
+              {/* Collections */}
               {filters.collection && (
-                <Badge variant="outline" className="gap-1">
-                  {filterOptions?.collections.find(
-                    (c) => c.slug === filters.collection
-                  )?.name || filters.collection}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 text-xs"
-                    onClick={() => removeFilter("collection")}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
+                <>
+                  {Array.isArray(filters.collection) ? (
+                    filters.collection.map((collectionSlug) => (
+                      <Badge
+                        key={collectionSlug}
+                        variant="outline"
+                        className="gap-1"
+                      >
+                        {filterOptions?.collections.find(
+                          (c) => c.slug === collectionSlug
+                        )?.name || collectionSlug}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 text-xs"
+                          onClick={() =>
+                            removeFilter("collection", collectionSlug)
+                          }
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))
+                  ) : (
+                    <Badge variant="outline" className="gap-1">
+                      {filterOptions?.collections.find(
+                        (c) => c.slug === filters.collection
+                      )?.name || filters.collection}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        onClick={() => removeFilter("collection")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                </>
               )}
+              {/* Materials */}
               {filters.material && (
-                <Badge variant="outline" className="gap-1">
-                  {filterOptions?.materials.find(
-                    (m) => m.slug === filters.material
-                  )?.name || filters.material}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 text-xs"
-                    onClick={() => removeFilter("material")}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
+                <>
+                  {Array.isArray(filters.material) ? (
+                    filters.material.map((materialSlug) => (
+                      <Badge
+                        key={materialSlug}
+                        variant="outline"
+                        className="gap-1"
+                      >
+                        {filterOptions?.materials.find(
+                          (m) => m.slug === materialSlug
+                        )?.name || materialSlug}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 text-xs"
+                          onClick={() => removeFilter("material", materialSlug)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))
+                  ) : (
+                    <Badge variant="outline" className="gap-1">
+                      {filterOptions?.materials.find(
+                        (m) => m.slug === filters.material
+                      )?.name || filters.material}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        onClick={() => removeFilter("material")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                </>
               )}
+              {/* Styles */}
               {filters.style && (
-                <Badge variant="outline" className="gap-1">
-                  {filterOptions?.styles.find((s) => s.slug === filters.style)
-                    ?.name || filters.style}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 text-xs"
-                    onClick={() => removeFilter("style")}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              )}{" "}
+                <>
+                  {Array.isArray(filters.style) ? (
+                    filters.style.map((styleSlug) => (
+                      <Badge
+                        key={styleSlug}
+                        variant="outline"
+                        className="gap-1"
+                      >
+                        {filterOptions?.styles.find((s) => s.slug === styleSlug)
+                          ?.name || styleSlug}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 text-xs"
+                          onClick={() => removeFilter("style", styleSlug)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))
+                  ) : (
+                    <Badge variant="outline" className="gap-1">
+                      {filterOptions?.styles.find(
+                        (s) => s.slug === filters.style
+                      )?.name || filters.style}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        onClick={() => removeFilter("style")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                </>
+              )}
+              {/* Colors */}
               {filters.color && (
-                <Badge variant="outline" className="gap-1">
-                  {filterOptions?.colors.find((c) => c.code === filters.color)
-                    ?.name || filters.color}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 text-xs"
-                    onClick={() => removeFilter("color")}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
+                <>
+                  {Array.isArray(filters.color) ? (
+                    filters.color.map((colorCode) => (
+                      <Badge
+                        key={colorCode}
+                        variant="outline"
+                        className="gap-1"
+                      >
+                        {filterOptions?.colors.find((c) => c.code === colorCode)
+                          ?.name || colorCode}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 text-xs"
+                          onClick={() => removeFilter("color", colorCode)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))
+                  ) : (
+                    <Badge variant="outline" className="gap-1">
+                      {filterOptions?.colors.find(
+                        (c) => c.code === filters.color
+                      )?.name || filters.color}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        onClick={() => removeFilter("color")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                </>
               )}
+              {/* Sizes */}
               {filters.size && (
-                <Badge variant="outline" className="gap-1">
-                  {filterOptions?.sizes.find((s) => s.name === filters.size)
-                    ?.name || filters.size}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 text-xs"
-                    onClick={() => removeFilter("size")}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>{" "}
-                </Badge>
+                <>
+                  {Array.isArray(filters.size) ? (
+                    filters.size.map((sizeName) => (
+                      <Badge key={sizeName} variant="outline" className="gap-1">
+                        {filterOptions?.sizes.find((s) => s.name === sizeName)
+                          ?.name || sizeName}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-0 text-xs"
+                          onClick={() => removeFilter("size", sizeName)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))
+                  ) : (
+                    <Badge variant="outline" className="gap-1">
+                      {filterOptions?.sizes.find((s) => s.name === filters.size)
+                        ?.name || filters.size}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        onClick={() => removeFilter("size")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                </>
               )}
+              {/* Price Range */}
               {(filters.minPrice || filters.maxPrice) && (
                 <Badge variant="outline" className="gap-1">
                   Giá: {filters.minPrice?.toLocaleString() || "0"}đ -{" "}
@@ -365,111 +509,6 @@ export function ProductFiltersComponent({
           </div>
         )}{" "}
         <div className="space-y-6">
-          {" "}
-          {/* Categories - Only show when NOT filtering by category */}
-          {filterOptions?.categories && !categoryFromUrl && (
-            <div>
-              <Button
-                variant="ghost"
-                className="w-full justify-between p-0 h-auto text-left"
-                onClick={() => toggleSection("category")}
-              >
-                <span className="font-medium">Danh mục</span>
-                {sections.find((s) => s.id === "category")?.isOpen ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </Button>
-              {sections.find((s) => s.id === "category")?.isOpen && (
-                <div className="mt-3 space-y-1">
-                  {/* Group categories by parent */}
-                  {(() => {
-                    const parentCategories = filterOptions.categories.filter(
-                      (cat) => !cat.parent && !cat.parentId
-                    );
-                    const childCategories = filterOptions.categories.filter(
-                      (cat) => cat.parent || cat.parentId
-                    );
-
-                    return parentCategories.map((parentCategory) => {
-                      const children = childCategories.filter(
-                        (child) =>
-                          child.parentId === parentCategory.id ||
-                          child.parent?.id === parentCategory.id
-                      );
-                      const isExpanded = expandedCategories.has(
-                        parentCategory.id
-                      );
-
-                      return (
-                        <div key={parentCategory.id} className="space-y-1">
-                          {/* Parent Category - Non-selectable, clickable to expand */}
-                          <div
-                            className="flex items-center justify-between p-2 rounded cursor-pointer hover:bg-gray-50"
-                            onClick={() =>
-                              toggleCategoryExpansion(parentCategory.id)
-                            }
-                          >
-                            <div className="flex items-center space-x-2">
-                              <div className="w-4 h-4 flex items-center justify-center">
-                                {children.length > 0 &&
-                                  (isExpanded ? (
-                                    <ChevronUp className="h-3 w-3" />
-                                  ) : (
-                                    <ChevronDown className="h-3 w-3" />
-                                  ))}
-                              </div>
-                              <span className="text-sm font-medium text-gray-700">
-                                {parentCategory.name}
-                              </span>
-                            </div>
-                            <span className="text-xs text-gray-500">
-                              ({parentCategory.productCount || 0})
-                            </span>
-                          </div>
-
-                          {/* Child Categories - Selectable */}
-                          {isExpanded && children.length > 0 && (
-                            <div className="ml-6 space-y-1">
-                              {children.map((childCategory) => (
-                                <label
-                                  key={childCategory.slug}
-                                  className="flex items-center justify-between space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
-                                >
-                                  <div className="flex items-center space-x-2">
-                                    <input
-                                      type="radio"
-                                      name="category"
-                                      checked={
-                                        filters.category === childCategory.slug
-                                      }
-                                      onChange={() =>
-                                        handleCategoryChange(childCategory.slug)
-                                      }
-                                      className="rounded border-gray-300"
-                                    />
-                                    <span className="text-sm">
-                                      {childCategory.name}
-                                    </span>
-                                  </div>
-                                  <span className="text-xs text-gray-500">
-                                    ({childCategory.productCount || 0})
-                                  </span>
-                                </label>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              )}
-            </div>
-          )}
-          {/* Add separator only if categories section is shown */}
-          {filterOptions?.categories && !categoryFromUrl && <Separator />}
           {/* Collections */}
           {filterOptions?.collections &&
             filterOptions.collections.length > 0 && (
@@ -495,12 +534,15 @@ export function ProductFiltersComponent({
                           className="flex items-center justify-between space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
                         >
                           <div className="flex items-center space-x-2">
+                            {" "}
                             <input
-                              type="radio"
-                              name="collection"
-                              checked={filters.collection === collection.slug}
+                              type="checkbox"
+                              checked={isFilterSelected(
+                                "collection",
+                                collection.slug
+                              )}
                               onChange={() =>
-                                handleSingleFilterChange(
+                                handleMultiFilterChange(
                                   "collection",
                                   collection.slug
                                 )
@@ -542,12 +584,12 @@ export function ProductFiltersComponent({
                       <button
                         key={color.code}
                         className={`flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 relative ${
-                          filters.color === color.code
+                          isFilterSelected("color", color.code || "")
                             ? "ring-2 ring-blue-500"
                             : ""
                         }`}
                         onClick={() =>
-                          handleSingleFilterChange("color", color.code || "")
+                          handleMultiFilterChange("color", color.code || "")
                         }
                       >
                         <div
@@ -567,7 +609,8 @@ export function ProductFiltersComponent({
               </div>
               <Separator />
             </>
-          )}          {/* Sizes */}
+          )}{" "}
+          {/* Sizes */}
           <div>
             <Button
               variant="ghost"
@@ -593,12 +636,12 @@ export function ProductFiltersComponent({
                       <button
                         key={size.name}
                         className={`p-2 text-sm border rounded-md hover:bg-gray-50 transition-colors flex flex-col items-center ${
-                          filters.size === size.name
+                          isFilterSelected("size", size.name)
                             ? "border-blue-500 bg-blue-50 text-blue-700"
                             : "border-gray-300"
                         }`}
                         onClick={() =>
-                          handleSingleFilterChange("size", size.name)
+                          handleMultiFilterChange("size", size.name)
                         }
                       >
                         <span>{size.name}</span>
@@ -645,12 +688,15 @@ export function ProductFiltersComponent({
                         className="flex items-center justify-between space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
                       >
                         <div className="flex items-center space-x-2">
+                          {" "}
                           <input
-                            type="radio"
-                            name="material"
-                            checked={filters.material === material.slug}
+                            type="checkbox"
+                            checked={isFilterSelected(
+                              "material",
+                              material.slug || ""
+                            )}
                             onChange={() =>
-                              handleSingleFilterChange(
+                              handleMultiFilterChange(
                                 "material",
                                 material.slug || ""
                               )
@@ -695,15 +741,15 @@ export function ProductFiltersComponent({
                         className="flex items-center justify-between space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
                       >
                         <div className="flex items-center space-x-2">
+                          {" "}
                           <input
-                            type="radio"
-                            name="style"
-                            checked={filters.style === style.slug}
+                            type="checkbox"
+                            checked={isFilterSelected(
+                              "style",
+                              style.slug || ""
+                            )}
                             onChange={() =>
-                              handleSingleFilterChange(
-                                "style",
-                                style.slug || ""
-                              )
+                              handleMultiFilterChange("style", style.slug || "")
                             }
                             className="rounded border-gray-300"
                           />
@@ -744,12 +790,12 @@ export function ProductFiltersComponent({
                         className="flex items-center justify-between space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
                       >
                         <div className="flex items-center space-x-2">
+                          {" "}
                           <input
-                            type="radio"
-                            name="tag"
-                            checked={filters.tag === tag.slug}
+                            type="checkbox"
+                            checked={isFilterSelected("tag", tag.slug)}
                             onChange={() =>
-                              handleSingleFilterChange("tag", tag.slug)
+                              handleMultiFilterChange("tag", tag.slug)
                             }
                             className="rounded border-gray-300"
                           />
