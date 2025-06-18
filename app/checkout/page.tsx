@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/context/AuthContext";
-import { useCart } from "@/lib/context/UnifiedCartContext";
+import { useCart } from "@/lib/context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,13 +15,7 @@ import { formatPrice } from "@/lib/utils";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
-import PayPalProvider from "@/components/payments/PayPalProvider";
-import PayPalButton from "@/components/payments/PayPalButton";
-import { voucherApi } from "@/lib/api/orders";
-import {
-  EnhancedPayPalService,
-  PayPalOrderData,
-} from "@/lib/services/enhanced-paypal.service";
+import { orderApi, CreateOrderData } from "@/lib/api/orders";
 
 interface ShippingForm {
   customerName: string;
@@ -40,33 +34,32 @@ interface VoucherApplication {
 export default function CheckoutPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
-  const { items, totalAmount, clearCart, syncVariantData } = useCart();
+  const { items, totalAmount, clearCart, validateCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("COD");
   const [voucherCode, setVoucherCode] = useState("");
   const [appliedVoucher, setAppliedVoucher] =
     useState<VoucherApplication | null>(null);
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
-    customerName: user?.name || "",
+    customerName: user?.fullName || "",
     customerEmail: user?.email || "",
-    customerPhone: user?.phone || "",
+    customerPhone: user?.phoneNumber || "",
     shippingAddress: "",
     note: "",
   });
-
   // Sync variant data on page load
   useEffect(() => {
-    syncVariantData();
-  }, [syncVariantData]);
+    validateCart();
+  }, [validateCart]);
 
-  // Update form when user data loads
+  // Update form when user data loads  // Update form when user data loads
   useEffect(() => {
     if (user) {
       setShippingForm((prev) => ({
         ...prev,
-        customerName: user.name || prev.customerName,
+        customerName: user.fullName || prev.customerName,
         customerEmail: user.email || prev.customerEmail,
-        customerPhone: user.phone || prev.customerPhone,
+        customerPhone: user.phoneNumber || prev.customerPhone,
       }));
     }
   }, [user]);
@@ -154,12 +147,9 @@ export default function CheckoutPage() {
     if (!validateForm()) return;
 
     try {
-      setLoading(true);
-
-      // Sync variant data one more time before order creation
-      await syncVariantData();
-
-      const orderData: PayPalOrderData = {
+      setLoading(true); // Sync variant data one more time before order creation
+      await validateCart();
+      const orderData: CreateOrderData = {
         customerName: shippingForm.customerName.trim(),
         customerEmail: shippingForm.customerEmail.trim(),
         customerPhone: shippingForm.customerPhone.trim(),
@@ -169,45 +159,37 @@ export default function CheckoutPage() {
           quantity: item.quantity,
           unitPrice: item.discountPrice || item.price,
         })),
+        paymentMethod: paymentMethod as "COD" | "PAYPAL",
         subTotal: subtotal,
         shippingFee,
         discount,
         totalPrice: finalTotal,
         note: shippingForm.note?.trim() || "",
-        userId: user?.id || null,
+        voucherCode: appliedVoucher?.voucher?.code,
       };
-
       if (paymentMethod === "COD") {
-        // Handle COD payment using enhanced service
-        const result = await EnhancedPayPalService.createOrderWithFallback(
-          orderData,
-          {
-            fallbackToCOD: false, // Force COD
-            showSuccessToast: true,
-          }
-        );
+        // Handle COD payment
+        const result = await orderApi.createOrder(orderData);
 
-        // Clear cart and redirect
-        clearCart();
-        router.push(`/order-success?orderNumber=${result.orderId}`);
-      } else if (paymentMethod === "PAYPAL") {
-        // Handle PayPal payment using enhanced service
-        const result = await EnhancedPayPalService.createOrderWithFallback(
-          orderData,
-          {
-            fallbackToCOD: true,
-            autoRedirect: false,
-            showSuccessToast: false,
-          }
-        );
-
-        if (result.paymentMethod === "PAYPAL") {
-          // PayPal payment - let PayPalButton handle the flow
-          toast.success("Chuyển đến PayPal để thanh toán");
-        } else {
-          // Fallback to COD
+        if (result.success) {
+          toast.success("Đặt hàng thành công!");
           clearCart();
-          router.push(`/order-success?orderNumber=${result.orderId}`);
+          router.push(`/order-success?orderId=${result.order.id}`);
+        } else {
+          toast.error(result.message || "Có lỗi xảy ra khi đặt hàng");
+        }
+      } else if (paymentMethod === "PAYPAL") {
+        // Handle PayPal payment
+        const result = await orderApi.createPayPalOrder(orderData);
+
+        if (result.success && result.data) {
+          toast.success("Chuyển đến PayPal để thanh toán");
+          // Redirect to PayPal
+          window.location.href = result.data.approvalUrl;
+        } else {
+          toast.error(
+            result.message || "Có lỗi xảy ra khi tạo đơn hàng PayPal"
+          );
         }
       }
     } catch (error: any) {

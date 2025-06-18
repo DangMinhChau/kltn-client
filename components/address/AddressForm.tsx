@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { useVietnamLocations } from "@/hooks/useVietnamLocations";
+import { ghnApi, GHNProvince, GHNDistrict, GHNWard } from "@/lib/api/ghn";
 import {
   Address,
   CreateAddressRequest,
@@ -37,17 +37,56 @@ const AddressForm = ({ address, onSuccess, onCancel }: AddressFormProps) => {
     isDefault: false,
   });
   const [loading, setLoading] = useState(false);
+  const [provinces, setProvinces] = useState<GHNProvince[]>([]);
+  const [districts, setDistricts] = useState<GHNDistrict[]>([]);
+  const [wards, setWards] = useState<GHNWard[]>([]);
+  const [provincesLoading, setProvincesLoading] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingWards, setLoadingWards] = useState(false);
 
-  const {
-    provinces,
-    districts,
-    wards,
-    loading: provincesLoading,
-    loadingDistricts,
-    loadingWards,
-    loadDistricts,
-    loadWards,
-  } = useVietnamLocations();
+  // Load provinces on component mount
+  useEffect(() => {
+    const loadProvinces = async () => {
+      try {
+        setProvincesLoading(true);
+        const provincesData = await ghnApi.getProvinces();
+        setProvinces(provincesData);
+      } catch (error) {
+        console.error("Failed to load provinces:", error);
+        toast.error("Không thể tải danh sách tỉnh/thành phố");
+      } finally {
+        setProvincesLoading(false);
+      }
+    };
+    loadProvinces();
+  }, []);
+
+  const loadDistricts = async (provinceId: number) => {
+    try {
+      setLoadingDistricts(true);
+      const districtsData = await ghnApi.getDistricts(provinceId);
+      setDistricts(districtsData);
+      setWards([]); // Clear wards when province changes
+    } catch (error) {
+      console.error("Failed to load districts:", error);
+      toast.error("Không thể tải danh sách quận/huyện");
+    } finally {
+      setLoadingDistricts(false);
+    }
+  };
+
+  const loadWards = async (districtId: number) => {
+    try {
+      setLoadingWards(true);
+      const wardsData = await ghnApi.getWards(districtId);
+      setWards(wardsData);
+    } catch (error) {
+      console.error("Failed to load wards:", error);
+      toast.error("Không thể tải danh sách phường/xã");
+    } finally {
+      setLoadingWards(false);
+    }
+  };
 
   // Load form data when address prop changes
   useEffect(() => {
@@ -63,46 +102,49 @@ const AddressForm = ({ address, onSuccess, onCancel }: AddressFormProps) => {
       });
     }
   }, [address]);
-
   const handleProvinceChange = async (value: string) => {
-    const selectedProvince = provinces.find((p) => p.code.toString() === value);
+    const selectedProvince = provinces.find(
+      (p: GHNProvince) => p.ProvinceID.toString() === value
+    );
     if (selectedProvince) {
       setFormData((prev) => ({
         ...prev,
-        province: selectedProvince.name,
+        province: selectedProvince.ProvinceName,
         district: "",
         ward: "",
       }));
       try {
-        await loadDistricts(value);
+        await loadDistricts(selectedProvince.ProvinceID);
       } catch (error) {
-        toast.error("Failed to load districts");
+        toast.error("Không thể tải danh sách quận/huyện");
       }
     }
   };
 
   const handleDistrictChange = async (value: string) => {
-    const selectedDistrict = districts.find((d) => d.code.toString() === value);
+    const selectedDistrict = districts.find(
+      (d: GHNDistrict) => d.DistrictID.toString() === value
+    );
     if (selectedDistrict) {
       setFormData((prev) => ({
         ...prev,
-        district: selectedDistrict.name,
+        district: selectedDistrict.DistrictName,
         ward: "",
       }));
       try {
-        await loadWards(value);
+        await loadWards(selectedDistrict.DistrictID);
       } catch (error) {
-        toast.error("Failed to load wards");
+        toast.error("Không thể tải danh sách phường/xã");
       }
     }
   };
 
   const handleWardChange = (value: string) => {
-    const selectedWard = wards.find((w) => w.code.toString() === value);
+    const selectedWard = wards.find((w: GHNWard) => w.WardCode === value);
     if (selectedWard) {
       setFormData((prev) => ({
         ...prev,
-        ward: selectedWard.name,
+        ward: selectedWard.WardName,
       }));
     }
   };
@@ -209,12 +251,12 @@ const AddressForm = ({ address, onSuccess, onCancel }: AddressFormProps) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Province *</Label>
+          <Label className="text-sm font-medium">Province *</Label>{" "}
           <Select
             value={
               provinces
-                .find((p) => p.name === formData.province)
-                ?.code.toString() || ""
+                .find((p: GHNProvince) => p.ProvinceName === formData.province)
+                ?.ProvinceID.toString() || ""
             }
             onValueChange={handleProvinceChange}
             disabled={provincesLoading}
@@ -227,12 +269,12 @@ const AddressForm = ({ address, onSuccess, onCancel }: AddressFormProps) => {
               />
             </SelectTrigger>
             <SelectContent>
-              {provinces.map((province) => (
+              {provinces.map((province: GHNProvince) => (
                 <SelectItem
-                  key={province.code}
-                  value={province.code.toString()}
+                  key={province.ProvinceID}
+                  value={province.ProvinceID.toString()}
                 >
-                  {province.name}
+                  {province.ProvinceName}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -240,12 +282,12 @@ const AddressForm = ({ address, onSuccess, onCancel }: AddressFormProps) => {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm font-medium">District *</Label>
+          <Label className="text-sm font-medium">District *</Label>{" "}
           <Select
             value={
               districts
-                .find((d) => d.name === formData.district)
-                ?.code.toString() || ""
+                .find((d: GHNDistrict) => d.DistrictName === formData.district)
+                ?.DistrictID.toString() || ""
             }
             onValueChange={handleDistrictChange}
             disabled={!formData.province || loadingDistricts}
@@ -262,12 +304,12 @@ const AddressForm = ({ address, onSuccess, onCancel }: AddressFormProps) => {
               />
             </SelectTrigger>
             <SelectContent>
-              {districts.map((district) => (
+              {districts.map((district: GHNDistrict) => (
                 <SelectItem
-                  key={district.code}
-                  value={district.code.toString()}
+                  key={district.DistrictID}
+                  value={district.DistrictID.toString()}
                 >
-                  {district.name}
+                  {district.DistrictName}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -275,10 +317,11 @@ const AddressForm = ({ address, onSuccess, onCancel }: AddressFormProps) => {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Ward *</Label>
+          <Label className="text-sm font-medium">Ward *</Label>{" "}
           <Select
             value={
-              wards.find((w) => w.name === formData.ward)?.code.toString() || ""
+              wards.find((w: GHNWard) => w.WardName === formData.ward)
+                ?.WardCode || ""
             }
             onValueChange={handleWardChange}
             disabled={!formData.district || loadingWards}
@@ -295,9 +338,9 @@ const AddressForm = ({ address, onSuccess, onCancel }: AddressFormProps) => {
               />
             </SelectTrigger>
             <SelectContent>
-              {wards.map((ward) => (
-                <SelectItem key={ward.code} value={ward.code.toString()}>
-                  {ward.name}
+              {wards.map((ward: GHNWard) => (
+                <SelectItem key={ward.WardCode} value={ward.WardCode}>
+                  {ward.WardName}
                 </SelectItem>
               ))}
             </SelectContent>
