@@ -107,7 +107,6 @@ class GHNService {
       throw error;
     }
   }
-
   // Tính phí vận chuyển
   async calculateShippingFee(params: {
     to_province_id: number;
@@ -120,19 +119,24 @@ class GHNService {
     service_type_id?: number;
   }) {
     try {
+      // Use mock values appropriate for clothing/fashion items
+      const mockParams = {
+        service_type_id: params.service_type_id || 2, // Standard service
+        from_district_id: 1442, // Your shop district ID
+        to_district_id: params.to_district_id,
+        to_ward_code: params.to_ward_code,
+        height: Math.max(params.height || 5, 3), // Min 3cm, default 5cm for folded clothing
+        length: Math.max(params.length || 30, 20), // Min 20cm, default 30cm
+        weight: Math.max(params.weight || 500, 250), // Min 250g, default 500g for clothing
+        width: Math.max(params.width || 20, 15), // Min 15cm, default 20cm
+      };
+
+      console.log("GHN shipping calculation with mock params:", mockParams);
+
       const response = await fetch(`${GHN_API_BASE}/v2/shipping-order/fee`, {
         method: "POST",
         headers: this.headers,
-        body: JSON.stringify({
-          service_type_id: params.service_type_id || 2, // Standard service
-          from_district_id: 1442, // Your shop district ID
-          to_district_id: params.to_district_id,
-          to_ward_code: params.to_ward_code,
-          height: params.height,
-          length: params.length,
-          weight: params.weight,
-          width: params.width,
-        }),
+        body: JSON.stringify(mockParams),
       });
 
       const result = await response.json();

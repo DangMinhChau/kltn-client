@@ -81,7 +81,6 @@ class DirectGHNService {
       throw new Error("Không thể tải danh sách phường/xã");
     }
   }
-
   async calculateShippingFee(params: {
     to_district_id: number;
     to_ward_code: string;
@@ -91,20 +90,28 @@ class DirectGHNService {
     height?: number;
   }) {
     try {
+      // Use mock values appropriate for clothing/fashion items
+      const mockParams = {
+        service_type_id: 2, // Standard service
+        from_district_id: 1488, // Default from district (can be configured)
+        from_ward_code: "1A0107", // Default from ward (can be configured)
+        to_district_id: params.to_district_id,
+        to_ward_code: params.to_ward_code,
+        weight: Math.max(params.weight || 500, 250), // Min 250g, default 500g for clothing
+        length: params.length || 30, // 30cm for folded clothing
+        width: params.width || 20, // 20cm width
+        height: params.height || 5, // 5cm height for folded clothing
+        insurance_value: 0,
+      };
+
+      console.log(
+        "Direct GHN shipping calculation with mock params:",
+        mockParams
+      );
+
       const response = await this.makeRequest("/v2/shipping-order/fee", {
         method: "POST",
-        body: JSON.stringify({
-          service_type_id: 2, // Standard service
-          from_district_id: 1488, // Default from district (can be configured)
-          from_ward_code: "1A0107", // Default from ward (can be configured)
-          to_district_id: params.to_district_id,
-          to_ward_code: params.to_ward_code,
-          weight: params.weight,
-          length: params.length || 20,
-          width: params.width || 15,
-          height: params.height || 10,
-          insurance_value: 0,
-        }),
+        body: JSON.stringify(mockParams),
       });
       return response.data;
     } catch (error) {
