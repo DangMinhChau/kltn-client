@@ -16,14 +16,9 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { orderApi, CreateOrderData } from "@/lib/api/orders";
-
-interface ShippingForm {
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  shippingAddress: string;
-  note: string;
-}
+import { Address } from "@/lib/api/addresses";
+import { GuestAddressData } from "@/components/address/GuestAddressForm";
+import AddressSelector from "@/components/address/AddressSelector";
 
 interface VoucherApplication {
   voucher: any;
@@ -40,29 +35,13 @@ export default function CheckoutPage() {
   const [voucherCode, setVoucherCode] = useState("");
   const [appliedVoucher, setAppliedVoucher] =
     useState<VoucherApplication | null>(null);
-  const [shippingForm, setShippingForm] = useState<ShippingForm>({
-    customerName: user?.fullName || "",
-    customerEmail: user?.email || "",
-    customerPhone: user?.phoneNumber || "",
-    shippingAddress: "",
-    note: "",
-  });
-  // Sync variant data on page load
+  const [selectedAddress, setSelectedAddress] = useState<
+    Address | GuestAddressData | null
+  >(null);
+  const [orderNote, setOrderNote] = useState(""); // Sync variant data on page load
   useEffect(() => {
     validateCart();
   }, [validateCart]);
-
-  // Update form when user data loads  // Update form when user data loads
-  useEffect(() => {
-    if (user) {
-      setShippingForm((prev) => ({
-        ...prev,
-        customerName: user.fullName || prev.customerName,
-        customerEmail: user.email || prev.customerEmail,
-        customerPhone: user.phoneNumber || prev.customerPhone,
-      }));
-    }
-  }, [user]);
 
   // Redirect if cart is empty
   useEffect(() => {
@@ -70,14 +49,13 @@ export default function CheckoutPage() {
       router.push("/cart");
     }
   }, [items, router]);
-
   const subtotal = totalAmount;
   const shippingFee = 30000; // Fixed shipping fee
   const discount = appliedVoucher?.discount || 0;
   const finalTotal = Math.max(0, subtotal + shippingFee - discount);
 
-  const handleInputChange = (field: keyof ShippingForm, value: string) => {
-    setShippingForm((prev) => ({ ...prev, [field]: value }));
+  const handleAddressSelect = (address: Address | GuestAddressData) => {
+    setSelectedAddress(address);
   };
 
   const handleApplyVoucher = async () => {
@@ -123,37 +101,38 @@ export default function CheckoutPage() {
     setVoucherCode("");
     toast.success("Đã hủy voucher");
   };
-
   const validateForm = (): boolean => {
-    if (!shippingForm.customerName.trim()) {
-      toast.error("Vui lòng nhập họ tên");
+    if (!selectedAddress) {
+      toast.error("Vui lòng chọn địa chỉ giao hàng");
       return false;
     }
-    if (!shippingForm.customerEmail.trim()) {
-      toast.error("Vui lòng nhập email");
+    if (!selectedAddress.recipientName?.trim()) {
+      toast.error("Vui lòng nhập họ tên người nhận");
       return false;
     }
-    if (!shippingForm.customerPhone.trim()) {
-      toast.error("Vui lòng nhập số điện thoại");
+    if (!selectedAddress.phoneNumber?.trim()) {
+      toast.error("Vui lòng nhập số điện thoại người nhận");
       return false;
     }
-    if (!shippingForm.shippingAddress.trim()) {
+    if (!selectedAddress.streetAddress?.trim()) {
       toast.error("Vui lòng nhập địa chỉ giao hàng");
       return false;
     }
     return true;
   };
   const handleSubmitOrder = async () => {
-    if (!validateForm()) return;
+    if (!validateForm() || !selectedAddress) return;
 
     try {
       setLoading(true); // Sync variant data one more time before order creation
       await validateCart();
       const orderData: CreateOrderData = {
-        customerName: shippingForm.customerName.trim(),
-        customerEmail: shippingForm.customerEmail.trim(),
-        customerPhone: shippingForm.customerPhone.trim(),
-        shippingAddress: shippingForm.shippingAddress.trim(),
+        customerName: selectedAddress.recipientName.trim(),
+        customerEmail:
+          (selectedAddress as GuestAddressData).email || user?.email || "",
+        customerPhone: selectedAddress.phoneNumber.trim(),
+        shippingAddress:
+          `${selectedAddress.streetAddress}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.province}`.trim(),
         items: items.map((item) => ({
           variantId: item.variant.id,
           quantity: item.quantity,
@@ -164,7 +143,7 @@ export default function CheckoutPage() {
         shippingFee,
         discount,
         totalPrice: finalTotal,
-        note: shippingForm.note?.trim() || "",
+        note: orderNote?.trim() || "",
         voucherCode: appliedVoucher?.voucher?.code,
       };
       if (paymentMethod === "COD") {
@@ -314,75 +293,35 @@ export default function CheckoutPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Shipping Information */}
+          {" "}
+          {/* Address Selection */}
           <Card>
             <CardHeader>
-              <CardTitle>Thông tin giao hàng</CardTitle>
+              <CardTitle>Địa chỉ giao hàng</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Chọn địa chỉ giao hàng cho đơn hàng này
+              </p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="customerName">Họ và tên *</Label>
-                  <Input
-                    id="customerName"
-                    value={shippingForm.customerName}
-                    onChange={(e) =>
-                      handleInputChange("customerName", e.target.value)
-                    }
-                    placeholder="Nhập họ và tên"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="customerPhone">Số điện thoại *</Label>
-                  <Input
-                    id="customerPhone"
-                    value={shippingForm.customerPhone}
-                    onChange={(e) =>
-                      handleInputChange("customerPhone", e.target.value)
-                    }
-                    placeholder="Nhập số điện thoại"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="customerEmail">Email *</Label>
-                <Input
-                  id="customerEmail"
-                  type="email"
-                  value={shippingForm.customerEmail}
-                  onChange={(e) =>
-                    handleInputChange("customerEmail", e.target.value)
-                  }
-                  placeholder="Nhập địa chỉ email"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="shippingAddress">Địa chỉ giao hàng *</Label>
-                <Textarea
-                  id="shippingAddress"
-                  value={shippingForm.shippingAddress}
-                  onChange={(e) =>
-                    handleInputChange("shippingAddress", e.target.value)
-                  }
-                  placeholder="Nhập địa chỉ chi tiết để giao hàng"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="note">Ghi chú</Label>
-                <Textarea
-                  id="note"
-                  value={shippingForm.note}
-                  onChange={(e) => handleInputChange("note", e.target.value)}
-                  placeholder="Ghi chú đặc biệt cho đơn hàng (không bắt buộc)"
-                />
-              </div>
+            <CardContent>
+              <AddressSelector
+                onAddressSelect={handleAddressSelect}
+                selectedAddress={selectedAddress}
+              />
             </CardContent>
           </Card>
-
+          {/* Order Note */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Ghi chú đơn hàng</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={orderNote}
+                onChange={(e) => setOrderNote(e.target.value)}
+                placeholder="Ghi chú đặc biệt cho đơn hàng (không bắt buộc)"
+              />
+            </CardContent>
+          </Card>
           {/* Payment Method */}
           <Card>
             <CardHeader>
