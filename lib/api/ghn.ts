@@ -22,6 +22,13 @@ export interface GHNWard {
   WardName: string;
 }
 
+export interface GHNService {
+  service_id: number;
+  service_type_id: number;
+  short_name: string;
+  name: string;
+}
+
 export interface ShippingFeeParams {
   to_district_id: number;
   to_ward_code: string;
@@ -29,7 +36,7 @@ export interface ShippingFeeParams {
   length: number;
   width: number;
   height: number;
-  service_type_id?: number;
+  service_id?: number;
 }
 
 export interface ShippingFeeResult {
@@ -93,16 +100,18 @@ export const ghnApi = {
       return responseBody;
     }
   },
-
   // Lấy thông tin dịch vụ vận chuyển
   getServices: async (params: {
     to_district: number;
     from_district?: number;
-  }) => {
-    const response = await api.post("/ghn/services", params);
+  }): Promise<GHNService[]> => {
+    const response = await api.get("/ghn/services", {
+      params: { to_district: params.to_district },
+    });
     const responseBody = response.data;
+    console.log("GHN Services response:", responseBody);
     // Backend returns: { message, data: Service[], meta: { timestamp } }
-    return responseBody.data;
+    return responseBody.data || responseBody || [];
   },
 
   // Lấy thời gian giao hàng dự kiến

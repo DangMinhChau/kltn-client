@@ -248,7 +248,6 @@ export default function CheckoutPage() {
       );
       return;
     }
-
     setLoadingShippingFee(true);
     try {
       // Calculate total weight and dimensions from cart items
@@ -265,8 +264,29 @@ export default function CheckoutPage() {
         length: 20,
         width: 15,
         height: 10,
-        service_type_id: 2,
       });
+
+      // First get available services for this district
+      let serviceId: number | undefined;
+      try {
+        console.log("Getting available services for district:", districtId);
+        const services = await ghnApi.getServices({
+          to_district: districtId,
+        });
+        console.log("Available services:", services);
+
+        if (services && services.length > 0) {
+          // Use the first available service (typically standard service)
+          serviceId = services[0].service_id;
+          console.log(`Using service: ${services[0].name} (ID: ${serviceId})`);
+        }
+      } catch (serviceError) {
+        console.warn(
+          "Failed to get services, will let backend choose:",
+          serviceError
+        );
+        // Continue without service_id, backend will auto-select
+      }
 
       const result = await ghnApi.calculateShippingFee({
         to_district_id: districtId,
@@ -275,7 +295,7 @@ export default function CheckoutPage() {
         length: 20, // cm
         width: 15, // cm
         height: 10, // cm
-        service_type_id: 2, // Standard service
+        service_id: serviceId, // Use specific service_id instead of service_type_id
       });
 
       console.log("Shipping fee calculation result:", result);
